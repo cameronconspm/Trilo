@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Plus, Edit3, Target } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
 import Header from '@/components/Header';
@@ -9,13 +8,13 @@ import Button from '@/components/Button';
 import ProgressBar from '@/components/ProgressBar';
 import TransactionItem from '@/components/TransactionItem';
 import EmptyState from '@/components/EmptyState';
+import AddTransactionModal from '@/components/AddTransactionModal';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 
 export default function BudgetScreen() {
-  const router = useRouter();
   const { budget, transactions, isLoading } = useFinance();
-  const [showBudgetGoals, setShowBudgetGoals] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   
   const givenExpenses = transactions.filter(t => 
     t.type === 'expense' && 
@@ -144,9 +143,9 @@ export default function BudgetScreen() {
         {/* Quick Actions */}
         <View style={styles.quickActions}>
           <Button
-            title="Add Income"
-            onPress={() => router.push('/add-income')}
-            variant="outline"
+            title="Add Transaction"
+            onPress={() => setShowAddModal(true)}
+            variant="primary"
             size="medium"
             style={styles.actionButton}
           />
@@ -163,7 +162,7 @@ export default function BudgetScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Given Expenses</Text>
           <TouchableOpacity 
-            onPress={() => router.push('/add-expense')}
+            onPress={() => setShowAddModal(true)}
             style={styles.addButton}
             activeOpacity={0.7}
           >
@@ -192,7 +191,7 @@ export default function BudgetScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recurring Expenses</Text>
           <TouchableOpacity 
-            onPress={() => router.push('/add-expense')}
+            onPress={() => setShowAddModal(true)}
             style={styles.addButton}
             activeOpacity={0.7}
           >
@@ -221,7 +220,7 @@ export default function BudgetScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>One-Time Expenses</Text>
           <TouchableOpacity 
-            onPress={() => router.push('/add-expense')}
+            onPress={() => setShowAddModal(true)}
             style={styles.addButton}
             activeOpacity={0.7}
           >
@@ -246,6 +245,11 @@ export default function BudgetScreen() {
           )}
         </Card>
       </ScrollView>
+      
+      <AddTransactionModal 
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+      />
     </View>
   );
 }

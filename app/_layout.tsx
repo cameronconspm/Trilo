@@ -46,24 +46,6 @@ function RootLayoutNav() {
         <FinanceProvider>
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen 
-              name="add-expense" 
-              options={{ 
-                presentation: "modal",
-                headerShown: true,
-                title: "Add Expense",
-                headerBackTitle: "Cancel"
-              }} 
-            />
-            <Stack.Screen 
-              name="add-income" 
-              options={{ 
-                presentation: "modal",
-                headerShown: true,
-                title: "Add Income",
-                headerBackTitle: "Cancel"
-              }} 
-            />
           </Stack>
         </FinanceProvider>
       </SettingsProvider>

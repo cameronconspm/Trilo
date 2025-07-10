@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Plus } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import AddTransactionModal from '@/components/AddTransactionModal';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 
@@ -12,37 +12,32 @@ interface HeaderProps {
 }
 
 export default function Header({ title, subtitle, showAddButton = false }: HeaderProps) {
-  const router = useRouter();
-  
-  const handleAddPress = () => {
-    Alert.alert(
-      'Add Transaction',
-      'What would you like to add?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Add Expense', onPress: () => router.push('/add-expense') },
-        { text: 'Add Income', onPress: () => router.push('/add-income') },
-      ]
-    );
-  };
+  const [showModal, setShowModal] = useState(false);
   
   return (
-    <View style={styles.container}>
-      <View style={styles.textContainer}>
-        <Text style={styles.title}>{title}</Text>
-        {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+    <>
+      <View style={styles.container}>
+        <View style={styles.textContainer}>
+          <Text style={styles.title}>{title}</Text>
+          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+        </View>
+        
+        {showAddButton && (
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={() => setShowModal(true)}
+            activeOpacity={0.8}
+          >
+            <Plus size={24} color={Colors.background} strokeWidth={2.5} />
+          </TouchableOpacity>
+        )}
       </View>
       
-      {showAddButton && (
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={handleAddPress}
-          activeOpacity={0.8}
-        >
-          <Plus size={24} color={Colors.background} strokeWidth={2.5} />
-        </TouchableOpacity>
-      )}
-    </View>
+      <AddTransactionModal 
+        visible={showModal}
+        onClose={() => setShowModal(false)}
+      />
+    </>
   );
 }
 
