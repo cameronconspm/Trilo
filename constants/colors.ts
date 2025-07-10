@@ -16,15 +16,12 @@ const Colors = {
   overlay: "rgba(0, 0, 0, 0.05)",
   overlayLight: "rgba(0, 0, 0, 0.02)",
   
-  // Updated category colors - soft, eye-friendly, balanced for light/dark mode
+  // Updated category colors - simplified to 5 categories
   income: "#4CAF50",
-  billsUtilities: "#42A5F5",
-  subscriptions: "#AB47BC",
   debt: "#EF5350",
-  wants: "#FFA726",
-  needs: "#66BB6A",
-  savings: "#26A69A",
-  miscellaneous: "#78909C",
+  subscription: "#AB47BC",
+  bill: "#42A5F5",
+  oneTimeExpense: "#FFA726",
   
   // Shadow colors
   shadowColor: "rgba(0, 0, 0, 0.12)",

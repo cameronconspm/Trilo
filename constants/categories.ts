@@ -8,39 +8,24 @@ const categories: Category[] = [
     color: Colors.income,
   },
   {
-    id: 'savings',
-    name: 'Savings',
-    color: Colors.savings,
-  },
-  {
-    id: 'subscriptions',
-    name: 'Subscriptions',
-    color: Colors.subscriptions,
-  },
-  {
-    id: 'bills_utilities',
-    name: 'Bills & Utilities',
-    color: Colors.billsUtilities,
-  },
-  {
     id: 'debt',
     name: 'Debt',
     color: Colors.debt,
   },
   {
-    id: 'wants',
-    name: 'Wants',
-    color: Colors.wants,
+    id: 'subscription',
+    name: 'Subscription',
+    color: Colors.subscription,
   },
   {
-    id: 'needs',
-    name: 'Needs',
-    color: Colors.needs,
+    id: 'bill',
+    name: 'Bill',
+    color: Colors.bill,
   },
   {
-    id: 'miscellaneous',
-    name: 'Miscellaneous',
-    color: Colors.miscellaneous,
+    id: 'one_time_expense',
+    name: 'One-Time Expense',
+    color: Colors.oneTimeExpense,
   },
 ];
 

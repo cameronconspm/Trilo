@@ -11,7 +11,8 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView
+  SafeAreaView,
+  Alert
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
@@ -41,7 +42,7 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
   const [transactionType, setTransactionType] = useState<TransactionType>('expense');
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<CategoryType>('miscellaneous');
+  const [category, setCategory] = useState<CategoryType>('one_time_expense');
   const [isRecurring, setIsRecurring] = useState(false);
   
   // For expenses (day of month)
@@ -70,12 +71,14 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
       setCategory('income');
       setIsRecurring(true);
     } else {
-      setCategory('miscellaneous');
+      setCategory('one_time_expense');
       setIsRecurring(false);
     }
   }, [transactionType]);
   
   const handleSubmit = async () => {
+    console.log('Submit button pressed'); // Debug log
+    
     if (!name.trim()) {
       showAlert({
         title: 'Missing Information',
@@ -116,6 +119,17 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
         transactionDate = expenseDate.toISOString();
       }
 
+      console.log('Adding transaction:', {
+        name: name.trim(),
+        amount: numAmount,
+        category,
+        date: transactionDate,
+        type: transactionType,
+        isRecurring,
+        weekDay,
+        weekNumber,
+      }); // Debug log
+
       await addTransaction({
         name: name.trim(),
         amount: numAmount,
@@ -127,18 +141,23 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
         weekNumber,
       });
       
-      showAlert({
-        title: 'Success!',
-        message: `${transactionType === 'income' ? 'Income' : 'Expense'} added successfully!`,
-        type: 'success',
-        actions: [{ 
-          text: 'OK', 
-          onPress: () => {
-            onClose();
-          }
-        }],
-      });
+      console.log('Transaction added successfully'); // Debug log
+      
+      // Close modal immediately after successful save
+      onClose();
+      
+      // Show success message after modal is closed
+      setTimeout(() => {
+        showAlert({
+          title: 'Success!',
+          message: `${transactionType === 'income' ? 'Income' : 'Expense'} added successfully!`,
+          type: 'success',
+          actions: [{ text: 'OK', onPress: () => {} }],
+        });
+      }, 100);
+      
     } catch (error) {
+      console.error('Error adding transaction:', error); // Debug log
       showAlert({
         title: 'Error',
         message: `Failed to add ${transactionType}. Please try again.`,
@@ -391,7 +410,7 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
                 style={styles.cancelButton}
               />
               <Button
-                title={`Add ${transactionType === 'income' ? 'Income' : 'Expense'}`}
+                title={`Save ${transactionType === 'income' ? 'Income' : 'Expense'}`}
                 onPress={handleSubmit}
                 variant="primary"
                 size="large"

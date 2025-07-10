@@ -22,14 +22,13 @@ export default function BudgetScreen() {
   const givenExpenses = transactions.filter(t => 
     t.type === 'expense' && 
     !t.isRecurring && 
-    t.category !== 'miscellaneous' &&
-    t.category !== 'wants'
+    t.category !== 'one_time_expense'
   );
   
   const oneTimeExpenses = transactions.filter(t => 
     t.type === 'expense' && 
     !t.isRecurring && 
-    (t.category === 'miscellaneous' || t.category === 'wants')
+    t.category === 'one_time_expense'
   );
   
   const recurringExpenses = transactions.filter(t => 
@@ -187,7 +186,7 @@ export default function BudgetScreen() {
               <EmptyState 
                 icon="dollar"
                 title="No given expenses"
-                subtitle="Add essential expenses like rent, groceries, and utilities"
+                subtitle="Add essential expenses like bills, debt payments, and subscriptions"
               />
             )}
           </Card>
@@ -216,7 +215,7 @@ export default function BudgetScreen() {
               <EmptyState 
                 icon="trending"
                 title="No recurring expenses"
-                subtitle="Add subscriptions, bills, and regular payments"
+                subtitle="Add monthly subscriptions, bills, and regular payments"
               />
             )}
           </Card>

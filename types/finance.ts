@@ -2,13 +2,10 @@ export type TransactionType = 'income' | 'expense';
 
 export type CategoryType = 
   | 'income'
-  | 'savings'
-  | 'subscriptions'
-  | 'bills_utilities'
   | 'debt'
-  | 'wants'
-  | 'needs'
-  | 'miscellaneous';
+  | 'subscription'
+  | 'bill'
+  | 'one_time_expense';
 
 export interface Category {
   id: CategoryType;

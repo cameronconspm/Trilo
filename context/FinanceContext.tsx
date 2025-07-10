@@ -188,21 +188,19 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       return transactionDate >= startOfMonth && transactionDate <= endOfMonth;
     });
 
-    // Calculate total spent
+    // Calculate total spent (excluding income)
     const totalSpent = monthTransactions
-      .filter(t => t.type === 'expense' && t.category !== 'savings')
+      .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    // Calculate total saved
-    const totalSaved = monthTransactions
-      .filter(t => t.category === 'savings')
-      .reduce((sum, t) => sum + t.amount, 0);
+    // Calculate total saved (no longer a separate category, so set to 0)
+    const totalSaved = 0;
 
     // Find top spending category
     const spendingByCategory: Record<CategoryType, number> = {} as any;
     
     monthTransactions
-      .filter(t => t.type === 'expense' && t.category !== 'savings')
+      .filter(t => t.type === 'expense')
       .forEach(t => {
         if (!spendingByCategory[t.category]) {
           spendingByCategory[t.category] = 0;
@@ -233,10 +231,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       insights.push(`You've spent $${totalSpent.toFixed(2)} this month`);
     }
     
-    if (totalSaved > 0) {
-      insights.push(`Great job saving $${totalSaved.toFixed(2)} this month!`);
-    }
-    
     if (topAmount > 0) {
       insights.push(`Your top spending category is ${topCategory.name} at $${topAmount.toFixed(2)}`);
     }
@@ -247,16 +241,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       if (avgDailySpend > 50) {
         insights.push(`You're spending an average of $${avgDailySpend.toFixed(2)} per day`);
       }
-    }
-
-    // Add savings rate insight
-    const monthIncome = monthTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    if (monthIncome > 0 && totalSaved > 0) {
-      const savingsRate = (totalSaved / monthIncome) * 100;
-      insights.push(`You're saving ${savingsRate.toFixed(1)}% of your income`);
     }
 
     // Add weekly income insights
@@ -304,7 +288,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         const transactionDate = new Date(t.date);
         return t.type === 'expense' && 
                !t.isRecurring && 
-               (t.category === 'miscellaneous' || t.category === 'wants') &&
+               t.category === 'one_time_expense' &&
                transactionDate >= startOfMonth && 
                transactionDate <= endOfMonth;
       })
@@ -315,8 +299,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         const transactionDate = new Date(t.date);
         return t.type === 'expense' && 
                !t.isRecurring && 
-               t.category !== 'miscellaneous' &&
-               t.category !== 'wants' &&
+               t.category !== 'one_time_expense' &&
                transactionDate >= startOfMonth && 
                transactionDate <= endOfMonth;
       })
@@ -333,14 +316,23 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
-    const newTransaction: Transaction = {
-      ...transaction,
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-    };
+    try {
+      console.log('FinanceContext: Adding transaction', transaction); // Debug log
+      
+      const newTransaction: Transaction = {
+        ...transaction,
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      };
 
-    const updatedTransactions = [...transactions, newTransaction];
-    setTransactions(updatedTransactions);
-    await saveTransactions(updatedTransactions);
+      const updatedTransactions = [...transactions, newTransaction];
+      setTransactions(updatedTransactions);
+      await saveTransactions(updatedTransactions);
+      
+      console.log('FinanceContext: Transaction added successfully'); // Debug log
+    } catch (error) {
+      console.error('FinanceContext: Error adding transaction:', error);
+      throw error;
+    }
   };
 
   const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
