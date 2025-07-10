@@ -18,15 +18,16 @@ import { X } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
 import CategoryPicker from '@/components/CategoryPicker';
 import DayPicker from '@/components/DayPicker';
-import WeekDayPicker from '@/components/WeekDayPicker';
-import WeekNumberPicker from '@/components/WeekNumberPicker';
+import DatePicker from '@/components/DatePicker';
+import PayCadencePicker from '@/components/PayCadencePicker';
+import MonthlyDaysPicker from '@/components/MonthlyDaysPicker';
 import Button from '@/components/Button';
 import AlertModal from '@/components/AlertModal';
 import { useAlert } from '@/hooks/useAlert';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
-import { CategoryType, TransactionType } from '@/types/finance';
-import { calculateIncomeDate } from '@/utils/dateUtils';
+import { CategoryType, TransactionType, PayCadence, PaySchedule } from '@/types/finance';
+import { calculateNextPayDate } from '@/utils/payScheduleUtils';
 
 interface AddTransactionModalProps {
   visible: boolean;
@@ -48,9 +49,11 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
   // For expenses (day of month)
   const [selectedDay, setSelectedDay] = useState(new Date().getDate());
   
-  // For income (week and day)
-  const [selectedWeekDay, setSelectedWeekDay] = useState('friday');
-  const [selectedWeekNumber, setSelectedWeekNumber] = useState(2);
+  // For income (pay schedule)
+  const [lastPaidDate, setLastPaidDate] = useState(new Date());
+  const [payCadence, setPayCadence] = useState<PayCadence>('every_2_weeks');
+  const [monthlyDays, setMonthlyDays] = useState<number[]>([]);
+  const [customDays, setCustomDays] = useState<number[]>([]);
   
   const [isLoading, setIsLoading] = useState(false);
   
@@ -60,8 +63,10 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
       setName('');
       setAmount('');
       setSelectedDay(new Date().getDate());
-      setSelectedWeekDay('friday');
-      setSelectedWeekNumber(2);
+      setLastPaidDate(new Date());
+      setPayCadence('every_2_weeks');
+      setMonthlyDays([]);
+      setCustomDays([]);
       setIsLoading(false);
     }
   }, [visible]);
@@ -100,18 +105,47 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
       return;
     }
     
+    // Validate pay schedule for income
+    if (transactionType === 'income') {
+      if (payCadence === 'twice_monthly' && monthlyDays.length === 0) {
+        showAlert({
+          title: 'Missing Pay Days',
+          message: 'Please add at least one pay day for twice monthly schedule',
+          type: 'warning',
+          actions: [{ text: 'OK', onPress: () => {} }],
+        });
+        return;
+      }
+      
+      if (payCadence === 'custom' && customDays.length === 0) {
+        showAlert({
+          title: 'Missing Pay Days',
+          message: 'Please add at least one pay day for custom schedule',
+          type: 'warning',
+          actions: [{ text: 'OK', onPress: () => {} }],
+        });
+        return;
+      }
+    }
+    
     setIsLoading(true);
     
     try {
       let transactionDate: string;
-      let weekDay: string | undefined;
-      let weekNumber: number | undefined;
+      let paySchedule: PaySchedule | undefined;
       
       if (transactionType === 'income') {
-        // Calculate date from week and day
-        transactionDate = calculateIncomeDate(selectedWeekNumber, selectedWeekDay);
-        weekDay = selectedWeekDay;
-        weekNumber = selectedWeekNumber;
+        // Create pay schedule
+        paySchedule = {
+          cadence: payCadence,
+          lastPaidDate: lastPaidDate.toISOString(),
+          monthlyDays: payCadence === 'twice_monthly' ? monthlyDays : undefined,
+          customDays: payCadence === 'custom' ? customDays : undefined,
+        };
+        
+        // Calculate next pay date
+        const nextPayDate = calculateNextPayDate(paySchedule);
+        transactionDate = nextPayDate.toISOString();
       } else {
         // Use day of month for expenses
         const today = new Date();
@@ -126,8 +160,7 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
         date: transactionDate,
         type: transactionType,
         isRecurring,
-        weekDay,
-        weekNumber,
+        paySchedule,
       }); // Debug log
 
       await addTransaction({
@@ -137,8 +170,7 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
         date: transactionDate,
         type: transactionType,
         isRecurring,
-        weekDay,
-        weekNumber,
+        paySchedule,
       });
       
       console.log('Transaction added successfully'); // Debug log
@@ -195,6 +227,32 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
       return parts[0] + '.' + parts[1].substring(0, 2);
     }
     return cleaned;
+  };
+
+  const renderPayScheduleInputs = () => {
+    if (payCadence === 'twice_monthly') {
+      return (
+        <MonthlyDaysPicker
+          selectedDays={monthlyDays}
+          onDaysChange={setMonthlyDays}
+          maxDays={2}
+          label="Pay Days (Twice Monthly)"
+        />
+      );
+    }
+    
+    if (payCadence === 'custom') {
+      return (
+        <MonthlyDaysPicker
+          selectedDays={customDays}
+          onDaysChange={setCustomDays}
+          maxDays={10}
+          label="Custom Pay Days"
+        />
+      );
+    }
+    
+    return null;
   };
 
   return (
@@ -326,35 +384,22 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
                 />
               )}
               
-              {/* Date/Time Selection */}
+              {/* Date/Schedule Selection */}
               {transactionType === 'income' ? (
                 <View style={styles.formGroup}>
-                  <Text style={[styles.label, styles.incomeLabel]}>
-                    Income Schedule *
-                  </Text>
-                  <Text style={styles.scheduleSubtitle}>
-                    Choose when you receive this income each month
-                  </Text>
+                  <DatePicker
+                    selectedDate={lastPaidDate}
+                    onDateSelect={setLastPaidDate}
+                    label="Most Recent Pay Date"
+                    maximumDate={new Date()}
+                  />
                   
-                  <View style={styles.weekPickerContainer}>
-                    <View style={styles.weekPickerRow}>
-                      <View style={styles.weekPickerItem}>
-                        <Text style={styles.weekPickerLabel}>Week</Text>
-                        <WeekNumberPicker
-                          selectedWeek={selectedWeekNumber}
-                          onWeekSelect={setSelectedWeekNumber}
-                        />
-                      </View>
-                      
-                      <View style={styles.weekPickerItem}>
-                        <Text style={styles.weekPickerLabel}>Day</Text>
-                        <WeekDayPicker
-                          selectedDay={selectedWeekDay}
-                          onDaySelect={setSelectedWeekDay}
-                        />
-                      </View>
-                    </View>
-                  </View>
+                  <PayCadencePicker
+                    selectedCadence={payCadence}
+                    onCadenceSelect={setPayCadence}
+                  />
+                  
+                  {renderPayScheduleInputs()}
                 </View>
               ) : (
                 <View style={styles.formGroup}>
@@ -380,7 +425,7 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
                   <Text style={styles.switchSubtitle}>
                     {transactionType === 'income' 
                       ? (isRecurring 
-                          ? 'This income repeats monthly (salary, pension)' 
+                          ? 'This income repeats based on your pay schedule' 
                           : 'One-time income (bonus, gift, freelance project)')
                       : (isRecurring 
                           ? 'This expense repeats monthly (subscriptions, bills)' 
@@ -564,35 +609,6 @@ const styles = StyleSheet.create({
     paddingLeft: 0,
     fontSize: 17,
     color: Colors.text,
-  },
-  scheduleSubtitle: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.lg,
-    fontWeight: '500',
-    lineHeight: 20,
-  },
-  weekPickerContainer: {
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    borderWidth: 2,
-    borderColor: Colors.income,
-    ...Shadow.light,
-  },
-  weekPickerRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  weekPickerItem: {
-    flex: 1,
-  },
-  weekPickerLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.income,
-    marginBottom: Spacing.sm,
-    letterSpacing: -0.1,
   },
   switchContainer: {
     flexDirection: 'row',

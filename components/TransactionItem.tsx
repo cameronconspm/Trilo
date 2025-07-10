@@ -8,7 +8,7 @@ import { useFinance } from '@/context/FinanceContext';
 import { useAlert } from '@/hooks/useAlert';
 import AlertModal from '@/components/AlertModal';
 import categories from '@/constants/categories';
-import { formatWeekAndDay } from '@/utils/dateUtils';
+import { formatPaySchedule } from '@/utils/payScheduleUtils';
 
 interface TransactionItemProps {
   transaction: Transaction;
@@ -23,7 +23,7 @@ export default function TransactionItem({
 }: TransactionItemProps) {
   const { deleteTransaction } = useFinance();
   const { alertState, showAlert, hideAlert } = useAlert();
-  const { name, amount, date, category, isRecurring, type, weekDay, weekNumber } = transaction;
+  const { name, amount, date, category, isRecurring, type, paySchedule, weekDay, weekNumber } = transaction;
   const categoryInfo = categories.find(c => c.id === category) || categories[0];
   
   // Format date
@@ -34,11 +34,15 @@ export default function TransactionItem({
   
   let formattedDate;
   
-  // For income with weekly schedule, show the schedule format
-  if (type === 'income' && weekDay && weekNumber) {
-    formattedDate = formatWeekAndDay(weekNumber, weekDay);
+  // For income with pay schedule, show the schedule format
+  if (type === 'income' && paySchedule) {
+    formattedDate = formatPaySchedule(paySchedule);
+  } else if (type === 'income' && weekDay && weekNumber) {
+    // Legacy format
+    const capitalizedDay = weekDay.charAt(0).toUpperCase() + weekDay.slice(1);
+    formattedDate = `Week ${weekNumber} ${capitalizedDay}`;
   } else {
-    // For expenses or income without weekly schedule, show regular date
+    // For expenses or income without schedule, show regular date
     if (isToday) {
       formattedDate = 'Today';
     } else if (isFuture) {
@@ -99,7 +103,7 @@ export default function TransactionItem({
             <Text style={[
               styles.date, 
               isFuture && styles.futureDate,
-              type === 'income' && weekDay && weekNumber && styles.incomeSchedule
+              type === 'income' && styles.incomeSchedule
             ]}>
               {formattedDate}
             </Text>

@@ -7,11 +7,27 @@ export type CategoryType =
   | 'bill'
   | 'one_time_expense';
 
+export type PayCadence = 
+  | 'weekly'
+  | 'every_2_weeks'
+  | 'twice_monthly'
+  | 'monthly'
+  | 'custom';
+
 export interface Category {
   id: CategoryType;
   name: string;
   color: string;
   icon?: string;
+}
+
+export interface PaySchedule {
+  cadence: PayCadence;
+  lastPaidDate: string; // ISO string
+  // For twice_monthly: two day numbers (e.g., [7, 23])
+  monthlyDays?: number[];
+  // For custom: array of day numbers
+  customDays?: number[];
 }
 
 export interface Transaction {
@@ -22,9 +38,11 @@ export interface Transaction {
   category: CategoryType;
   type: TransactionType;
   isRecurring: boolean;
-  // Weekly income specific fields
-  weekDay?: string; // 'monday', 'tuesday', etc. (only for income)
-  weekNumber?: number; // 1, 2, 3, 4 (only for income)
+  // New pay schedule for income
+  paySchedule?: PaySchedule;
+  // Legacy fields (kept for backward compatibility)
+  weekDay?: string;
+  weekNumber?: number;
 }
 
 export interface Budget {

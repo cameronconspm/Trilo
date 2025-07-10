@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Transaction, WeeklyOverview, MonthlyInsights, Budget, CategoryType } from '@/types/finance';
 import categories from '@/constants/categories';
-import { calculateIncomeDate, formatWeekAndDay } from '@/utils/dateUtils';
+import { getPayDatesInRange, getWeeklyIncomeAmount, formatPaySchedule } from '@/utils/payScheduleUtils';
 
 interface FinanceContextType {
   transactions: Transaction[];
@@ -123,16 +123,22 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
 
-    // Filter transactions for current week
-    const weekTransactions = transactions.filter(t => {
-      const transactionDate = new Date(t.date);
-      return transactionDate >= startOfWeek && transactionDate <= endOfWeek;
+    // Calculate week income using pay schedules
+    let weekIncome = 0;
+    const incomeTransactions = transactions.filter(t => t.type === 'income');
+    
+    incomeTransactions.forEach(transaction => {
+      if (transaction.paySchedule) {
+        // Use new pay schedule system
+        weekIncome += getWeeklyIncomeAmount(transaction.paySchedule, transaction.amount, startOfWeek, endOfWeek);
+      } else if (transaction.weekDay && transaction.weekNumber) {
+        // Legacy system - calculate if this week matches
+        const transactionDate = new Date(transaction.date);
+        if (transactionDate >= startOfWeek && transactionDate <= endOfWeek) {
+          weekIncome += transaction.amount;
+        }
+      }
     });
-
-    // Calculate week income
-    const weekIncome = weekTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
 
     // Calculate upcoming expenses (future transactions this week)
     const upcomingExpenses = transactions
@@ -143,8 +149,13 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     // Calculate past expenses this week
-    const pastExpenses = weekTransactions
-      .filter(t => t.type === 'expense' && new Date(t.date) <= today)
+    const pastExpenses = transactions
+      .filter(t => {
+        const transactionDate = new Date(t.date);
+        return t.type === 'expense' && 
+               transactionDate >= startOfWeek && 
+               transactionDate <= today;
+      })
       .reduce((sum, t) => sum + t.amount, 0);
 
     // Calculate remaining balance
@@ -158,8 +169,13 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     // Calculate contributions by category (past expenses only)
     const contributions: Record<CategoryType, { total: number; count: number }> = {} as any;
     
-    weekTransactions
-      .filter(t => t.type === 'expense' && new Date(t.date) <= today)
+    transactions
+      .filter(t => {
+        const transactionDate = new Date(t.date);
+        return t.type === 'expense' && 
+               transactionDate >= startOfWeek && 
+               transactionDate <= today;
+      })
       .forEach(t => {
         if (!contributions[t.category]) {
           contributions[t.category] = { total: 0, count: 0 };
@@ -243,16 +259,13 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Add weekly income insights
-    const weeklyIncomeTransactions = monthTransactions.filter(t => 
-      t.type === 'income' && t.weekDay && t.weekNumber
-    );
-    
-    if (weeklyIncomeTransactions.length > 0) {
-      const incomeSchedules = weeklyIncomeTransactions.map(t => 
-        formatWeekAndDay(t.weekNumber!, t.weekDay!)
+    // Add pay schedule insights
+    const incomeTransactions = transactions.filter(t => t.type === 'income' && t.paySchedule);
+    if (incomeTransactions.length > 0) {
+      const scheduleDescriptions = incomeTransactions.map(t => 
+        formatPaySchedule(t.paySchedule!)
       );
-      insights.push(`Income scheduled for: ${incomeSchedules.join(', ')}`);
+      insights.push(`Income schedules: ${scheduleDescriptions.join(', ')}`);
     }
 
     setMonthlyInsights({
@@ -268,10 +281,24 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const calculateBudget = () => {
-    // Calculate monthly income from recurring income transactions
-    const monthlyIncome = transactions
-      .filter(t => t.type === 'income' && t.isRecurring)
-      .reduce((sum, t) => sum + t.amount, 0);
+    // Calculate monthly income from pay schedules
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    let monthlyIncome = 0;
+    const incomeTransactions = transactions.filter(t => t.type === 'income' && t.isRecurring);
+    
+    incomeTransactions.forEach(transaction => {
+      if (transaction.paySchedule) {
+        // Use new pay schedule system
+        const payDates = getPayDatesInRange(transaction.paySchedule, startOfMonth, endOfMonth);
+        monthlyIncome += payDates.length * transaction.amount;
+      } else {
+        // Legacy system - assume monthly
+        monthlyIncome += transaction.amount;
+      }
+    });
 
     // Calculate recurring expenses
     const recurringExpenses = transactions
@@ -279,10 +306,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       .reduce((sum, t) => sum + t.amount, 0);
 
     // Calculate one-time expenses for current month
-    const today = new Date();
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    
     const oneTimeExpenses = transactions
       .filter(t => {
         const transactionDate = new Date(t.date);
@@ -368,7 +391,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       const exportData = {
         transactions,
         exportDate: new Date().toISOString(),
-        version: '1.0',
+        version: '2.0', // Updated version for new pay schedule system
       };
       return JSON.stringify(exportData, null, 2);
     } catch (error) {
