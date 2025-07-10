@@ -10,7 +10,8 @@ import {
   ScrollView,
   Dimensions,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  SafeAreaView
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
@@ -177,261 +178,233 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
     return cleaned;
   };
 
-  if (!visible) {
-    return (
-      <>
-        <AlertModal
-          visible={alertState.visible}
-          title={alertState.title}
-          message={alertState.message}
-          type={alertState.type}
-          actions={alertState.actions}
-          onClose={hideAlert}
-        />
-      </>
-    );
-  }
-  
   return (
     <>
       <Modal
         visible={visible}
-        transparent={true}
-        animationType="fade"
+        animationType="slide"
+        presentationStyle="pageSheet"
         onRequestClose={handleClose}
-        statusBarTranslucent={true}
       >
-        {/* Backdrop */}
-        <View style={styles.backdrop}>
-          <TouchableOpacity 
-            style={styles.backdropTouchable}
-            activeOpacity={1}
-            onPress={handleClose}
-          />
-          
-          {/* Modal Container */}
-          <View style={styles.modalWrapper}>
-            <View style={styles.modalContainer}>
-              <KeyboardAvoidingView 
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.keyboardView}
+        <SafeAreaView style={styles.safeArea}>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.container}
+          >
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.title}>Add Transaction</Text>
+              <TouchableOpacity 
+                onPress={handleClose}
+                style={styles.closeButton}
+                activeOpacity={0.7}
               >
-                {/* Header */}
-                <View style={styles.header}>
-                  <Text style={styles.title}>Add Transaction</Text>
-                  <TouchableOpacity 
-                    onPress={handleClose}
-                    style={styles.closeButton}
-                    activeOpacity={0.7}
-                  >
-                    <X size={24} color={Colors.textSecondary} strokeWidth={2} />
-                  </TouchableOpacity>
-                </View>
-                
-                <ScrollView 
-                  style={styles.content}
-                  showsVerticalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
-                  contentContainerStyle={styles.scrollContent}
+                <X size={24} color={Colors.textSecondary} strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView 
+              style={styles.content}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.scrollContent}
+            >
+              {/* Transaction Type Toggle */}
+              <View style={styles.typeToggle}>
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    transactionType === 'expense' && styles.typeButtonActive
+                  ]}
+                  onPress={() => setTransactionType('expense')}
+                  activeOpacity={0.8}
                 >
-                  {/* Transaction Type Toggle */}
-                  <View style={styles.typeToggle}>
-                    <TouchableOpacity
-                      style={[
-                        styles.typeButton,
-                        transactionType === 'expense' && styles.typeButtonActive
-                      ]}
-                      onPress={() => setTransactionType('expense')}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[
-                        styles.typeButtonText,
-                        transactionType === 'expense' && styles.typeButtonTextActive
-                      ]}>
-                        Expense
-                      </Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity
-                      style={[
-                        styles.typeButton,
-                        transactionType === 'income' && styles.typeButtonActive,
-                        transactionType === 'income' && styles.incomeTypeButtonActive
-                      ]}
-                      onPress={() => setTransactionType('income')}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[
-                        styles.typeButtonText,
-                        transactionType === 'income' && styles.incomeTypeButtonTextActive
-                      ]}>
-                        Income
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                  <Text style={[
+                    styles.typeButtonText,
+                    transactionType === 'expense' && styles.typeButtonTextActive
+                  ]}>
+                    Expense
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    transactionType === 'income' && styles.typeButtonActive,
+                    transactionType === 'income' && styles.incomeTypeButtonActive
+                  ]}
+                  onPress={() => setTransactionType('income')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[
+                    styles.typeButtonText,
+                    transactionType === 'income' && styles.incomeTypeButtonTextActive
+                  ]}>
+                    Income
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              
+              {/* Form Fields */}
+              <View style={styles.formGroup}>
+                <Text style={[
+                  styles.label,
+                  transactionType === 'income' && styles.incomeLabel
+                ]}>
+                  {transactionType === 'income' ? 'Income Source' : 'Expense Name'} *
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    transactionType === 'income' && styles.incomeInput
+                  ]}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder={transactionType === 'income' ? 'e.g., Salary, Freelance' : 'e.g., Groceries, Netflix'}
+                  placeholderTextColor={Colors.inactive}
+                  returnKeyType="next"
+                  autoCapitalize="words"
+                  maxLength={50}
+                />
+              </View>
+              
+              <View style={styles.formGroup}>
+                <Text style={[
+                  styles.label,
+                  transactionType === 'income' && styles.incomeLabel
+                ]}>
+                  Amount *
+                </Text>
+                <View style={[
+                  styles.amountContainer,
+                  transactionType === 'income' && styles.incomeAmountContainer
+                ]}>
+                  <Text style={[
+                    styles.currencySymbol,
+                    { color: transactionType === 'income' ? Colors.income : Colors.text }
+                  ]}>
+                    $
+                  </Text>
+                  <TextInput
+                    style={styles.amountInput}
+                    value={amount}
+                    onChangeText={(text) => setAmount(formatAmount(text))}
+                    placeholder="0.00"
+                    placeholderTextColor={Colors.inactive}
+                    keyboardType="decimal-pad"
+                    returnKeyType="done"
+                    maxLength={10}
+                  />
+                </View>
+              </View>
+              
+              {transactionType === 'expense' && (
+                <CategoryPicker
+                  selectedCategory={category}
+                  onCategorySelect={setCategory}
+                  excludeCategories={['income']}
+                  label="Category *"
+                />
+              )}
+              
+              {/* Date/Time Selection */}
+              {transactionType === 'income' ? (
+                <View style={styles.formGroup}>
+                  <Text style={[styles.label, styles.incomeLabel]}>
+                    Income Schedule *
+                  </Text>
+                  <Text style={styles.scheduleSubtitle}>
+                    Choose when you receive this income each month
+                  </Text>
                   
-                  {/* Form Fields */}
-                  <View style={styles.formGroup}>
-                    <Text style={[
-                      styles.label,
-                      transactionType === 'income' && styles.incomeLabel
-                    ]}>
-                      {transactionType === 'income' ? 'Income Source' : 'Expense Name'} *
-                    </Text>
-                    <TextInput
-                      style={[
-                        styles.input,
-                        transactionType === 'income' && styles.incomeInput
-                      ]}
-                      value={name}
-                      onChangeText={setName}
-                      placeholder={transactionType === 'income' ? 'e.g., Salary, Freelance' : 'e.g., Groceries, Netflix'}
-                      placeholderTextColor={Colors.inactive}
-                      returnKeyType="next"
-                      autoCapitalize="words"
-                      maxLength={50}
-                    />
-                  </View>
-                  
-                  <View style={styles.formGroup}>
-                    <Text style={[
-                      styles.label,
-                      transactionType === 'income' && styles.incomeLabel
-                    ]}>
-                      Amount *
-                    </Text>
-                    <View style={[
-                      styles.amountContainer,
-                      transactionType === 'income' && styles.incomeAmountContainer
-                    ]}>
-                      <Text style={[
-                        styles.currencySymbol,
-                        { color: transactionType === 'income' ? Colors.income : Colors.text }
-                      ]}>
-                        $
-                      </Text>
-                      <TextInput
-                        style={styles.amountInput}
-                        value={amount}
-                        onChangeText={(text) => setAmount(formatAmount(text))}
-                        placeholder="0.00"
-                        placeholderTextColor={Colors.inactive}
-                        keyboardType="decimal-pad"
-                        returnKeyType="done"
-                        maxLength={10}
-                      />
-                    </View>
-                  </View>
-                  
-                  {transactionType === 'expense' && (
-                    <CategoryPicker
-                      selectedCategory={category}
-                      onCategorySelect={setCategory}
-                      excludeCategories={['income']}
-                      label="Category *"
-                    />
-                  )}
-                  
-                  {/* Date/Time Selection */}
-                  {transactionType === 'income' ? (
-                    <View style={styles.formGroup}>
-                      <Text style={[styles.label, styles.incomeLabel]}>
-                        Income Schedule *
-                      </Text>
-                      <Text style={styles.scheduleSubtitle}>
-                        Choose when you receive this income each month
-                      </Text>
+                  <View style={styles.weekPickerContainer}>
+                    <View style={styles.weekPickerRow}>
+                      <View style={styles.weekPickerItem}>
+                        <Text style={styles.weekPickerLabel}>Week</Text>
+                        <WeekNumberPicker
+                          selectedWeek={selectedWeekNumber}
+                          onWeekSelect={setSelectedWeekNumber}
+                        />
+                      </View>
                       
-                      <View style={styles.weekPickerContainer}>
-                        <View style={styles.weekPickerRow}>
-                          <View style={styles.weekPickerItem}>
-                            <Text style={styles.weekPickerLabel}>Week</Text>
-                            <WeekNumberPicker
-                              selectedWeek={selectedWeekNumber}
-                              onWeekSelect={setSelectedWeekNumber}
-                            />
-                          </View>
-                          
-                          <View style={styles.weekPickerItem}>
-                            <Text style={styles.weekPickerLabel}>Day</Text>
-                            <WeekDayPicker
-                              selectedDay={selectedWeekDay}
-                              onDaySelect={setSelectedWeekDay}
-                            />
-                          </View>
-                        </View>
+                      <View style={styles.weekPickerItem}>
+                        <Text style={styles.weekPickerLabel}>Day</Text>
+                        <WeekDayPicker
+                          selectedDay={selectedWeekDay}
+                          onDaySelect={setSelectedWeekDay}
+                        />
                       </View>
                     </View>
-                  ) : (
-                    <View style={styles.formGroup}>
-                      <Text style={styles.label}>Day of Month *</Text>
-                      <DayPicker
-                        selectedDay={selectedDay}
-                        onDaySelect={setSelectedDay}
-                      />
-                    </View>
-                  )}
-                  
-                  <View style={[
-                    styles.switchContainer,
-                    transactionType === 'income' && styles.incomeSwitchContainer
-                  ]}>
-                    <View style={styles.switchTextContainer}>
-                      <Text style={[
-                        styles.switchLabel,
-                        transactionType === 'income' && styles.incomeSwitchLabel
-                      ]}>
-                        {transactionType === 'income' ? 'Recurring Income' : 'Recurring Expense'}
-                      </Text>
-                      <Text style={styles.switchSubtitle}>
-                        {transactionType === 'income' 
-                          ? (isRecurring 
-                              ? 'This income repeats monthly (salary, pension)' 
-                              : 'One-time income (bonus, gift, freelance project)')
-                          : (isRecurring 
-                              ? 'This expense repeats monthly (subscriptions, bills)' 
-                              : 'One-time expense (purchases, dining out)')
-                        }
-                      </Text>
-                    </View>
-                    <Switch
-                      value={isRecurring}
-                      onValueChange={setIsRecurring}
-                      trackColor={{ 
-                        false: Colors.border, 
-                        true: transactionType === 'income' ? Colors.income : Colors.primary 
-                      }}
-                      thumbColor={Colors.card}
-                    />
                   </View>
-                </ScrollView>
-                
-                {/* Footer */}
-                <View style={styles.footer}>
-                  <Button
-                    title="Cancel"
-                    onPress={handleClose}
-                    variant="outline"
-                    size="large"
-                    style={styles.cancelButton}
-                  />
-                  <Button
-                    title={`Add ${transactionType === 'income' ? 'Income' : 'Expense'}`}
-                    onPress={handleSubmit}
-                    variant="primary"
-                    size="large"
-                    loading={isLoading}
-                    disabled={!name.trim() || !amount || parseFloat(amount) <= 0}
-                    style={[
-                      styles.submitButton,
-                      transactionType === 'income' && styles.incomeSubmitButton
-                    ]}
+                </View>
+              ) : (
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Day of Month *</Text>
+                  <DayPicker
+                    selectedDay={selectedDay}
+                    onDaySelect={setSelectedDay}
                   />
                 </View>
-              </KeyboardAvoidingView>
+              )}
+              
+              <View style={[
+                styles.switchContainer,
+                transactionType === 'income' && styles.incomeSwitchContainer
+              ]}>
+                <View style={styles.switchTextContainer}>
+                  <Text style={[
+                    styles.switchLabel,
+                    transactionType === 'income' && styles.incomeSwitchLabel
+                  ]}>
+                    {transactionType === 'income' ? 'Recurring Income' : 'Recurring Expense'}
+                  </Text>
+                  <Text style={styles.switchSubtitle}>
+                    {transactionType === 'income' 
+                      ? (isRecurring 
+                          ? 'This income repeats monthly (salary, pension)' 
+                          : 'One-time income (bonus, gift, freelance project)')
+                      : (isRecurring 
+                          ? 'This expense repeats monthly (subscriptions, bills)' 
+                          : 'One-time expense (purchases, dining out)')
+                    }
+                  </Text>
+                </View>
+                <Switch
+                  value={isRecurring}
+                  onValueChange={setIsRecurring}
+                  trackColor={{ 
+                    false: Colors.border, 
+                    true: transactionType === 'income' ? Colors.income : Colors.primary 
+                  }}
+                  thumbColor={Colors.card}
+                />
+              </View>
+            </ScrollView>
+            
+            {/* Footer */}
+            <View style={styles.footer}>
+              <Button
+                title="Cancel"
+                onPress={handleClose}
+                variant="outline"
+                size="large"
+                style={styles.cancelButton}
+              />
+              <Button
+                title={`Add ${transactionType === 'income' ? 'Income' : 'Expense'}`}
+                onPress={handleSubmit}
+                variant="primary"
+                size="large"
+                loading={isLoading}
+                disabled={!name.trim() || !amount || parseFloat(amount) <= 0}
+                style={[
+                  styles.submitButton,
+                  transactionType === 'income' && styles.incomeSubmitButton
+                ]}
+              />
             </View>
-          </View>
-        </View>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
       </Modal>
       
       <AlertModal
@@ -447,38 +420,13 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  safeArea: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backdropTouchable: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  modalWrapper: {
-    width: screenWidth * 0.9,
-    maxHeight: screenHeight * 0.9,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-    elevation: 10,
-  },
-  modalContainer: {
     backgroundColor: Colors.background,
-    borderRadius: BorderRadius.xxl,
-    width: '100%',
-    maxHeight: '100%',
-    ...Shadow.heavy,
-    overflow: 'hidden',
   },
-  keyboardView: {
+  container: {
     flex: 1,
-    maxHeight: screenHeight * 0.9,
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
