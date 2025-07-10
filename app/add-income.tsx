@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, Switch, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFinance } from '@/context/FinanceContext';
+import Button from '@/components/Button';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 
@@ -13,101 +14,158 @@ export default function AddIncomeScreen() {
   const [amount, setAmount] = useState('');
   const [isRecurring, setIsRecurring] = useState(true);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isLoading, setIsLoading] = useState(false);
   
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name.trim()) {
-      Alert.alert('Error', 'Please enter an income source');
+      Alert.alert('Missing Information', 'Please enter an income source');
       return;
     }
     
     const numAmount = parseFloat(amount);
     if (!amount || isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
+      Alert.alert('Invalid Amount', 'Please enter a valid amount greater than 0');
       return;
     }
     
-    addTransaction({
-      name: name.trim(),
-      amount: numAmount,
-      category: 'income',
-      date: new Date(date).toISOString(),
-      type: 'income',
-      isRecurring,
-    });
+    setIsLoading(true);
     
-    router.back();
+    try {
+      addTransaction({
+        name: name.trim(),
+        amount: numAmount,
+        category: 'income',
+        date: new Date(date).toISOString(),
+        type: 'income',
+        isRecurring,
+      });
+      
+      router.back();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add income. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleCancel = () => {
+    if (name.trim() || amount.trim()) {
+      Alert.alert(
+        'Discard Changes',
+        'Are you sure you want to discard this income entry?',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: () => router.back() }
+        ]
+      );
+    } else {
+      router.back();
+    }
   };
   
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Income Source</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="Enter income source"
-            placeholderTextColor={Colors.inactive}
-            returnKeyType="next"
-          />
-        </View>
-        
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Amount</Text>
-          <View style={styles.amountContainer}>
-            <Text style={styles.currencySymbol}>$</Text>
-            <TextInput
-              style={styles.amountInput}
-              value={amount}
-              onChangeText={setAmount}
-              placeholder="0.00"
-              placeholderTextColor={Colors.inactive}
-              keyboardType="decimal-pad"
-              returnKeyType="done"
-            />
-          </View>
-        </View>
-        
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Date</Text>
-          <TextInput
-            style={styles.input}
-            value={date}
-            onChangeText={setDate}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={Colors.inactive}
-          />
-        </View>
-        
-        <View style={styles.switchContainer}>
-          <View style={styles.switchTextContainer}>
-            <Text style={styles.switchLabel}>Recurring Income</Text>
-            <Text style={styles.switchSubtitle}>
-              {isRecurring ? 'This income repeats regularly' : 'One-time income'}
+        <View style={styles.formContainer}>
+          <View style={styles.incomeTypeContainer}>
+            <Text style={styles.incomeTypeTitle}>Add Income Source</Text>
+            <Text style={styles.incomeTypeSubtitle}>
+              Track your salary, freelance work, or other income sources
             </Text>
           </View>
-          <Switch
-            value={isRecurring}
-            onValueChange={setIsRecurring}
-            trackColor={{ false: Colors.border, true: Colors.primary }}
-            thumbColor={Colors.card}
-          />
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Income Source</Text>
+            <TextInput
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="e.g., Salary, Freelance, Side Hustle"
+              placeholderTextColor={Colors.inactive}
+              returnKeyType="next"
+              autoCapitalize="words"
+            />
+          </View>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Amount</Text>
+            <View style={styles.amountContainer}>
+              <Text style={styles.currencySymbol}>$</Text>
+              <TextInput
+                style={styles.amountInput}
+                value={amount}
+                onChangeText={setAmount}
+                placeholder="0.00"
+                placeholderTextColor={Colors.inactive}
+                keyboardType="decimal-pad"
+                returnKeyType="done"
+              />
+            </View>
+          </View>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Date</Text>
+            <TextInput
+              style={styles.input}
+              value={date}
+              onChangeText={setDate}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={Colors.inactive}
+              keyboardType="numbers-and-punctuation"
+            />
+          </View>
+          
+          <View style={styles.switchContainer}>
+            <View style={styles.switchTextContainer}>
+              <Text style={styles.switchLabel}>Recurring Income</Text>
+              <Text style={styles.switchSubtitle}>
+                {isRecurring ? 'This income repeats regularly (recommended for salary)' : 'One-time income (bonuses, gifts, etc.)'}
+              </Text>
+            </View>
+            <Switch
+              value={isRecurring}
+              onValueChange={setIsRecurring}
+              trackColor={{ false: Colors.border, true: Colors.success }}
+              thumbColor={Colors.card}
+            />
+          </View>
+          
+          {isRecurring && (
+            <View style={styles.recurringNote}>
+              <Text style={styles.recurringNoteText}>
+                💡 Recurring income helps with accurate budget planning and weekly overviews
+              </Text>
+            </View>
+          )}
         </View>
-        
-        <TouchableOpacity 
-          style={styles.submitButton} 
-          onPress={handleSubmit}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.submitButtonText}>Add Income</Text>
-        </TouchableOpacity>
       </ScrollView>
-    </View>
+      
+      <View style={styles.buttonContainer}>
+        <Button
+          title="Cancel"
+          onPress={handleCancel}
+          variant="outline"
+          size="large"
+          style={styles.cancelButton}
+        />
+        <Button
+          title="Add Income"
+          onPress={handleSubmit}
+          variant="primary"
+          size="large"
+          loading={isLoading}
+          style={styles.submitButton}
+        />
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -120,8 +178,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    flexGrow: 1,
+  },
+  formContainer: {
     padding: Spacing.screenHorizontal,
-    paddingBottom: Spacing.screenBottom,
+    paddingBottom: Spacing.xl,
+  },
+  incomeTypeContainer: {
+    marginBottom: Spacing.xl,
+    padding: Spacing.lg,
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.lg,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.success,
+    ...Shadow.light,
+  },
+  incomeTypeTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+    letterSpacing: -0.2,
+  },
+  incomeTypeSubtitle: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    lineHeight: 20,
   },
   formGroup: {
     marginBottom: Spacing.xl,
@@ -156,7 +238,7 @@ const styles = StyleSheet.create({
   currencySymbol: {
     fontSize: 20,
     fontWeight: '600',
-    color: Colors.text,
+    color: Colors.success,
     marginRight: Spacing.sm,
   },
   amountInput: {
@@ -173,7 +255,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.lg,
     ...Shadow.light,
   },
   switchTextContainer: {
@@ -190,19 +272,33 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 4,
     fontWeight: '500',
+    lineHeight: 20,
   },
-  submitButton: {
-    backgroundColor: Colors.primary,
+  recurringNote: {
+    backgroundColor: Colors.cardSecondary,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
-    alignItems: 'center',
-    marginTop: Spacing.lg,
-    ...Shadow.medium,
+    marginBottom: Spacing.lg,
   },
-  submitButtonText: {
-    color: Colors.card,
-    fontSize: 17,
-    fontWeight: '600',
-    letterSpacing: -0.2,
+  recurringNoteText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    padding: Spacing.screenHorizontal,
+    paddingBottom: Platform.OS === 'ios' ? Spacing.screenBottom : Spacing.lg,
+    backgroundColor: Colors.background,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    gap: Spacing.md,
+  },
+  cancelButton: {
+    flex: 1,
+  },
+  submitButton: {
+    flex: 2,
   },
 });

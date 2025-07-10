@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
@@ -14,6 +14,18 @@ interface HeaderProps {
 export default function Header({ title, subtitle, showAddButton = false }: HeaderProps) {
   const router = useRouter();
   
+  const handleAddPress = () => {
+    Alert.alert(
+      'Add Transaction',
+      'What would you like to add?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Add Expense', onPress: () => router.push('/add-expense') },
+        { text: 'Add Income', onPress: () => router.push('/add-income') },
+      ]
+    );
+  };
+  
   return (
     <View style={styles.container}>
       <View style={styles.textContainer}>
@@ -24,7 +36,7 @@ export default function Header({ title, subtitle, showAddButton = false }: Heade
       {showAddButton && (
         <TouchableOpacity 
           style={styles.addButton}
-          onPress={() => router.push('/add-expense')}
+          onPress={handleAddPress}
           activeOpacity={0.8}
         >
           <Plus size={24} color={Colors.background} strokeWidth={2.5} />

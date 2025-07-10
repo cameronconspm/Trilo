@@ -1,10 +1,12 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import { Plus, Edit3, Target } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
 import Header from '@/components/Header';
 import Card from '@/components/Card';
+import Button from '@/components/Button';
+import ProgressBar from '@/components/ProgressBar';
 import TransactionItem from '@/components/TransactionItem';
 import EmptyState from '@/components/EmptyState';
 import Colors from '@/constants/colors';
@@ -13,6 +15,7 @@ import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 export default function BudgetScreen() {
   const router = useRouter();
   const { budget, transactions, isLoading } = useFinance();
+  const [showBudgetGoals, setShowBudgetGoals] = useState(false);
   
   const givenExpenses = transactions.filter(t => 
     t.type === 'expense' && 
@@ -34,13 +37,22 @@ export default function BudgetScreen() {
 
   const totalExpenses = budget.expenses.given + budget.expenses.oneTime + budget.expenses.recurring;
   const remainingIncome = budget.income - totalExpenses;
+  const budgetUtilization = budget.income > 0 ? (totalExpenses / budget.income) * 100 : 0;
+  
+  const handleSetBudgetGoal = () => {
+    Alert.alert(
+      'Set Budget Goal',
+      'Budget goal setting would open here with input fields for monthly income and savings targets.',
+      [{ text: 'OK' }]
+    );
+  };
   
   if (isLoading) {
     return (
       <View style={styles.container}>
         <Header 
           title="Budget"
-          subtitle="Monthly overview"
+          subtitle="Monthly planning"
           showAddButton
         />
         <View style={styles.loadingContainer}>
@@ -54,7 +66,7 @@ export default function BudgetScreen() {
     <View style={styles.container}>
       <Header 
         title="Budget"
-        subtitle="Monthly overview"
+        subtitle="Monthly planning"
         showAddButton
       />
       
@@ -63,7 +75,21 @@ export default function BudgetScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        {/* Budget Overview Card */}
         <Card variant="elevated" style={styles.summaryCard}>
+          <View style={styles.budgetHeader}>
+            <View style={styles.budgetTitleContainer}>
+              <Text style={styles.budgetTitle}>Monthly Budget</Text>
+              <TouchableOpacity 
+                onPress={handleSetBudgetGoal}
+                style={styles.editButton}
+                activeOpacity={0.7}
+              >
+                <Edit3 size={16} color={Colors.primary} strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+          </View>
+          
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Monthly Income</Text>
@@ -79,8 +105,17 @@ export default function BudgetScreen() {
             </View>
           </View>
           
+          <View style={styles.progressContainer}>
+            <ProgressBar
+              progress={budgetUtilization}
+              color={budgetUtilization > 90 ? Colors.error : budgetUtilization > 75 ? Colors.warning : Colors.success}
+              label="Budget Utilization"
+              showPercentage
+            />
+          </View>
+          
           <View style={styles.remainingContainer}>
-            <Text style={styles.remainingLabel}>Remaining</Text>
+            <Text style={styles.remainingLabel}>Remaining Budget</Text>
             <Text style={[
               styles.remainingValue,
               remainingIncome < 0 && styles.negativeValue
@@ -90,6 +125,7 @@ export default function BudgetScreen() {
           </View>
           
           <View style={styles.breakdownContainer}>
+            <Text style={styles.breakdownTitle}>Expense Breakdown</Text>
             <View style={styles.breakdownRow}>
               <Text style={styles.breakdownLabel}>Given expenses</Text>
               <Text style={styles.breakdownValue}>${budget.expenses.given.toFixed(2)}</Text>
@@ -104,12 +140,32 @@ export default function BudgetScreen() {
             </View>
           </View>
         </Card>
+
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          <Button
+            title="Add Income"
+            onPress={() => router.push('/add-income')}
+            variant="outline"
+            size="medium"
+            style={styles.actionButton}
+          />
+          <Button
+            title="Set Goals"
+            onPress={handleSetBudgetGoal}
+            variant="ghost"
+            size="medium"
+            style={styles.actionButton}
+          />
+        </View>
         
+        {/* Given Expenses Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Given Expenses</Text>
           <TouchableOpacity 
             onPress={() => router.push('/add-expense')}
             style={styles.addButton}
+            activeOpacity={0.7}
           >
             <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
           </TouchableOpacity>
@@ -125,43 +181,20 @@ export default function BudgetScreen() {
             ))
           ) : (
             <EmptyState 
+              icon="dollar"
               title="No given expenses"
-              subtitle="Add your first given expense to track your budget"
+              subtitle="Add essential expenses like rent, groceries, and utilities"
             />
           )}
         </Card>
         
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>One-Time Expenses</Text>
-          <TouchableOpacity 
-            onPress={() => router.push('/add-expense')}
-            style={styles.addButton}
-          >
-            <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
-          </TouchableOpacity>
-        </View>
-        <Card>
-          {oneTimeExpenses.length > 0 ? (
-            oneTimeExpenses.map((expense, index) => (
-              <TransactionItem 
-                key={expense.id} 
-                transaction={expense}
-                isLast={index === oneTimeExpenses.length - 1}
-              />
-            ))
-          ) : (
-            <EmptyState 
-              title="No one-time expenses"
-              subtitle="Track occasional purchases and unexpected costs"
-            />
-          )}
-        </Card>
-        
+        {/* Recurring Expenses Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recurring Expenses</Text>
           <TouchableOpacity 
             onPress={() => router.push('/add-expense')}
             style={styles.addButton}
+            activeOpacity={0.7}
           >
             <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
           </TouchableOpacity>
@@ -177,8 +210,38 @@ export default function BudgetScreen() {
             ))
           ) : (
             <EmptyState 
+              icon="trending"
               title="No recurring expenses"
               subtitle="Add subscriptions, bills, and regular payments"
+            />
+          )}
+        </Card>
+        
+        {/* One-Time Expenses Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>One-Time Expenses</Text>
+          <TouchableOpacity 
+            onPress={() => router.push('/add-expense')}
+            style={styles.addButton}
+            activeOpacity={0.7}
+          >
+            <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
+          </TouchableOpacity>
+        </View>
+        <Card>
+          {oneTimeExpenses.length > 0 ? (
+            oneTimeExpenses.map((expense, index) => (
+              <TransactionItem 
+                key={expense.id} 
+                transaction={expense}
+                isLast={index === oneTimeExpenses.length - 1}
+              />
+            ))
+          ) : (
+            <EmptyState 
+              icon="plus"
+              title="No one-time expenses"
+              subtitle="Track occasional purchases and unexpected costs"
             />
           )}
         </Card>
@@ -209,7 +272,29 @@ const styles = StyleSheet.create({
     color: Colors.inactive,
   },
   summaryCard: {
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
+  },
+  budgetHeader: {
+    marginBottom: Spacing.lg,
+  },
+  budgetTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  budgetTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.text,
+    letterSpacing: -0.3,
+  },
+  editButton: {
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.cardSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   summaryRow: {
     flexDirection: 'row',
@@ -230,9 +315,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.5,
   },
+  progressContainer: {
+    marginBottom: Spacing.xl,
+  },
   remainingContainer: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
     paddingVertical: Spacing.lg,
     backgroundColor: Colors.cardSecondary,
     borderRadius: BorderRadius.lg,
@@ -247,6 +335,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: '700',
     letterSpacing: -0.6,
+    color: Colors.success,
   },
   negativeValue: {
     color: Colors.error,
@@ -255,6 +344,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
+  },
+  breakdownTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: Spacing.md,
+    letterSpacing: -0.2,
   },
   breakdownRow: {
     flexDirection: 'row',
@@ -270,6 +366,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: Colors.text,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    marginBottom: Spacing.xl,
+    gap: Spacing.md,
+  },
+  actionButton: {
+    flex: 1,
   },
   sectionHeader: {
     flexDirection: 'row',

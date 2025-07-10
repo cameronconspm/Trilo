@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, Switch, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFinance } from '@/context/FinanceContext';
+import CategoryPicker from '@/components/CategoryPicker';
+import Button from '@/components/Button';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
-import categories from '@/constants/categories';
 import { CategoryType } from '@/types/finance';
 
 export default function AddExpenseScreen() {
@@ -16,136 +17,150 @@ export default function AddExpenseScreen() {
   const [category, setCategory] = useState<CategoryType>('miscellaneous');
   const [isRecurring, setIsRecurring] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isLoading, setIsLoading] = useState(false);
   
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name.trim()) {
-      Alert.alert('Error', 'Please enter an expense name');
+      Alert.alert('Missing Information', 'Please enter an expense name');
       return;
     }
     
     const numAmount = parseFloat(amount);
     if (!amount || isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
+      Alert.alert('Invalid Amount', 'Please enter a valid amount greater than 0');
       return;
     }
     
-    addTransaction({
-      name: name.trim(),
-      amount: numAmount,
-      category,
-      date: new Date(date).toISOString(),
-      type: 'expense',
-      isRecurring,
-    });
+    setIsLoading(true);
     
-    router.back();
+    try {
+      addTransaction({
+        name: name.trim(),
+        amount: numAmount,
+        category,
+        date: new Date(date).toISOString(),
+        type: 'expense',
+        isRecurring,
+      });
+      
+      router.back();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add expense. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
-  const expenseCategories = categories.filter(c => 
-    c.id !== 'income'
-  );
+  const handleCancel = () => {
+    if (name.trim() || amount.trim()) {
+      Alert.alert(
+        'Discard Changes',
+        'Are you sure you want to discard this expense?',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: () => router.back() }
+        ]
+      );
+    } else {
+      router.back();
+    }
+  };
   
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Expense Name</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="Enter expense name"
-            placeholderTextColor={Colors.inactive}
-            returnKeyType="next"
-          />
-        </View>
-        
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Amount</Text>
-          <View style={styles.amountContainer}>
-            <Text style={styles.currencySymbol}>$</Text>
+        <View style={styles.formContainer}>
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Expense Name</Text>
             <TextInput
-              style={styles.amountInput}
-              value={amount}
-              onChangeText={setAmount}
-              placeholder="0.00"
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="Enter expense name"
               placeholderTextColor={Colors.inactive}
-              keyboardType="decimal-pad"
-              returnKeyType="done"
+              returnKeyType="next"
+              autoCapitalize="words"
+            />
+          </View>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Amount</Text>
+            <View style={styles.amountContainer}>
+              <Text style={styles.currencySymbol}>$</Text>
+              <TextInput
+                style={styles.amountInput}
+                value={amount}
+                onChangeText={setAmount}
+                placeholder="0.00"
+                placeholderTextColor={Colors.inactive}
+                keyboardType="decimal-pad"
+                returnKeyType="done"
+              />
+            </View>
+          </View>
+          
+          <CategoryPicker
+            selectedCategory={category}
+            onCategorySelect={setCategory}
+            excludeCategories={['income']}
+            label="Category"
+          />
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Date</Text>
+            <TextInput
+              style={styles.input}
+              value={date}
+              onChangeText={setDate}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={Colors.inactive}
+              keyboardType="numbers-and-punctuation"
+            />
+          </View>
+          
+          <View style={styles.switchContainer}>
+            <View style={styles.switchTextContainer}>
+              <Text style={styles.switchLabel}>Recurring Expense</Text>
+              <Text style={styles.switchSubtitle}>
+                {isRecurring ? 'This expense repeats monthly' : 'One-time expense'}
+              </Text>
+            </View>
+            <Switch
+              value={isRecurring}
+              onValueChange={setIsRecurring}
+              trackColor={{ false: Colors.border, true: Colors.primary }}
+              thumbColor={Colors.card}
             />
           </View>
         </View>
-        
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Category</Text>
-          <View style={styles.categoryContainer}>
-            {expenseCategories.map(cat => (
-              <TouchableOpacity
-                key={cat.id}
-                style={[
-                  styles.categoryButton,
-                  category === cat.id && { 
-                    backgroundColor: cat.color, 
-                    borderColor: cat.color,
-                    ...Shadow.light,
-                  }
-                ]}
-                onPress={() => setCategory(cat.id)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.categoryDot, { backgroundColor: cat.color }]} />
-                <Text
-                  style={[
-                    styles.categoryText,
-                    category === cat.id && { color: Colors.card }
-                  ]}
-                >
-                  {cat.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-        
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Date</Text>
-          <TextInput
-            style={styles.input}
-            value={date}
-            onChangeText={setDate}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={Colors.inactive}
-          />
-        </View>
-        
-        <View style={styles.switchContainer}>
-          <View style={styles.switchTextContainer}>
-            <Text style={styles.switchLabel}>Recurring Expense</Text>
-            <Text style={styles.switchSubtitle}>
-              {isRecurring ? 'This expense repeats monthly' : 'One-time expense'}
-            </Text>
-          </View>
-          <Switch
-            value={isRecurring}
-            onValueChange={setIsRecurring}
-            trackColor={{ false: Colors.border, true: Colors.primary }}
-            thumbColor={Colors.card}
-          />
-        </View>
-        
-        <TouchableOpacity 
-          style={styles.submitButton} 
-          onPress={handleSubmit}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.submitButtonText}>Add Expense</Text>
-        </TouchableOpacity>
       </ScrollView>
-    </View>
+      
+      <View style={styles.buttonContainer}>
+        <Button
+          title="Cancel"
+          onPress={handleCancel}
+          variant="outline"
+          size="large"
+          style={styles.cancelButton}
+        />
+        <Button
+          title="Add Expense"
+          onPress={handleSubmit}
+          variant="primary"
+          size="large"
+          loading={isLoading}
+          style={styles.submitButton}
+        />
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -158,8 +173,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    flexGrow: 1,
+  },
+  formContainer: {
     padding: Spacing.screenHorizontal,
-    paddingBottom: Spacing.screenBottom,
+    paddingBottom: Spacing.xl,
   },
   formGroup: {
     marginBottom: Spacing.xl,
@@ -204,34 +222,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: Colors.text,
   },
-  categoryContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -Spacing.xs,
-  },
-  categoryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    margin: Spacing.xs,
-    backgroundColor: Colors.card,
-    ...Shadow.light,
-  },
-  categoryDot: {
-    width: 8,
-    height: 8,
-    borderRadius: BorderRadius.full,
-    marginRight: Spacing.sm,
-  },
-  categoryText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.text,
-  },
   switchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -239,7 +229,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.lg,
     ...Shadow.light,
   },
   switchTextContainer: {
@@ -257,18 +247,19 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: '500',
   },
-  submitButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    alignItems: 'center',
-    marginTop: Spacing.lg,
-    ...Shadow.medium,
+  buttonContainer: {
+    flexDirection: 'row',
+    padding: Spacing.screenHorizontal,
+    paddingBottom: Platform.OS === 'ios' ? Spacing.screenBottom : Spacing.lg,
+    backgroundColor: Colors.background,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    gap: Spacing.md,
   },
-  submitButtonText: {
-    color: Colors.card,
-    fontSize: 17,
-    fontWeight: '600',
-    letterSpacing: -0.2,
+  cancelButton: {
+    flex: 1,
+  },
+  submitButton: {
+    flex: 2,
   },
 });
