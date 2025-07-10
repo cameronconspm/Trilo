@@ -17,6 +17,7 @@ export default function AddIncomeScreen() {
   const [isLoading, setIsLoading] = useState(false);
   
   const handleSubmit = async () => {
+    // Validation
     if (!name.trim()) {
       Alert.alert('Missing Information', 'Please enter an income source');
       return;
@@ -27,20 +28,32 @@ export default function AddIncomeScreen() {
       Alert.alert('Invalid Amount', 'Please enter a valid amount greater than 0');
       return;
     }
+
+    // Validate date format
+    const selectedDate = new Date(date);
+    if (isNaN(selectedDate.getTime())) {
+      Alert.alert('Invalid Date', 'Please enter a valid date in YYYY-MM-DD format');
+      return;
+    }
     
     setIsLoading(true);
     
     try {
-      addTransaction({
+      await addTransaction({
         name: name.trim(),
         amount: numAmount,
         category: 'income',
-        date: new Date(date).toISOString(),
+        date: selectedDate.toISOString(),
         type: 'income',
         isRecurring,
       });
       
-      router.back();
+      // Show success message
+      Alert.alert(
+        'Income Added',
+        `${name} for $${numAmount.toFixed(2)} has been added successfully.`,
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
     } catch (error) {
       Alert.alert('Error', 'Failed to add income. Please try again.');
     } finally {
@@ -62,6 +75,24 @@ export default function AddIncomeScreen() {
       router.back();
     }
   };
+
+  const formatAmount = (text: string) => {
+    // Remove any non-numeric characters except decimal point
+    const cleaned = text.replace(/[^0-9.]/g, '');
+    
+    // Ensure only one decimal point
+    const parts = cleaned.split('.');
+    if (parts.length > 2) {
+      return parts[0] + '.' + parts.slice(1).join('');
+    }
+    
+    // Limit to 2 decimal places
+    if (parts[1] && parts[1].length > 2) {
+      return parts[0] + '.' + parts[1].substring(0, 2);
+    }
+    
+    return cleaned;
+  };
   
   return (
     <KeyboardAvoidingView 
@@ -78,12 +109,12 @@ export default function AddIncomeScreen() {
           <View style={styles.incomeTypeContainer}>
             <Text style={styles.incomeTypeTitle}>Add Income Source</Text>
             <Text style={styles.incomeTypeSubtitle}>
-              Track your salary, freelance work, or other income sources
+              Track your salary, freelance work, or other income sources to get accurate budget insights
             </Text>
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Income Source</Text>
+            <Text style={styles.label}>Income Source *</Text>
             <TextInput
               style={styles.input}
               value={name}
@@ -92,27 +123,29 @@ export default function AddIncomeScreen() {
               placeholderTextColor={Colors.inactive}
               returnKeyType="next"
               autoCapitalize="words"
+              maxLength={50}
             />
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Amount</Text>
+            <Text style={styles.label}>Amount *</Text>
             <View style={styles.amountContainer}>
               <Text style={styles.currencySymbol}>$</Text>
               <TextInput
                 style={styles.amountInput}
                 value={amount}
-                onChangeText={setAmount}
+                onChangeText={(text) => setAmount(formatAmount(text))}
                 placeholder="0.00"
                 placeholderTextColor={Colors.inactive}
                 keyboardType="decimal-pad"
                 returnKeyType="done"
+                maxLength={10}
               />
             </View>
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Date</Text>
+            <Text style={styles.label}>Date *</Text>
             <TextInput
               style={styles.input}
               value={date}
@@ -120,14 +153,21 @@ export default function AddIncomeScreen() {
               placeholder="YYYY-MM-DD"
               placeholderTextColor={Colors.inactive}
               keyboardType="numbers-and-punctuation"
+              maxLength={10}
             />
+            <Text style={styles.helperText}>
+              When you received or will receive this income
+            </Text>
           </View>
           
           <View style={styles.switchContainer}>
             <View style={styles.switchTextContainer}>
               <Text style={styles.switchLabel}>Recurring Income</Text>
               <Text style={styles.switchSubtitle}>
-                {isRecurring ? 'This income repeats regularly (recommended for salary)' : 'One-time income (bonuses, gifts, etc.)'}
+                {isRecurring 
+                  ? 'This income repeats regularly (salary, pension)' 
+                  : 'One-time income (bonus, gift, freelance project)'
+                }
               </Text>
             </View>
             <Switch
@@ -162,6 +202,7 @@ export default function AddIncomeScreen() {
           variant="primary"
           size="large"
           loading={isLoading}
+          disabled={!name.trim() || !amount || parseFloat(amount) <= 0}
           style={styles.submitButton}
         />
       </View>
@@ -224,6 +265,12 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     color: Colors.text,
     ...Shadow.light,
+  },
+  helperText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: Spacing.sm,
+    fontWeight: '500',
   },
   amountContainer: {
     flexDirection: 'row',

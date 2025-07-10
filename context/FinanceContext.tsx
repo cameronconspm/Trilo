@@ -7,10 +7,12 @@ interface FinanceContextType {
   transactions: Transaction[];
   addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
   deleteTransaction: (id: string) => void;
+  updateTransaction: (id: string, updates: Partial<Transaction>) => void;
   weeklyOverview: WeeklyOverview;
   monthlyInsights: MonthlyInsights;
   budget: Budget;
   isLoading: boolean;
+  clearAllData: () => Promise<void>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -51,7 +53,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(true);
         const storedTransactions = await AsyncStorage.getItem('transactions');
         if (storedTransactions) {
-          setTransactions(JSON.parse(storedTransactions));
+          const parsedTransactions = JSON.parse(storedTransactions);
+          setTransactions(parsedTransactions);
         }
       } catch (error) {
         console.error('Error loading transactions:', error);
@@ -65,10 +68,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   // Calculate weekly overview whenever transactions change
   useEffect(() => {
-    calculateWeeklyOverview();
-    calculateMonthlyInsights();
-    calculateBudget();
-  }, [transactions]);
+    if (!isLoading) {
+      calculateWeeklyOverview();
+      calculateMonthlyInsights();
+      calculateBudget();
+    }
+  }, [transactions, isLoading]);
 
   const calculateWeeklyOverview = () => {
     const today = new Date();
@@ -88,7 +93,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    // Calculate upcoming expenses
+    // Calculate upcoming expenses (future transactions this week)
     const upcomingExpenses = transactions
       .filter(t => {
         const transactionDate = new Date(t.date);
@@ -96,18 +101,24 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
+    // Calculate past expenses this week
+    const pastExpenses = weekTransactions
+      .filter(t => t.type === 'expense' && new Date(t.date) <= today)
+      .reduce((sum, t) => sum + t.amount, 0);
+
     // Calculate remaining balance
-    const totalExpenses = upcomingExpenses.reduce((sum, t) => sum + t.amount, 0);
-    const remainingBalance = weekIncome - totalExpenses;
+    const totalUpcomingExpenses = upcomingExpenses.reduce((sum, t) => sum + t.amount, 0);
+    const remainingBalance = weekIncome - pastExpenses - totalUpcomingExpenses;
 
     // Calculate utilization
-    const utilization = weekIncome > 0 ? Math.min((totalExpenses / weekIncome) * 100, 100) : 0;
+    const totalWeekExpenses = pastExpenses + totalUpcomingExpenses;
+    const utilization = weekIncome > 0 ? Math.min((totalWeekExpenses / weekIncome) * 100, 100) : 0;
 
-    // Calculate contributions by category
+    // Calculate contributions by category (past expenses only)
     const contributions: Record<CategoryType, { total: number; count: number }> = {} as any;
     
     weekTransactions
-      .filter(t => t.type === 'expense')
+      .filter(t => t.type === 'expense' && new Date(t.date) <= today)
       .forEach(t => {
         if (!contributions[t.category]) {
           contributions[t.category] = { total: 0, count: 0 };
@@ -158,32 +169,53 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         spendingByCategory[t.category] += t.amount;
       });
 
-    let topCategory = categories[0];
+    let topCategory = categories.find(c => c.id !== 'income') || categories[0];
     let topAmount = 0;
 
     Object.entries(spendingByCategory).forEach(([categoryId, amount]) => {
       if (amount > topAmount) {
         topAmount = amount;
-        topCategory = categories.find(c => c.id === categoryId) || categories[0];
+        topCategory = categories.find(c => c.id === categoryId) || topCategory;
       }
     });
 
-    // Get recent transactions
+    // Get recent transactions (last 10)
     const recentTransactions = [...transactions]
       .filter(t => new Date(t.date) <= today)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 5);
+      .slice(0, 10);
 
     // Generate insights based on data
     const insights: string[] = [];
+    
     if (totalSpent > 0) {
       insights.push(`You've spent $${totalSpent.toFixed(2)} this month`);
     }
+    
     if (totalSaved > 0) {
       insights.push(`Great job saving $${totalSaved.toFixed(2)} this month!`);
     }
+    
     if (topAmount > 0) {
       insights.push(`Your top spending category is ${topCategory.name} at $${topAmount.toFixed(2)}`);
+    }
+
+    // Add spending trend insights
+    if (monthTransactions.length > 0) {
+      const avgDailySpend = totalSpent / new Date().getDate();
+      if (avgDailySpend > 50) {
+        insights.push(`You're spending an average of $${avgDailySpend.toFixed(2)} per day`);
+      }
+    }
+
+    // Add savings rate insight
+    const monthIncome = monthTransactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    if (monthIncome > 0 && totalSaved > 0) {
+      const savingsRate = (totalSaved / monthIncome) * 100;
+      insights.push(`You're saving ${savingsRate.toFixed(1)}% of your income`);
     }
 
     setMonthlyInsights({
@@ -247,27 +279,58 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
+  const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
     const newTransaction: Transaction = {
       ...transaction,
-      id: Date.now().toString(),
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
     };
 
     const updatedTransactions = [...transactions, newTransaction];
     setTransactions(updatedTransactions);
     
     // Save to AsyncStorage
-    AsyncStorage.setItem('transactions', JSON.stringify(updatedTransactions))
-      .catch(error => console.error('Error saving transaction:', error));
+    try {
+      await AsyncStorage.setItem('transactions', JSON.stringify(updatedTransactions));
+    } catch (error) {
+      console.error('Error saving transaction:', error);
+      throw error;
+    }
   };
 
-  const deleteTransaction = (id: string) => {
+  const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
+    const updatedTransactions = transactions.map(t => 
+      t.id === id ? { ...t, ...updates } : t
+    );
+    setTransactions(updatedTransactions);
+    
+    try {
+      await AsyncStorage.setItem('transactions', JSON.stringify(updatedTransactions));
+    } catch (error) {
+      console.error('Error updating transaction:', error);
+      throw error;
+    }
+  };
+
+  const deleteTransaction = async (id: string) => {
     const updatedTransactions = transactions.filter(t => t.id !== id);
     setTransactions(updatedTransactions);
     
-    // Save to AsyncStorage
-    AsyncStorage.setItem('transactions', JSON.stringify(updatedTransactions))
-      .catch(error => console.error('Error deleting transaction:', error));
+    try {
+      await AsyncStorage.setItem('transactions', JSON.stringify(updatedTransactions));
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      throw error;
+    }
+  };
+
+  const clearAllData = async () => {
+    try {
+      await AsyncStorage.removeItem('transactions');
+      setTransactions([]);
+    } catch (error) {
+      console.error('Error clearing data:', error);
+      throw error;
+    }
   };
 
   return (
@@ -276,10 +339,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         transactions,
         addTransaction,
         deleteTransaction,
+        updateTransaction,
         weeklyOverview,
         monthlyInsights,
         budget,
         isLoading,
+        clearAllData,
       }}
     >
       {children}

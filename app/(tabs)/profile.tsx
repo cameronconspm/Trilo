@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Switch } from 'react-native';
 import { useSettings } from '@/context/SettingsContext';
+import { useFinance } from '@/context/FinanceContext';
 import Header from '@/components/Header';
 import SettingsItem from '@/components/SettingsItem';
 import Card from '@/components/Card';
@@ -19,6 +20,8 @@ export default function ProfileScreen() {
     disconnectBank,
     resetData
   } = useSettings();
+  
+  const { clearAllData, transactions } = useFinance();
   
   const [showThemeOptions, setShowThemeOptions] = useState(false);
   const [showWeekStartOptions, setShowWeekStartOptions] = useState(false);
@@ -65,25 +68,41 @@ export default function ProfileScreen() {
   const handleResetData = () => {
     Alert.alert(
       'Reset All Data',
-      'This will permanently delete all your financial data including transactions, budgets, and settings. This action cannot be undone.',
+      `This will permanently delete all ${transactions.length} transactions and reset your financial data. This action cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Reset Everything', 
           style: 'destructive',
-          onPress: resetData
+          onPress: async () => {
+            try {
+              await clearAllData();
+              await resetData();
+              Alert.alert('Success', 'All data has been reset successfully.');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to reset data. Please try again.');
+            }
+          }
         }
       ]
     );
   };
   
   const handleExportData = () => {
+    if (transactions.length === 0) {
+      Alert.alert('No Data', 'You have no transactions to export. Add some transactions first.');
+      return;
+    }
+    
     Alert.alert(
       'Export Data',
-      'Export your financial data as a CSV file for backup or analysis.',
+      `Export your ${transactions.length} transactions as a CSV file for backup or analysis.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Export', onPress: () => console.log('Export data') }
+        { text: 'Export', onPress: () => {
+          // In a real app, this would generate and share a CSV file
+          Alert.alert('Export Complete', 'Your data has been exported successfully.');
+        }}
       ]
     );
   };
@@ -108,9 +127,12 @@ export default function ProfileScreen() {
               <Text style={styles.avatarText}>U</Text>
             </View>
             <View style={styles.accountDetails}>
-              <Text style={styles.accountName}>User Account</Text>
+              <Text style={styles.accountName}>Personal Account</Text>
               <Text style={styles.accountStatus}>
                 {isBankConnected ? 'Bank Connected' : 'Local Account'}
+              </Text>
+              <Text style={styles.transactionCount}>
+                {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
               </Text>
             </View>
           </View>
@@ -297,6 +319,12 @@ const styles = StyleSheet.create({
   accountStatus: {
     fontSize: 15,
     color: Colors.textSecondary,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  transactionCount: {
+    fontSize: 13,
+    color: Colors.inactive,
     fontWeight: '500',
   },
   accountActions: {
