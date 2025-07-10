@@ -24,7 +24,7 @@ export default function EmptyState({
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
-        <IconComponent size={32} color={Colors.inactive} />
+        <IconComponent size={36} color={Colors.inactive} strokeWidth={2} />
       </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
@@ -40,27 +40,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
   iconContainer: {
-    width: 80,
-    height: 80,
+    width: 88,
+    height: 88,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.cardSecondary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
     textAlign: 'center',
+    letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.inactive,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
+    fontWeight: '500',
   },
 });

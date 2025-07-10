@@ -2,8 +2,8 @@ const Colors = {
   primary: "#007AFF",
   secondary: "#5856D6",
   background: "#F2F2F7", // iOS system background - light gray
-  card: "#FFFFFF", // Pure white for primary cards to stand out
-  cardSecondary: "#F8F9FA", // Subtle light gray for secondary cards
+  card: "#F5F6FA", // Improved contrast - subtle neutral tone
+  cardSecondary: "#ECEEF2", // Darker secondary card background
   text: "#000000",
   textSecondary: "#6C6C70",
   border: "#E5E5EA",
@@ -25,8 +25,9 @@ const Colors = {
   oneTime: "#9013FE",
   
   // Shadow colors
-  shadowColor: "rgba(0, 0, 0, 0.1)",
-  shadowColorLight: "rgba(0, 0, 0, 0.05)",
+  shadowColor: "rgba(0, 0, 0, 0.12)",
+  shadowColorLight: "rgba(0, 0, 0, 0.08)",
+  shadowColorHeavy: "rgba(0, 0, 0, 0.16)",
 };
 
 export default Colors;

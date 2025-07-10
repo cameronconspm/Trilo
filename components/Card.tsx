@@ -40,7 +40,7 @@ export default function Card({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.card,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     padding: Spacing.cardPadding,
     marginVertical: Spacing.sm,
     ...Shadow.light,
@@ -48,16 +48,19 @@ const styles = StyleSheet.create({
   elevated: {
     ...Shadow.medium,
     backgroundColor: Colors.card,
+    borderRadius: BorderRadius.xxl,
   },
   subtle: {
     backgroundColor: Colors.cardSecondary,
     ...Shadow.light,
+    borderRadius: BorderRadius.lg,
   },
   title: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     marginBottom: Spacing.md,
     color: Colors.text,
+    letterSpacing: -0.3,
   },
   content: {
     width: '100%',

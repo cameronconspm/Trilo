@@ -27,7 +27,7 @@ export default function Header({ title, subtitle, showAddButton = false }: Heade
           onPress={() => router.push('/add-expense')}
           activeOpacity={0.8}
         >
-          <Plus size={24} color={Colors.background} />
+          <Plus size={24} color={Colors.background} strokeWidth={2.5} />
         </TouchableOpacity>
       )}
     </View>
@@ -41,27 +41,27 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: Spacing.screenHorizontal,
     paddingTop: Spacing.screenTop,
-    paddingBottom: Spacing.lg,
+    paddingBottom: Spacing.xl,
     backgroundColor: Colors.background,
   },
   textContainer: {
     flex: 1,
   },
   title: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '700',
     color: Colors.text,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 17,
     color: Colors.textSecondary,
     marginTop: Spacing.xs,
     fontWeight: '500',
   },
   addButton: {
-    width: 48,
-    height: 48,
+    width: 52,
+    height: 52,
     borderRadius: BorderRadius.full,
     backgroundColor: Colors.primary,
     justifyContent: 'center',

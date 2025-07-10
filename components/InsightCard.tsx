@@ -12,7 +12,7 @@ export default function InsightCard({ text }: InsightCardProps) {
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
-        <TrendingUp size={16} color={Colors.primary} />
+        <TrendingUp size={18} color={Colors.primary} strokeWidth={2.5} />
       </View>
       <Text style={styles.text}>{text}</Text>
     </View>
@@ -22,18 +22,18 @@ export default function InsightCard({ text }: InsightCardProps) {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: Colors.card,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
     marginVertical: Spacing.xs,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    borderLeftWidth: 3,
+    borderLeftWidth: 4,
     borderLeftColor: Colors.primary,
     ...Shadow.medium,
   },
   iconContainer: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     borderRadius: BorderRadius.full,
     backgroundColor: Colors.cardSecondary,
     alignItems: 'center',
@@ -41,10 +41,11 @@ const styles = StyleSheet.create({
     marginRight: Spacing.md,
   },
   text: {
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 24,
     color: Colors.text,
     flex: 1,
     fontWeight: '500',
+    letterSpacing: -0.2,
   },
 });

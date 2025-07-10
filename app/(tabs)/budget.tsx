@@ -14,7 +14,6 @@ export default function BudgetScreen() {
   const router = useRouter();
   const { budget, transactions, isLoading } = useFinance();
   
-  // Filter transactions by type
   const givenExpenses = transactions.filter(t => 
     t.type === 'expense' && 
     !t.isRecurring && 
@@ -111,7 +110,7 @@ export default function BudgetScreen() {
             onPress={() => router.push('/add-expense')}
             style={styles.addButton}
           >
-            <Plus size={20} color={Colors.primary} />
+            <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
         <Card>
@@ -137,7 +136,7 @@ export default function BudgetScreen() {
             onPress={() => router.push('/add-expense')}
             style={styles.addButton}
           >
-            <Plus size={20} color={Colors.primary} />
+            <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
         <Card>
@@ -163,7 +162,7 @@ export default function BudgetScreen() {
             onPress={() => router.push('/add-expense')}
             style={styles.addButton}
           >
-            <Plus size={20} color={Colors.primary} />
+            <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
         <Card>
@@ -209,52 +208,52 @@ const styles = StyleSheet.create({
     color: Colors.inactive,
   },
   summaryCard: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   summaryItem: {
     flex: 1,
   },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.textSecondary,
-    marginBottom: Spacing.xs,
-    fontWeight: '500',
+    marginBottom: Spacing.sm,
+    fontWeight: '600',
   },
   summaryValue: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700',
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
   remainingContainer: {
     alignItems: 'center',
-    marginBottom: Spacing.lg,
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.background,
-    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.xl,
+    paddingVertical: Spacing.lg,
+    backgroundColor: Colors.cardSecondary,
+    borderRadius: BorderRadius.lg,
   },
   remainingLabel: {
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.textSecondary,
-    marginBottom: Spacing.xs,
-    fontWeight: '500',
+    marginBottom: Spacing.sm,
+    fontWeight: '600',
   },
   remainingValue: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '700',
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
   },
   negativeValue: {
     color: Colors.error,
   },
   breakdownContainer: {
-    backgroundColor: Colors.cardSecondary,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
   },
   breakdownRow: {
     flexDirection: 'row',
@@ -262,12 +261,12 @@ const styles = StyleSheet.create({
     marginVertical: Spacing.xs,
   },
   breakdownLabel: {
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.textSecondary,
     fontWeight: '500',
   },
   breakdownValue: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.text,
   },
@@ -276,16 +275,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: Spacing.sectionSpacing,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '600',
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
   addButton: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: BorderRadius.full,
     backgroundColor: Colors.card,
     justifyContent: 'center',
