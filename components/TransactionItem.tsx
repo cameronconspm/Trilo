@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Trash2 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius } from '@/constants/spacing';
 import { Transaction } from '@/types/finance';
 import { useFinance } from '@/context/FinanceContext';
+import { useAlert } from '@/hooks/useAlert';
+import AlertModal from '@/components/AlertModal';
 import categories from '@/constants/categories';
 import { formatWeekAndDay } from '@/utils/dateUtils';
 
@@ -20,6 +22,7 @@ export default function TransactionItem({
   showActions = false 
 }: TransactionItemProps) {
   const { deleteTransaction } = useFinance();
+  const { alertState, showAlert, hideAlert } = useAlert();
   const { name, amount, date, category, isRecurring, type, weekDay, weekNumber } = transaction;
   const categoryInfo = categories.find(c => c.id === category) || categories[0];
   
@@ -52,64 +55,76 @@ export default function TransactionItem({
   }
 
   const handleDelete = () => {
-    Alert.alert(
-      'Delete Transaction',
-      `Are you sure you want to delete "${name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
+    showAlert({
+      title: 'Delete Transaction',
+      message: `Are you sure you want to delete "${name}"?`,
+      type: 'warning',
+      actions: [
+        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
         { 
           text: 'Delete', 
-          style: 'destructive',
-          onPress: () => deleteTransaction(transaction.id)
+          onPress: () => deleteTransaction(transaction.id),
+          style: 'destructive'
         }
-      ]
-    );
+      ],
+    });
   };
 
   return (
-    <View style={[styles.container, isLast && styles.lastItem]}>
-      <View style={styles.leftContent}>
-        <View style={[styles.categoryDot, { backgroundColor: categoryInfo.color }]} />
-        <View style={styles.textContainer}>
-          <View style={styles.nameRow}>
-            <Text style={styles.name} numberOfLines={1}>{name}</Text>
-            {isRecurring && (
-              <View style={styles.recurringBadge}>
-                <Text style={styles.recurringText}>Recurring</Text>
-              </View>
+    <>
+      <View style={[styles.container, isLast && styles.lastItem]}>
+        <View style={styles.leftContent}>
+          <View style={[styles.categoryDot, { backgroundColor: categoryInfo.color }]} />
+          <View style={styles.textContainer}>
+            <View style={styles.nameRow}>
+              <Text style={styles.name} numberOfLines={1}>{name}</Text>
+              {isRecurring && (
+                <View style={styles.recurringBadge}>
+                  <Text style={styles.recurringText}>Recurring</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.category}>{categoryInfo.name}</Text>
+          </View>
+        </View>
+        <View style={styles.rightContent}>
+          <Text style={[
+            styles.amount, 
+            transaction.type === 'income' ? styles.income : styles.expense,
+            isFuture && styles.futureAmount
+          ]}>
+            {transaction.type === 'income' ? '+' : ''}${amount.toFixed(2)}
+          </Text>
+          <View style={styles.dateRow}>
+            <Text style={[
+              styles.date, 
+              isFuture && styles.futureDate,
+              type === 'income' && weekDay && weekNumber && styles.incomeSchedule
+            ]}>
+              {formattedDate}
+            </Text>
+            {showActions && (
+              <TouchableOpacity
+                onPress={handleDelete}
+                style={styles.deleteButton}
+                activeOpacity={0.7}
+              >
+                <Trash2 size={16} color={Colors.error} strokeWidth={2} />
+              </TouchableOpacity>
             )}
           </View>
-          <Text style={styles.category}>{categoryInfo.name}</Text>
         </View>
       </View>
-      <View style={styles.rightContent}>
-        <Text style={[
-          styles.amount, 
-          transaction.type === 'income' ? styles.income : styles.expense,
-          isFuture && styles.futureAmount
-        ]}>
-          {transaction.type === 'income' ? '+' : ''}${amount.toFixed(2)}
-        </Text>
-        <View style={styles.dateRow}>
-          <Text style={[
-            styles.date, 
-            isFuture && styles.futureDate,
-            type === 'income' && weekDay && weekNumber && styles.incomeSchedule
-          ]}>
-            {formattedDate}
-          </Text>
-          {showActions && (
-            <TouchableOpacity
-              onPress={handleDelete}
-              style={styles.deleteButton}
-              activeOpacity={0.7}
-            >
-              <Trash2 size={16} color={Colors.error} strokeWidth={2} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    </View>
+      
+      <AlertModal
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        type={alertState.type}
+        actions={alertState.actions}
+        onClose={hideAlert}
+      />
+    </>
   );
 }
 

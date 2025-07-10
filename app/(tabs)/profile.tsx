@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Switch } from 'react-native';
 import { useSettings } from '@/context/SettingsContext';
 import { useFinance } from '@/context/FinanceContext';
+import { useAlert } from '@/hooks/useAlert';
 import Header from '@/components/Header';
 import SettingsItem from '@/components/SettingsItem';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
+import AlertModal from '@/components/AlertModal';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 
@@ -23,6 +25,7 @@ export default function ProfileScreen() {
   } = useSettings();
   
   const { clearAllData, transactions, exportData } = useFinance();
+  const { alertState, showAlert, hideAlert } = useAlert();
   
   const [showThemeOptions, setShowThemeOptions] = useState(false);
   const [showWeekStartOptions, setShowWeekStartOptions] = useState(false);
@@ -33,7 +36,12 @@ export default function ProfileScreen() {
       await setTheme(newTheme);
       setShowThemeOptions(false);
     } catch (error) {
-      Alert.alert('Error', 'Failed to save theme setting. Please try again.');
+      showAlert({
+        title: 'Error',
+        message: 'Failed to save theme setting. Please try again.',
+        type: 'error',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
     }
   };
   
@@ -42,79 +50,122 @@ export default function ProfileScreen() {
       await setWeekStartDay(day as any);
       setShowWeekStartOptions(false);
     } catch (error) {
-      Alert.alert('Error', 'Failed to save week start day. Please try again.');
+      showAlert({
+        title: 'Error',
+        message: 'Failed to save week start day. Please try again.',
+        type: 'error',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
     }
   };
   
   const handleBankConnection = async () => {
     if (isBankConnected) {
-      Alert.alert(
-        'Disconnect Bank Account',
-        'Are you sure you want to disconnect your bank account? This will stop automatic transaction imports.',
-        [
-          { text: 'Cancel', style: 'cancel' },
+      showAlert({
+        title: 'Disconnect Bank Account',
+        message: 'Are you sure you want to disconnect your bank account? This will stop automatic transaction imports.',
+        type: 'warning',
+        actions: [
+          { text: 'Cancel', onPress: () => {}, style: 'cancel' },
           { 
             text: 'Disconnect', 
-            style: 'destructive',
             onPress: async () => {
               try {
                 await disconnectBank();
-                Alert.alert('Success', 'Bank account disconnected successfully.');
+                showAlert({
+                  title: 'Success',
+                  message: 'Bank account disconnected successfully.',
+                  type: 'success',
+                  actions: [{ text: 'OK', onPress: () => {} }],
+                });
               } catch (error) {
-                Alert.alert('Error', 'Failed to disconnect bank account. Please try again.');
+                showAlert({
+                  title: 'Error',
+                  message: 'Failed to disconnect bank account. Please try again.',
+                  type: 'error',
+                  actions: [{ text: 'OK', onPress: () => {} }],
+                });
               }
-            }
+            },
+            style: 'destructive'
           }
-        ]
-      );
+        ],
+      });
     } else {
-      Alert.alert(
-        'Connect Bank Account',
-        'Connect your bank account to automatically import transactions and get real-time balance updates.',
-        [
-          { text: 'Cancel', style: 'cancel' },
+      showAlert({
+        title: 'Connect Bank Account',
+        message: 'Connect your bank account to automatically import transactions and get real-time balance updates.',
+        type: 'info',
+        actions: [
+          { text: 'Cancel', onPress: () => {}, style: 'cancel' },
           { 
             text: 'Connect', 
             onPress: async () => {
               try {
                 await connectBank();
-                Alert.alert('Success', 'Bank account connected successfully!');
+                showAlert({
+                  title: 'Success',
+                  message: 'Bank account connected successfully!',
+                  type: 'success',
+                  actions: [{ text: 'OK', onPress: () => {} }],
+                });
               } catch (error) {
-                Alert.alert('Error', 'Failed to connect bank account. Please try again.');
+                showAlert({
+                  title: 'Error',
+                  message: 'Failed to connect bank account. Please try again.',
+                  type: 'error',
+                  actions: [{ text: 'OK', onPress: () => {} }],
+                });
               }
             }
           }
-        ]
-      );
+        ],
+      });
     }
   };
   
   const handleResetData = () => {
-    Alert.alert(
-      'Reset All Data',
-      `This will permanently delete all ${transactions.length} transactions and reset your financial data. This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
+    showAlert({
+      title: 'Reset All Data',
+      message: `This will permanently delete all ${transactions.length} transactions and reset your financial data. This action cannot be undone.`,
+      type: 'warning',
+      actions: [
+        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
         { 
           text: 'Reset Everything', 
-          style: 'destructive',
           onPress: async () => {
             try {
               await clearAllData();
               await resetData();
-              Alert.alert('Success', 'All data has been reset successfully.');
+              showAlert({
+                title: 'Success',
+                message: 'All data has been reset successfully.',
+                type: 'success',
+                actions: [{ text: 'OK', onPress: () => {} }],
+              });
             } catch (error) {
-              Alert.alert('Error', 'Failed to reset data. Please try again.');
+              showAlert({
+                title: 'Error',
+                message: 'Failed to reset data. Please try again.',
+                type: 'error',
+                actions: [{ text: 'OK', onPress: () => {} }],
+              });
             }
-          }
+          },
+          style: 'destructive'
         }
-      ]
-    );
+      ],
+    });
   };
   
   const handleExportData = async () => {
     if (transactions.length === 0) {
-      Alert.alert('No Data', 'You have no transactions to export. Add some transactions first.');
+      showAlert({
+        title: 'No Data',
+        message: 'You have no transactions to export. Add some transactions first.',
+        type: 'info',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
       return;
     }
     
@@ -122,24 +173,32 @@ export default function ProfileScreen() {
       setIsExporting(true);
       const exportedData = await exportData();
       
-      // In a real app, you would use a sharing library like expo-sharing
-      // For now, we'll just show a success message
-      Alert.alert(
-        'Export Complete', 
-        `Successfully exported ${transactions.length} transactions. In a real app, this would save to your device or share via email.`,
-        [
+      showAlert({
+        title: 'Export Complete',
+        message: `Successfully exported ${transactions.length} transactions. In a real app, this would save to your device or share via email.`,
+        type: 'success',
+        actions: [
           {
             text: 'Copy to Clipboard',
             onPress: () => {
-              // In a real app, use expo-clipboard
-              Alert.alert('Copied', 'Export data copied to clipboard (simulated)');
+              showAlert({
+                title: 'Copied',
+                message: 'Export data copied to clipboard (simulated)',
+                type: 'success',
+                actions: [{ text: 'OK', onPress: () => {} }],
+              });
             }
           },
-          { text: 'OK' }
-        ]
-      );
+          { text: 'OK', onPress: () => {} }
+        ],
+      });
     } catch (error) {
-      Alert.alert('Export Failed', 'Failed to export your data. Please try again.');
+      showAlert({
+        title: 'Export Failed',
+        message: 'Failed to export your data. Please try again.',
+        type: 'error',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
     } finally {
       setIsExporting(false);
     }
@@ -161,167 +220,218 @@ export default function ProfileScreen() {
   }
   
   return (
-    <View style={styles.container}>
-      <Header title="Settings" subtitle="Preferences & account" />
-      
-      <ScrollView 
-        style={styles.scrollView} 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Account Overview */}
-        <Card variant="elevated" style={styles.accountCard}>
-          <View style={styles.accountInfo}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>U</Text>
+    <>
+      <View style={styles.container}>
+        <Header title="Settings" subtitle="Preferences & account" />
+        
+        <ScrollView 
+          style={styles.scrollView} 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Account Overview */}
+          <Card variant="elevated" style={styles.accountCard}>
+            <View style={styles.accountInfo}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>U</Text>
+              </View>
+              <View style={styles.accountDetails}>
+                <Text style={styles.accountName}>Personal Account</Text>
+                <Text style={styles.accountStatus}>
+                  {isBankConnected ? 'Bank Connected' : 'Local Account'}
+                </Text>
+                <Text style={styles.transactionCount}>
+                  {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+                </Text>
+              </View>
             </View>
-            <View style={styles.accountDetails}>
-              <Text style={styles.accountName}>Personal Account</Text>
-              <Text style={styles.accountStatus}>
-                {isBankConnected ? 'Bank Connected' : 'Local Account'}
-              </Text>
-              <Text style={styles.transactionCount}>
-                {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
-              </Text>
+            
+            <View style={styles.accountActions}>
+              <Button
+                title={isBankConnected ? 'Disconnect Bank' : 'Connect Bank'}
+                onPress={handleBankConnection}
+                variant={isBankConnected ? 'outline' : 'primary'}
+                size="medium"
+              />
             </View>
-          </View>
-          
-          <View style={styles.accountActions}>
-            <Button
-              title={isBankConnected ? 'Disconnect Bank' : 'Connect Bank'}
-              onPress={handleBankConnection}
-              variant={isBankConnected ? 'outline' : 'primary'}
-              size="medium"
-            />
-          </View>
-        </Card>
+          </Card>
 
-        {/* Preferences */}
-        <Text style={styles.sectionTitle}>Preferences</Text>
-        <Card variant="subtle">
-          {showThemeOptions ? (
-            <>
-              <SettingsItem 
-                title="System (Default)" 
-                onPress={() => handleThemeChange('system')}
-              />
-              <SettingsItem 
-                title="Light" 
-                onPress={() => handleThemeChange('light')}
-              />
-              <SettingsItem 
-                title="Dark" 
-                onPress={() => handleThemeChange('dark')}
-                isLast
-              />
-            </>
-          ) : (
-            <SettingsItem 
-              title="Appearance" 
-              value={theme.charAt(0).toUpperCase() + theme.slice(1)}
-              onPress={() => setShowThemeOptions(true)}
-            />
-          )}
-          
-          {showWeekStartOptions ? (
-            <>
-              {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((day, index, array) => (
+          {/* Preferences */}
+          <Text style={styles.sectionTitle}>Preferences</Text>
+          <Card variant="subtle">
+            {showThemeOptions ? (
+              <>
                 <SettingsItem 
-                  key={day}
-                  title={formatWeekStartDay(day)} 
-                  onPress={() => handleWeekStartChange(day)}
-                  isLast={index === array.length - 1}
+                  title="System (Default)" 
+                  onPress={() => handleThemeChange('system')}
                 />
-              ))}
-            </>
-          ) : (
+                <SettingsItem 
+                  title="Light" 
+                  onPress={() => handleThemeChange('light')}
+                />
+                <SettingsItem 
+                  title="Dark" 
+                  onPress={() => handleThemeChange('dark')}
+                  isLast
+                />
+              </>
+            ) : (
+              <SettingsItem 
+                title="Appearance" 
+                value={theme.charAt(0).toUpperCase() + theme.slice(1)}
+                onPress={() => setShowThemeOptions(true)}
+              />
+            )}
+            
+            {showWeekStartOptions ? (
+              <>
+                {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((day, index, array) => (
+                  <SettingsItem 
+                    key={day}
+                    title={formatWeekStartDay(day)} 
+                    onPress={() => handleWeekStartChange(day)}
+                    isLast={index === array.length - 1}
+                  />
+                ))}
+              </>
+            ) : (
+              <SettingsItem 
+                title="Week starts on" 
+                value={formatWeekStartDay(weekStartDay)}
+                onPress={() => setShowWeekStartOptions(true)}
+              />
+            )}
+            
             <SettingsItem 
-              title="Week starts on" 
-              value={formatWeekStartDay(weekStartDay)}
-              onPress={() => setShowWeekStartOptions(true)}
+              title="Notifications" 
+              onPress={() => showAlert({
+                title: 'Notifications',
+                message: 'Push notification settings would open here with options for budget alerts, bill reminders, and weekly summaries.',
+                type: 'info',
+                actions: [{ text: 'OK', onPress: () => {} }],
+              })}
+              isLast
             />
-          )}
+          </Card>
           
-          <SettingsItem 
-            title="Notifications" 
-            onPress={() => Alert.alert('Notifications', 'Push notification settings would open here with options for budget alerts, bill reminders, and weekly summaries.')}
-            isLast
-          />
-        </Card>
-        
-        {/* Data & Privacy */}
-        <Text style={styles.sectionTitle}>Data & Privacy</Text>
-        <Card variant="subtle">
-          <SettingsItem 
-            title="Export Data" 
-            onPress={handleExportData}
-            disabled={isExporting}
-          />
+          {/* Data & Privacy */}
+          <Text style={styles.sectionTitle}>Data & Privacy</Text>
+          <Card variant="subtle">
+            <SettingsItem 
+              title="Export Data" 
+              onPress={handleExportData}
+              disabled={isExporting}
+            />
+            
+            <SettingsItem 
+              title="Privacy Policy" 
+              onPress={() => showAlert({
+                title: 'Privacy Policy',
+                message: 'Privacy policy would open here.',
+                type: 'info',
+                actions: [{ text: 'OK', onPress: () => {} }],
+              })}
+            />
+            
+            <SettingsItem 
+              title="Terms of Service" 
+              onPress={() => showAlert({
+                title: 'Terms of Service',
+                message: 'Terms of service would open here.',
+                type: 'info',
+                actions: [{ text: 'OK', onPress: () => {} }],
+              })}
+              isLast
+            />
+          </Card>
           
-          <SettingsItem 
-            title="Privacy Policy" 
-            onPress={() => Alert.alert('Privacy Policy', 'Privacy policy would open here.')}
-          />
+          {/* Help & Support */}
+          <Text style={styles.sectionTitle}>Help & Support</Text>
+          <Card variant="subtle">
+            <SettingsItem 
+              title="Help Center" 
+              onPress={() => showAlert({
+                title: 'Help Center',
+                message: 'Help articles and tutorials would open here.',
+                type: 'info',
+                actions: [{ text: 'OK', onPress: () => {} }],
+              })}
+            />
+            
+            <SettingsItem 
+              title="Contact Support" 
+              onPress={() => showAlert({
+                title: 'Contact Support',
+                message: 'Support contact form would open here with options for email, chat, or phone support.',
+                type: 'info',
+                actions: [{ text: 'OK', onPress: () => {} }],
+              })}
+            />
+            
+            <SettingsItem 
+              title="Send Feedback" 
+              onPress={() => showAlert({
+                title: 'Send Feedback',
+                message: 'Feedback form would open here to help improve the app.',
+                type: 'info',
+                actions: [{ text: 'OK', onPress: () => {} }],
+              })}
+            />
+            
+            <SettingsItem 
+              title="Rate App" 
+              onPress={() => showAlert({
+                title: 'Rate App',
+                message: 'App store rating would open here.',
+                type: 'info',
+                actions: [{ text: 'OK', onPress: () => {} }],
+              })}
+              isLast
+            />
+          </Card>
           
-          <SettingsItem 
-            title="Terms of Service" 
-            onPress={() => Alert.alert('Terms of Service', 'Terms of service would open here.')}
-            isLast
-          />
-        </Card>
-        
-        {/* Help & Support */}
-        <Text style={styles.sectionTitle}>Help & Support</Text>
-        <Card variant="subtle">
-          <SettingsItem 
-            title="Help Center" 
-            onPress={() => Alert.alert('Help Center', 'Help articles and tutorials would open here.')}
-          />
+          {/* Danger Zone */}
+          <Text style={styles.sectionTitle}>Danger Zone</Text>
+          <Card variant="subtle">
+            <SettingsItem 
+              title="Reset all data" 
+              isDestructive
+              onPress={handleResetData}
+            />
+            
+            <SettingsItem 
+              title="Delete account" 
+              isDestructive
+              onPress={() => showAlert({
+                title: 'Delete Account',
+                message: 'Account deletion would permanently remove all data and cannot be undone. Contact support for assistance.',
+                type: 'warning',
+                actions: [{ text: 'OK', onPress: () => {} }],
+              })}
+              isLast
+            />
+          </Card>
           
-          <SettingsItem 
-            title="Contact Support" 
-            onPress={() => Alert.alert('Contact Support', 'Support contact form would open here with options for email, chat, or phone support.')}
-          />
-          
-          <SettingsItem 
-            title="Send Feedback" 
-            onPress={() => Alert.alert('Send Feedback', 'Feedback form would open here to help improve the app.')}
-          />
-          
-          <SettingsItem 
-            title="Rate App" 
-            onPress={() => Alert.alert('Rate App', 'App store rating would open here.')}
-            isLast
-          />
-        </Card>
-        
-        {/* Danger Zone */}
-        <Text style={styles.sectionTitle}>Danger Zone</Text>
-        <Card variant="subtle">
-          <SettingsItem 
-            title="Reset all data" 
-            isDestructive
-            onPress={handleResetData}
-          />
-          
-          <SettingsItem 
-            title="Delete account" 
-            isDestructive
-            onPress={() => Alert.alert('Delete Account', 'Account deletion would permanently remove all data and cannot be undone. Contact support for assistance.')}
-            isLast
-          />
-        </Card>
-        
-        {/* App Info */}
-        <View style={styles.appInfo}>
-          <Text style={styles.appVersion}>Version 1.0.0</Text>
-          <Text style={styles.appCopyright}>© 2024 Finance Tracker</Text>
-          <Text style={styles.storageInfo}>
-            Data stored locally on your device
-          </Text>
-        </View>
-      </ScrollView>
-    </View>
+          {/* App Info */}
+          <View style={styles.appInfo}>
+            <Text style={styles.appVersion}>Version 1.0.0</Text>
+            <Text style={styles.appCopyright}>© 2024 Finance Tracker</Text>
+            <Text style={styles.storageInfo}>
+              Data stored locally on your device
+            </Text>
+          </View>
+        </ScrollView>
+      </View>
+      
+      <AlertModal
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        type={alertState.type}
+        actions={alertState.actions}
+        onClose={hideAlert}
+      />
+    </>
   );
 }
 

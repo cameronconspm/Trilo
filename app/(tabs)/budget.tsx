@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Plus, Edit3, Target } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
+import { useAlert } from '@/hooks/useAlert';
 import Header from '@/components/Header';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
@@ -9,11 +10,13 @@ import ProgressBar from '@/components/ProgressBar';
 import TransactionItem from '@/components/TransactionItem';
 import EmptyState from '@/components/EmptyState';
 import AddTransactionModal from '@/components/AddTransactionModal';
+import AlertModal from '@/components/AlertModal';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 
 export default function BudgetScreen() {
   const { budget, transactions, isLoading } = useFinance();
+  const { alertState, showAlert, hideAlert } = useAlert();
   const [showAddModal, setShowAddModal] = useState(false);
   
   const givenExpenses = transactions.filter(t => 
@@ -39,11 +42,12 @@ export default function BudgetScreen() {
   const budgetUtilization = budget.income > 0 ? (totalExpenses / budget.income) * 100 : 0;
   
   const handleSetBudgetGoal = () => {
-    Alert.alert(
-      'Set Budget Goal',
-      'Budget goal setting would open here with input fields for monthly income and savings targets.',
-      [{ text: 'OK' }]
-    );
+    showAlert({
+      title: 'Set Budget Goal',
+      message: 'Budget goal setting would open here with input fields for monthly income and savings targets.',
+      type: 'info',
+      actions: [{ text: 'OK', onPress: () => {} }],
+    });
   };
   
   if (isLoading) {
@@ -62,195 +66,206 @@ export default function BudgetScreen() {
   }
   
   return (
-    <View style={styles.container}>
-      <Header 
-        title="Budget"
-        subtitle="Monthly planning"
-        showAddButton
-      />
-      
-      <ScrollView 
-        style={styles.scrollView} 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Budget Overview Card */}
-        <Card variant="elevated" style={styles.summaryCard}>
-          <View style={styles.budgetHeader}>
-            <View style={styles.budgetTitleContainer}>
-              <Text style={styles.budgetTitle}>Monthly Budget</Text>
-              <TouchableOpacity 
-                onPress={handleSetBudgetGoal}
-                style={styles.editButton}
-                activeOpacity={0.7}
-              >
-                <Edit3 size={16} color={Colors.primary} strokeWidth={2} />
-              </TouchableOpacity>
+    <>
+      <View style={styles.container}>
+        <Header 
+          title="Budget"
+          subtitle="Monthly planning"
+          showAddButton
+        />
+        
+        <ScrollView 
+          style={styles.scrollView} 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Budget Overview Card */}
+          <Card variant="elevated" style={styles.summaryCard}>
+            <View style={styles.budgetHeader}>
+              <View style={styles.budgetTitleContainer}>
+                <Text style={styles.budgetTitle}>Monthly Budget</Text>
+                <TouchableOpacity 
+                  onPress={handleSetBudgetGoal}
+                  style={styles.editButton}
+                  activeOpacity={0.7}
+                >
+                  <Edit3 size={16} color={Colors.primary} strokeWidth={2} />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-          
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Monthly Income</Text>
-              <Text style={styles.summaryValue}>
-                ${budget.income > 0 ? budget.income.toFixed(2) : '0.00'}
+            
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Monthly Income</Text>
+                <Text style={styles.summaryValue}>
+                  ${budget.income > 0 ? budget.income.toFixed(2) : '0.00'}
+                </Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Total Expenses</Text>
+                <Text style={styles.summaryValue}>
+                  ${totalExpenses.toFixed(2)}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.progressContainer}>
+              <ProgressBar
+                progress={budgetUtilization}
+                color={budgetUtilization > 90 ? Colors.error : budgetUtilization > 75 ? Colors.warning : Colors.success}
+                label="Budget Utilization"
+                showPercentage
+              />
+            </View>
+            
+            <View style={styles.remainingContainer}>
+              <Text style={styles.remainingLabel}>Remaining Budget</Text>
+              <Text style={[
+                styles.remainingValue,
+                remainingIncome < 0 && styles.negativeValue
+              ]}>
+                ${remainingIncome.toFixed(2)}
               </Text>
             </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Total Expenses</Text>
-              <Text style={styles.summaryValue}>
-                ${totalExpenses.toFixed(2)}
-              </Text>
+            
+            <View style={styles.breakdownContainer}>
+              <Text style={styles.breakdownTitle}>Expense Breakdown</Text>
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Given expenses</Text>
+                <Text style={styles.breakdownValue}>${budget.expenses.given.toFixed(2)}</Text>
+              </View>
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>One-time expenses</Text>
+                <Text style={styles.breakdownValue}>${budget.expenses.oneTime.toFixed(2)}</Text>
+              </View>
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Recurring expenses</Text>
+                <Text style={styles.breakdownValue}>${budget.expenses.recurring.toFixed(2)}</Text>
+              </View>
             </View>
-          </View>
-          
-          <View style={styles.progressContainer}>
-            <ProgressBar
-              progress={budgetUtilization}
-              color={budgetUtilization > 90 ? Colors.error : budgetUtilization > 75 ? Colors.warning : Colors.success}
-              label="Budget Utilization"
-              showPercentage
-            />
-          </View>
-          
-          <View style={styles.remainingContainer}>
-            <Text style={styles.remainingLabel}>Remaining Budget</Text>
-            <Text style={[
-              styles.remainingValue,
-              remainingIncome < 0 && styles.negativeValue
-            ]}>
-              ${remainingIncome.toFixed(2)}
-            </Text>
-          </View>
-          
-          <View style={styles.breakdownContainer}>
-            <Text style={styles.breakdownTitle}>Expense Breakdown</Text>
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Given expenses</Text>
-              <Text style={styles.breakdownValue}>${budget.expenses.given.toFixed(2)}</Text>
-            </View>
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>One-time expenses</Text>
-              <Text style={styles.breakdownValue}>${budget.expenses.oneTime.toFixed(2)}</Text>
-            </View>
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Recurring expenses</Text>
-              <Text style={styles.breakdownValue}>${budget.expenses.recurring.toFixed(2)}</Text>
-            </View>
-          </View>
-        </Card>
+          </Card>
 
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <Button
-            title="Add Transaction"
-            onPress={() => setShowAddModal(true)}
-            variant="primary"
-            size="medium"
-            style={styles.actionButton}
-          />
-          <Button
-            title="Set Goals"
-            onPress={handleSetBudgetGoal}
-            variant="ghost"
-            size="medium"
-            style={styles.actionButton}
-          />
-        </View>
-        
-        {/* Given Expenses Section */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Given Expenses</Text>
-          <TouchableOpacity 
-            onPress={() => setShowAddModal(true)}
-            style={styles.addButton}
-            activeOpacity={0.7}
-          >
-            <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
-          </TouchableOpacity>
-        </View>
-        <Card>
-          {givenExpenses.length > 0 ? (
-            givenExpenses.map((expense, index) => (
-              <TransactionItem 
-                key={expense.id} 
-                transaction={expense}
-                isLast={index === givenExpenses.length - 1}
-              />
-            ))
-          ) : (
-            <EmptyState 
-              icon="dollar"
-              title="No given expenses"
-              subtitle="Add essential expenses like rent, groceries, and utilities"
+          {/* Quick Actions */}
+          <View style={styles.quickActions}>
+            <Button
+              title="Add Transaction"
+              onPress={() => setShowAddModal(true)}
+              variant="primary"
+              size="medium"
+              style={styles.actionButton}
             />
-          )}
-        </Card>
-        
-        {/* Recurring Expenses Section */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recurring Expenses</Text>
-          <TouchableOpacity 
-            onPress={() => setShowAddModal(true)}
-            style={styles.addButton}
-            activeOpacity={0.7}
-          >
-            <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
-          </TouchableOpacity>
-        </View>
-        <Card>
-          {recurringExpenses.length > 0 ? (
-            recurringExpenses.map((expense, index) => (
-              <TransactionItem 
-                key={expense.id} 
-                transaction={expense}
-                isLast={index === recurringExpenses.length - 1}
-              />
-            ))
-          ) : (
-            <EmptyState 
-              icon="trending"
-              title="No recurring expenses"
-              subtitle="Add subscriptions, bills, and regular payments"
+            <Button
+              title="Set Goals"
+              onPress={handleSetBudgetGoal}
+              variant="ghost"
+              size="medium"
+              style={styles.actionButton}
             />
-          )}
-        </Card>
-        
-        {/* One-Time Expenses Section */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>One-Time Expenses</Text>
-          <TouchableOpacity 
-            onPress={() => setShowAddModal(true)}
-            style={styles.addButton}
-            activeOpacity={0.7}
-          >
-            <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
-          </TouchableOpacity>
-        </View>
-        <Card>
-          {oneTimeExpenses.length > 0 ? (
-            oneTimeExpenses.map((expense, index) => (
-              <TransactionItem 
-                key={expense.id} 
-                transaction={expense}
-                isLast={index === oneTimeExpenses.length - 1}
+          </View>
+          
+          {/* Given Expenses Section */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Given Expenses</Text>
+            <TouchableOpacity 
+              onPress={() => setShowAddModal(true)}
+              style={styles.addButton}
+              activeOpacity={0.7}
+            >
+              <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
+            </TouchableOpacity>
+          </View>
+          <Card>
+            {givenExpenses.length > 0 ? (
+              givenExpenses.map((expense, index) => (
+                <TransactionItem 
+                  key={expense.id} 
+                  transaction={expense}
+                  isLast={index === givenExpenses.length - 1}
+                />
+              ))
+            ) : (
+              <EmptyState 
+                icon="dollar"
+                title="No given expenses"
+                subtitle="Add essential expenses like rent, groceries, and utilities"
               />
-            ))
-          ) : (
-            <EmptyState 
-              icon="plus"
-              title="No one-time expenses"
-              subtitle="Track occasional purchases and unexpected costs"
-            />
-          )}
-        </Card>
-      </ScrollView>
+            )}
+          </Card>
+          
+          {/* Recurring Expenses Section */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recurring Expenses</Text>
+            <TouchableOpacity 
+              onPress={() => setShowAddModal(true)}
+              style={styles.addButton}
+              activeOpacity={0.7}
+            >
+              <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
+            </TouchableOpacity>
+          </View>
+          <Card>
+            {recurringExpenses.length > 0 ? (
+              recurringExpenses.map((expense, index) => (
+                <TransactionItem 
+                  key={expense.id} 
+                  transaction={expense}
+                  isLast={index === recurringExpenses.length - 1}
+                />
+              ))
+            ) : (
+              <EmptyState 
+                icon="trending"
+                title="No recurring expenses"
+                subtitle="Add subscriptions, bills, and regular payments"
+              />
+            )}
+          </Card>
+          
+          {/* One-Time Expenses Section */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>One-Time Expenses</Text>
+            <TouchableOpacity 
+              onPress={() => setShowAddModal(true)}
+              style={styles.addButton}
+              activeOpacity={0.7}
+            >
+              <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
+            </TouchableOpacity>
+          </View>
+          <Card>
+            {oneTimeExpenses.length > 0 ? (
+              oneTimeExpenses.map((expense, index) => (
+                <TransactionItem 
+                  key={expense.id} 
+                  transaction={expense}
+                  isLast={index === oneTimeExpenses.length - 1}
+                />
+              ))
+            ) : (
+              <EmptyState 
+                icon="plus"
+                title="No one-time expenses"
+                subtitle="Track occasional purchases and unexpected costs"
+              />
+            )}
+          </Card>
+        </ScrollView>
+        
+        <AddTransactionModal 
+          visible={showAddModal}
+          onClose={() => setShowAddModal(false)}
+        />
+      </View>
       
-      <AddTransactionModal 
-        visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
+      <AlertModal
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        type={alertState.type}
+        actions={alertState.actions}
+        onClose={hideAlert}
       />
-    </View>
+    </>
   );
 }
 
