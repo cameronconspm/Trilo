@@ -18,10 +18,13 @@ import { X } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
 import CategoryPicker from '@/components/CategoryPicker';
 import DayPicker from '@/components/DayPicker';
+import WeekDayPicker from '@/components/WeekDayPicker';
+import WeekNumberPicker from '@/components/WeekNumberPicker';
 import Button from '@/components/Button';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 import { CategoryType, TransactionType } from '@/types/finance';
+import { calculateIncomeDate } from '@/utils/dateUtils';
 
 interface AddTransactionModalProps {
   visible: boolean;
@@ -38,7 +41,14 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<CategoryType>('miscellaneous');
   const [isRecurring, setIsRecurring] = useState(false);
+  
+  // For expenses (day of month)
   const [selectedDay, setSelectedDay] = useState(new Date().getDate());
+  
+  // For income (week and day)
+  const [selectedWeekDay, setSelectedWeekDay] = useState('friday');
+  const [selectedWeekNumber, setSelectedWeekNumber] = useState(2);
+  
   const [isLoading, setIsLoading] = useState(false);
   
   const slideAnim = useState(new Animated.Value(screenHeight))[0];
@@ -85,23 +95,39 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
     setIsLoading(true);
     
     try {
-      // Create date for the selected day in current month
-      const today = new Date();
-      const transactionDate = new Date(today.getFullYear(), today.getMonth(), selectedDay);
+      let transactionDate: string;
+      let weekDay: string | undefined;
+      let weekNumber: number | undefined;
       
+      if (transactionType === 'income') {
+        // Calculate date from week and day
+        transactionDate = calculateIncomeDate(selectedWeekNumber, selectedWeekDay);
+        weekDay = selectedWeekDay;
+        weekNumber = selectedWeekNumber;
+      } else {
+        // Use day of month for expenses
+        const today = new Date();
+        const expenseDate = new Date(today.getFullYear(), today.getMonth(), selectedDay);
+        transactionDate = expenseDate.toISOString();
+      }
+
       await addTransaction({
         name: name.trim(),
         amount: numAmount,
         category,
-        date: transactionDate.toISOString(),
+        date: transactionDate,
         type: transactionType,
         isRecurring,
+        weekDay,
+        weekNumber,
       });
       
       // Reset form
       setName('');
       setAmount('');
       setSelectedDay(new Date().getDate());
+      setSelectedWeekDay('friday');
+      setSelectedWeekNumber(2);
       
       Alert.alert(
         'Success',
@@ -207,14 +233,15 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
                 <TouchableOpacity
                   style={[
                     styles.typeButton,
-                    transactionType === 'income' && styles.typeButtonActive
+                    transactionType === 'income' && styles.typeButtonActive,
+                    transactionType === 'income' && styles.incomeTypeButtonActive
                   ]}
                   onPress={() => setTransactionType('income')}
                   activeOpacity={0.8}
                 >
                   <Text style={[
                     styles.typeButtonText,
-                    transactionType === 'income' && styles.typeButtonTextActive
+                    transactionType === 'income' && styles.incomeTypeButtonTextActive
                   ]}>
                     Income
                   </Text>
@@ -223,11 +250,17 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
               
               {/* Form Fields */}
               <View style={styles.formGroup}>
-                <Text style={styles.label}>
+                <Text style={[
+                  styles.label,
+                  transactionType === 'income' && styles.incomeLabel
+                ]}>
                   {transactionType === 'income' ? 'Income Source' : 'Expense Name'} *
                 </Text>
                 <TextInput
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    transactionType === 'income' && styles.incomeInput
+                  ]}
                   value={name}
                   onChangeText={setName}
                   placeholder={transactionType === 'income' ? 'e.g., Salary, Freelance' : 'e.g., Groceries, Netflix'}
@@ -239,11 +272,19 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
               </View>
               
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Amount *</Text>
-                <View style={styles.amountContainer}>
+                <Text style={[
+                  styles.label,
+                  transactionType === 'income' && styles.incomeLabel
+                ]}>
+                  Amount *
+                </Text>
+                <View style={[
+                  styles.amountContainer,
+                  transactionType === 'income' && styles.incomeAmountContainer
+                ]}>
                   <Text style={[
                     styles.currencySymbol,
-                    { color: transactionType === 'income' ? Colors.success : Colors.text }
+                    { color: transactionType === 'income' ? Colors.income : Colors.text }
                   ]}>
                     $
                   </Text>
@@ -269,17 +310,55 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
                 />
               )}
               
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Day of Month *</Text>
-                <DayPicker
-                  selectedDay={selectedDay}
-                  onDaySelect={setSelectedDay}
-                />
-              </View>
+              {/* Date/Time Selection */}
+              {transactionType === 'income' ? (
+                <View style={styles.formGroup}>
+                  <Text style={[styles.label, styles.incomeLabel]}>
+                    Income Schedule *
+                  </Text>
+                  <Text style={styles.scheduleSubtitle}>
+                    Choose when you receive this income each month
+                  </Text>
+                  
+                  <View style={styles.weekPickerContainer}>
+                    <View style={styles.weekPickerRow}>
+                      <View style={styles.weekPickerItem}>
+                        <Text style={styles.weekPickerLabel}>Week</Text>
+                        <WeekNumberPicker
+                          selectedWeek={selectedWeekNumber}
+                          onWeekSelect={setSelectedWeekNumber}
+                        />
+                      </View>
+                      
+                      <View style={styles.weekPickerItem}>
+                        <Text style={styles.weekPickerLabel}>Day</Text>
+                        <WeekDayPicker
+                          selectedDay={selectedWeekDay}
+                          onDaySelect={setSelectedWeekDay}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Day of Month *</Text>
+                  <DayPicker
+                    selectedDay={selectedDay}
+                    onDaySelect={setSelectedDay}
+                  />
+                </View>
+              )}
               
-              <View style={styles.switchContainer}>
+              <View style={[
+                styles.switchContainer,
+                transactionType === 'income' && styles.incomeSwitchContainer
+              ]}>
                 <View style={styles.switchTextContainer}>
-                  <Text style={styles.switchLabel}>
+                  <Text style={[
+                    styles.switchLabel,
+                    transactionType === 'income' && styles.incomeSwitchLabel
+                  ]}>
                     {transactionType === 'income' ? 'Recurring Income' : 'Recurring Expense'}
                   </Text>
                   <Text style={styles.switchSubtitle}>
@@ -298,7 +377,7 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
                   onValueChange={setIsRecurring}
                   trackColor={{ 
                     false: Colors.border, 
-                    true: transactionType === 'income' ? Colors.success : Colors.primary 
+                    true: transactionType === 'income' ? Colors.income : Colors.primary 
                   }}
                   thumbColor={Colors.card}
                 />
@@ -321,7 +400,10 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
                 size="large"
                 loading={isLoading}
                 disabled={!name.trim() || !amount || parseFloat(amount) <= 0}
-                style={styles.submitButton}
+                style={[
+                  styles.submitButton,
+                  transactionType === 'income' && styles.incomeSubmitButton
+                ]}
               />
             </View>
           </KeyboardAvoidingView>
@@ -405,6 +487,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     ...Shadow.light,
   },
+  incomeTypeButtonActive: {
+    backgroundColor: Colors.income,
+    borderWidth: 1,
+    borderColor: Colors.income,
+  },
   typeButtonText: {
     fontSize: 16,
     fontWeight: '600',
@@ -412,6 +499,9 @@ const styles = StyleSheet.create({
   },
   typeButtonTextActive: {
     color: Colors.text,
+  },
+  incomeTypeButtonTextActive: {
+    color: Colors.card,
   },
   formGroup: {
     marginBottom: Spacing.xl,
@@ -423,6 +513,9 @@ const styles = StyleSheet.create({
     color: Colors.text,
     letterSpacing: -0.2,
   },
+  incomeLabel: {
+    color: Colors.income,
+  },
   input: {
     backgroundColor: Colors.card,
     borderRadius: BorderRadius.lg,
@@ -433,6 +526,10 @@ const styles = StyleSheet.create({
     color: Colors.text,
     ...Shadow.light,
   },
+  incomeInput: {
+    borderColor: Colors.income,
+    borderWidth: 2,
+  },
   amountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -442,6 +539,10 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     paddingLeft: Spacing.lg,
     ...Shadow.light,
+  },
+  incomeAmountContainer: {
+    borderColor: Colors.income,
+    borderWidth: 2,
   },
   currencySymbol: {
     fontSize: 20,
@@ -455,6 +556,35 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: Colors.text,
   },
+  scheduleSubtitle: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.lg,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  weekPickerContainer: {
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    borderWidth: 2,
+    borderColor: Colors.income,
+    ...Shadow.light,
+  },
+  weekPickerRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  weekPickerItem: {
+    flex: 1,
+  },
+  weekPickerLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.income,
+    marginBottom: Spacing.sm,
+    letterSpacing: -0.1,
+  },
   switchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -465,6 +595,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
     ...Shadow.light,
   },
+  incomeSwitchContainer: {
+    borderWidth: 2,
+    borderColor: Colors.income,
+  },
   switchTextContainer: {
     flex: 1,
   },
@@ -473,6 +607,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text,
     letterSpacing: -0.2,
+  },
+  incomeSwitchLabel: {
+    color: Colors.income,
   },
   switchSubtitle: {
     fontSize: 15,
@@ -495,5 +632,8 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flex: 2,
+  },
+  incomeSubmitButton: {
+    backgroundColor: Colors.income,
   },
 });

@@ -6,6 +6,7 @@ import { Spacing, BorderRadius } from '@/constants/spacing';
 import { Transaction } from '@/types/finance';
 import { useFinance } from '@/context/FinanceContext';
 import categories from '@/constants/categories';
+import { formatWeekAndDay } from '@/utils/dateUtils';
 
 interface TransactionItemProps {
   transaction: Transaction;
@@ -19,7 +20,7 @@ export default function TransactionItem({
   showActions = false 
 }: TransactionItemProps) {
   const { deleteTransaction } = useFinance();
-  const { name, amount, date, category, isRecurring } = transaction;
+  const { name, amount, date, category, isRecurring, type, weekDay, weekNumber } = transaction;
   const categoryInfo = categories.find(c => c.id === category) || categories[0];
   
   // Format date
@@ -29,18 +30,25 @@ export default function TransactionItem({
   const isFuture = transactionDate > today;
   
   let formattedDate;
-  if (isToday) {
-    formattedDate = 'Today';
-  } else if (isFuture) {
-    formattedDate = transactionDate.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
+  
+  // For income with weekly schedule, show the schedule format
+  if (type === 'income' && weekDay && weekNumber) {
+    formattedDate = formatWeekAndDay(weekNumber, weekDay);
   } else {
-    formattedDate = transactionDate.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
+    // For expenses or income without weekly schedule, show regular date
+    if (isToday) {
+      formattedDate = 'Today';
+    } else if (isFuture) {
+      formattedDate = transactionDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+    } else {
+      formattedDate = transactionDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+    }
   }
 
   const handleDelete = () => {
@@ -83,7 +91,11 @@ export default function TransactionItem({
           {transaction.type === 'income' ? '+' : ''}${amount.toFixed(2)}
         </Text>
         <View style={styles.dateRow}>
-          <Text style={[styles.date, isFuture && styles.futureDate]}>
+          <Text style={[
+            styles.date, 
+            isFuture && styles.futureDate,
+            type === 'income' && weekDay && weekNumber && styles.incomeSchedule
+          ]}>
             {formattedDate}
           </Text>
           {showActions && (
@@ -164,7 +176,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   income: {
-    color: Colors.success,
+    color: Colors.income,
   },
   expense: {
     color: Colors.text,
@@ -185,6 +197,11 @@ const styles = StyleSheet.create({
   futureDate: {
     color: Colors.primary,
     fontWeight: '600',
+  },
+  incomeSchedule: {
+    color: Colors.income,
+    fontWeight: '600',
+    fontSize: 12,
   },
   deleteButton: {
     marginLeft: Spacing.sm,

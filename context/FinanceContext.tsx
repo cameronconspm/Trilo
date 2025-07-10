@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Transaction, WeeklyOverview, MonthlyInsights, Budget, CategoryType } from '@/types/finance';
 import categories from '@/constants/categories';
+import { calculateIncomeDate, formatWeekAndDay } from '@/utils/dateUtils';
 
 interface FinanceContextType {
   transactions: Transaction[];
@@ -256,6 +257,18 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     if (monthIncome > 0 && totalSaved > 0) {
       const savingsRate = (totalSaved / monthIncome) * 100;
       insights.push(`You're saving ${savingsRate.toFixed(1)}% of your income`);
+    }
+
+    // Add weekly income insights
+    const weeklyIncomeTransactions = monthTransactions.filter(t => 
+      t.type === 'income' && t.weekDay && t.weekNumber
+    );
+    
+    if (weeklyIncomeTransactions.length > 0) {
+      const incomeSchedules = weeklyIncomeTransactions.map(t => 
+        formatWeekAndDay(t.weekNumber!, t.weekDay!)
+      );
+      insights.push(`Income scheduled for: ${incomeSchedules.join(', ')}`);
     }
 
     setMonthlyInsights({

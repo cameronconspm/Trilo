@@ -25,6 +25,9 @@ export interface Transaction {
   category: CategoryType;
   type: TransactionType;
   isRecurring: boolean;
+  // Weekly income specific fields
+  weekDay?: string; // 'monday', 'tuesday', etc. (only for income)
+  weekNumber?: number; // 1, 2, 3, 4 (only for income)
 }
 
 export interface Budget {
