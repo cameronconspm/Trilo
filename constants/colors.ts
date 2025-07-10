@@ -16,12 +16,12 @@ const Colors = {
   overlay: "rgba(0, 0, 0, 0.05)",
   overlayLight: "rgba(0, 0, 0, 0.02)",
   
-  // Category colors
-  billsUtilities: "#4A90E2",
-  subscriptions: "#F5A623",
-  debt: "#D0021B",
-  savings: "#7ED321",
-  income: "#5856D6",
+  // Updated category colors - soft, eye-friendly, balanced for light/dark mode
+  income: "#4CAF50",
+  billsUtilities: "#42A5F5",
+  subscriptions: "#AB47BC",
+  debt: "#EF5350",
+  savings: "#26A69A",
   oneTime: "#9013FE",
   
   // Shadow colors
