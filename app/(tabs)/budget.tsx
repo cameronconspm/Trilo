@@ -17,13 +17,14 @@ export default function BudgetScreen() {
   const givenExpenses = transactions.filter(t => 
     t.type === 'expense' && 
     !t.isRecurring && 
-    t.category !== 'one_time'
+    t.category !== 'miscellaneous' &&
+    t.category !== 'wants'
   );
   
   const oneTimeExpenses = transactions.filter(t => 
     t.type === 'expense' && 
     !t.isRecurring && 
-    t.category === 'one_time'
+    (t.category === 'miscellaneous' || t.category === 'wants')
   );
   
   const recurringExpenses = transactions.filter(t => 

@@ -21,8 +21,10 @@ const Colors = {
   billsUtilities: "#42A5F5",
   subscriptions: "#AB47BC",
   debt: "#EF5350",
+  wants: "#FFA726",
+  needs: "#66BB6A",
   savings: "#26A69A",
-  oneTime: "#9013FE",
+  miscellaneous: "#78909C",
   
   // Shadow colors
   shadowColor: "rgba(0, 0, 0, 0.12)",

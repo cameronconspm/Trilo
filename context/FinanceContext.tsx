@@ -219,7 +219,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         const transactionDate = new Date(t.date);
         return t.type === 'expense' && 
                !t.isRecurring && 
-               t.category === 'one_time' &&
+               (t.category === 'miscellaneous' || t.category === 'wants') &&
                transactionDate >= startOfMonth && 
                transactionDate <= endOfMonth;
       })
@@ -230,7 +230,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         const transactionDate = new Date(t.date);
         return t.type === 'expense' && 
                !t.isRecurring && 
-               t.category !== 'one_time' &&
+               t.category !== 'miscellaneous' &&
+               t.category !== 'wants' &&
                transactionDate >= startOfMonth && 
                transactionDate <= endOfMonth;
       })

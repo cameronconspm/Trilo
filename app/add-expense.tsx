@@ -13,7 +13,7 @@ export default function AddExpenseScreen() {
   
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<CategoryType>('one_time');
+  const [category, setCategory] = useState<CategoryType>('miscellaneous');
   const [isRecurring, setIsRecurring] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   
@@ -42,7 +42,7 @@ export default function AddExpenseScreen() {
   };
   
   const expenseCategories = categories.filter(c => 
-    c.id !== 'income' && c.id !== 'savings'
+    c.id !== 'income'
   );
   
   return (
@@ -97,6 +97,7 @@ export default function AddExpenseScreen() {
                 onPress={() => setCategory(cat.id)}
                 activeOpacity={0.8}
               >
+                <View style={[styles.categoryDot, { backgroundColor: cat.color }]} />
                 <Text
                   style={[
                     styles.categoryText,
@@ -209,6 +210,8 @@ const styles = StyleSheet.create({
     marginHorizontal: -Spacing.xs,
   },
   categoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.xl,
@@ -217,6 +220,12 @@ const styles = StyleSheet.create({
     margin: Spacing.xs,
     backgroundColor: Colors.card,
     ...Shadow.light,
+  },
+  categoryDot: {
+    width: 8,
+    height: 8,
+    borderRadius: BorderRadius.full,
+    marginRight: Spacing.sm,
   },
   categoryText: {
     fontSize: 15,

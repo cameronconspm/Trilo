@@ -28,9 +28,19 @@ const categories: Category[] = [
     color: Colors.debt,
   },
   {
-    id: 'one_time',
-    name: 'One-Time',
-    color: Colors.oneTime,
+    id: 'wants',
+    name: 'Wants',
+    color: Colors.wants,
+  },
+  {
+    id: 'needs',
+    name: 'Needs',
+    color: Colors.needs,
+  },
+  {
+    id: 'miscellaneous',
+    name: 'Miscellaneous',
+    color: Colors.miscellaneous,
   },
 ];
 

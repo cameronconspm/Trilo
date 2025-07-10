@@ -6,7 +6,9 @@ export type CategoryType =
   | 'subscriptions'
   | 'bills_utilities'
   | 'debt'
-  | 'one_time';
+  | 'wants'
+  | 'needs'
+  | 'miscellaneous';
 
 export interface Category {
   id: CategoryType;
