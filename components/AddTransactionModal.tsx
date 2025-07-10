@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -50,11 +50,13 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
   const [selectedWeekNumber, setSelectedWeekNumber] = useState(2);
   
   const [isLoading, setIsLoading] = useState(false);
+  const [slideAnim] = useState(new Animated.Value(screenHeight));
   
-  const slideAnim = useState(new Animated.Value(screenHeight))[0];
-  
-  React.useEffect(() => {
+  // Handle modal animation
+  useEffect(() => {
     if (visible) {
+      // Reset animation value and animate in
+      slideAnim.setValue(screenHeight);
       Animated.spring(slideAnim, {
         toValue: 0,
         useNativeDriver: true,
@@ -62,15 +64,28 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
         friction: 8,
       }).start();
     } else {
+      // Animate out
       Animated.timing(slideAnim, {
         toValue: screenHeight,
-        duration: 300,
+        duration: 250,
         useNativeDriver: true,
       }).start();
     }
+  }, [visible, slideAnim]);
+  
+  // Reset form when modal opens
+  useEffect(() => {
+    if (visible) {
+      setName('');
+      setAmount('');
+      setSelectedDay(new Date().getDate());
+      setSelectedWeekDay('friday');
+      setSelectedWeekNumber(2);
+      setIsLoading(false);
+    }
   }, [visible]);
   
-  React.useEffect(() => {
+  useEffect(() => {
     if (transactionType === 'income') {
       setCategory('income');
       setIsRecurring(true);
@@ -122,13 +137,6 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
         weekNumber,
       });
       
-      // Reset form
-      setName('');
-      setAmount('');
-      setSelectedDay(new Date().getDate());
-      setSelectedWeekDay('friday');
-      setSelectedWeekNumber(2);
-      
       Alert.alert(
         'Success',
         `${transactionType === 'income' ? 'Income' : 'Expense'} added successfully!`,
@@ -167,13 +175,18 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
     }
     return cleaned;
   };
+
+  if (!visible) {
+    return null;
+  }
   
   return (
     <Modal
       visible={visible}
-      transparent
+      transparent={true}
       animationType="none"
       onRequestClose={handleClose}
+      statusBarTranslucent={true}
     >
       <View style={styles.overlay}>
         <TouchableOpacity 
@@ -416,7 +429,7 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'flex-end',
   },
   backdrop: {
@@ -427,7 +440,11 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: BorderRadius.xxl,
     borderTopRightRadius: BorderRadius.xxl,
     maxHeight: screenHeight * 0.9,
+    minHeight: screenHeight * 0.6,
     ...Shadow.heavy,
+    // Ensure modal is above everything
+    zIndex: 1000,
+    elevation: 1000,
   },
   keyboardView: {
     flex: 1,
@@ -438,6 +455,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    backgroundColor: Colors.background,
   },
   dragHandle: {
     width: 40,
@@ -469,6 +487,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: Spacing.screenHorizontal,
+    backgroundColor: Colors.background,
   },
   typeToggle: {
     flexDirection: 'row',
