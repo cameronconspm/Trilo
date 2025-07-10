@@ -18,25 +18,35 @@ export default function ProfileScreen() {
     isBankConnected,
     connectBank,
     disconnectBank,
-    resetData
+    resetData,
+    isLoading: settingsLoading
   } = useSettings();
   
-  const { clearAllData, transactions } = useFinance();
+  const { clearAllData, transactions, exportData } = useFinance();
   
   const [showThemeOptions, setShowThemeOptions] = useState(false);
   const [showWeekStartOptions, setShowWeekStartOptions] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   
-  const handleThemeChange = (newTheme: 'system' | 'light' | 'dark') => {
-    setTheme(newTheme);
-    setShowThemeOptions(false);
+  const handleThemeChange = async (newTheme: 'system' | 'light' | 'dark') => {
+    try {
+      await setTheme(newTheme);
+      setShowThemeOptions(false);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save theme setting. Please try again.');
+    }
   };
   
-  const handleWeekStartChange = (day: string) => {
-    setWeekStartDay(day as any);
-    setShowWeekStartOptions(false);
+  const handleWeekStartChange = async (day: string) => {
+    try {
+      await setWeekStartDay(day as any);
+      setShowWeekStartOptions(false);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save week start day. Please try again.');
+    }
   };
   
-  const handleBankConnection = () => {
+  const handleBankConnection = async () => {
     if (isBankConnected) {
       Alert.alert(
         'Disconnect Bank Account',
@@ -46,7 +56,14 @@ export default function ProfileScreen() {
           { 
             text: 'Disconnect', 
             style: 'destructive',
-            onPress: disconnectBank
+            onPress: async () => {
+              try {
+                await disconnectBank();
+                Alert.alert('Success', 'Bank account disconnected successfully.');
+              } catch (error) {
+                Alert.alert('Error', 'Failed to disconnect bank account. Please try again.');
+              }
+            }
           }
         ]
       );
@@ -58,7 +75,14 @@ export default function ProfileScreen() {
           { text: 'Cancel', style: 'cancel' },
           { 
             text: 'Connect', 
-            onPress: connectBank
+            onPress: async () => {
+              try {
+                await connectBank();
+                Alert.alert('Success', 'Bank account connected successfully!');
+              } catch (error) {
+                Alert.alert('Error', 'Failed to connect bank account. Please try again.');
+              }
+            }
           }
         ]
       );
@@ -88,28 +112,53 @@ export default function ProfileScreen() {
     );
   };
   
-  const handleExportData = () => {
+  const handleExportData = async () => {
     if (transactions.length === 0) {
       Alert.alert('No Data', 'You have no transactions to export. Add some transactions first.');
       return;
     }
     
-    Alert.alert(
-      'Export Data',
-      `Export your ${transactions.length} transactions as a CSV file for backup or analysis.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Export', onPress: () => {
-          // In a real app, this would generate and share a CSV file
-          Alert.alert('Export Complete', 'Your data has been exported successfully.');
-        }}
-      ]
-    );
+    try {
+      setIsExporting(true);
+      const exportedData = await exportData();
+      
+      // In a real app, you would use a sharing library like expo-sharing
+      // For now, we'll just show a success message
+      Alert.alert(
+        'Export Complete', 
+        `Successfully exported ${transactions.length} transactions. In a real app, this would save to your device or share via email.`,
+        [
+          {
+            text: 'Copy to Clipboard',
+            onPress: () => {
+              // In a real app, use expo-clipboard
+              Alert.alert('Copied', 'Export data copied to clipboard (simulated)');
+            }
+          },
+          { text: 'OK' }
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Export Failed', 'Failed to export your data. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
   };
   
   const formatWeekStartDay = (day: string) => {
     return day.charAt(0).toUpperCase() + day.slice(1);
   };
+  
+  if (settingsLoading) {
+    return (
+      <View style={styles.container}>
+        <Header title="Settings" subtitle="Loading..." />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading settings...</Text>
+        </View>
+      </View>
+    );
+  }
   
   return (
     <View style={styles.container}>
@@ -206,6 +255,7 @@ export default function ProfileScreen() {
           <SettingsItem 
             title="Export Data" 
             onPress={handleExportData}
+            disabled={isExporting}
           />
           
           <SettingsItem 
@@ -266,6 +316,9 @@ export default function ProfileScreen() {
         <View style={styles.appInfo}>
           <Text style={styles.appVersion}>Version 1.0.0</Text>
           <Text style={styles.appCopyright}>© 2024 Finance Tracker</Text>
+          <Text style={styles.storageInfo}>
+            Data stored locally on your device
+          </Text>
         </View>
       </ScrollView>
     </View>
@@ -283,6 +336,15 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.screenHorizontal,
     paddingBottom: Spacing.screenBottom,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: Colors.inactive,
   },
   accountCard: {
     marginBottom: Spacing.lg,
@@ -350,5 +412,11 @@ const styles = StyleSheet.create({
   appCopyright: {
     fontSize: 12,
     color: Colors.inactive,
+    marginBottom: Spacing.xs,
+  },
+  storageInfo: {
+    fontSize: 11,
+    color: Colors.inactive,
+    fontStyle: 'italic',
   },
 });

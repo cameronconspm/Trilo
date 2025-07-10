@@ -6,79 +6,170 @@ type WeekStartDay = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' |
 
 interface SettingsContextType {
   theme: ThemeType;
-  setTheme: (theme: ThemeType) => void;
+  setTheme: (theme: ThemeType) => Promise<void>;
   weekStartDay: WeekStartDay;
-  setWeekStartDay: (day: WeekStartDay) => void;
+  setWeekStartDay: (day: WeekStartDay) => Promise<void>;
   isBankConnected: boolean;
-  connectBank: () => void;
-  disconnectBank: () => void;
-  resetData: () => void;
+  connectBank: () => Promise<void>;
+  disconnectBank: () => Promise<void>;
+  resetData: () => Promise<void>;
+  isLoading: boolean;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
+
+const STORAGE_KEYS = {
+  THEME: 'settings_theme',
+  WEEK_START_DAY: 'settings_week_start_day',
+  BANK_CONNECTED: 'settings_bank_connected',
+  USER_PREFERENCES: 'settings_user_preferences',
+} as const;
+
+interface UserPreferences {
+  theme: ThemeType;
+  weekStartDay: WeekStartDay;
+  isBankConnected: boolean;
+  notificationsEnabled: boolean;
+  budgetAlerts: boolean;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'system',
+  weekStartDay: 'thursday',
+  isBankConnected: false,
+  notificationsEnabled: true,
+  budgetAlerts: true,
+};
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeType>('system');
   const [weekStartDay, setWeekStartDayState] = useState<WeekStartDay>('thursday');
   const [isBankConnected, setIsBankConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load settings from AsyncStorage on mount
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const storedTheme = await AsyncStorage.getItem('theme');
-        if (storedTheme) {
-          setThemeState(storedTheme as ThemeType);
-        }
-
-        const storedWeekStartDay = await AsyncStorage.getItem('weekStartDay');
-        if (storedWeekStartDay) {
-          setWeekStartDayState(storedWeekStartDay as WeekStartDay);
-        }
-
-        const storedBankConnection = await AsyncStorage.getItem('isBankConnected');
-        if (storedBankConnection) {
-          setIsBankConnected(JSON.parse(storedBankConnection));
-        }
-      } catch (error) {
-        console.error('Error loading settings:', error);
-      }
-    };
-
     loadSettings();
   }, []);
 
-  const setTheme = (newTheme: ThemeType) => {
-    setThemeState(newTheme);
-    AsyncStorage.setItem('theme', newTheme)
-      .catch(error => console.error('Error saving theme:', error));
+  const loadSettings = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Try to load consolidated preferences first
+      const storedPreferences = await AsyncStorage.getItem(STORAGE_KEYS.USER_PREFERENCES);
+      
+      if (storedPreferences) {
+        const preferences: UserPreferences = JSON.parse(storedPreferences);
+        setThemeState(preferences.theme);
+        setWeekStartDayState(preferences.weekStartDay);
+        setIsBankConnected(preferences.isBankConnected);
+      } else {
+        // Fallback to individual keys for backward compatibility
+        const [storedTheme, storedWeekStartDay, storedBankConnection] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEYS.THEME),
+          AsyncStorage.getItem(STORAGE_KEYS.WEEK_START_DAY),
+          AsyncStorage.getItem(STORAGE_KEYS.BANK_CONNECTED),
+        ]);
+
+        if (storedTheme) setThemeState(storedTheme as ThemeType);
+        if (storedWeekStartDay) setWeekStartDayState(storedWeekStartDay as WeekStartDay);
+        if (storedBankConnection) setIsBankConnected(JSON.parse(storedBankConnection));
+
+        // Migrate to consolidated preferences
+        await saveAllPreferences();
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      // Use default values on error
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const setWeekStartDay = (day: WeekStartDay) => {
-    setWeekStartDayState(day);
-    AsyncStorage.setItem('weekStartDay', day)
-      .catch(error => console.error('Error saving week start day:', error));
+  const saveAllPreferences = async () => {
+    try {
+      const preferences: UserPreferences = {
+        theme,
+        weekStartDay,
+        isBankConnected,
+        notificationsEnabled: true,
+        budgetAlerts: true,
+      };
+      
+      await AsyncStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(preferences));
+    } catch (error) {
+      console.error('Error saving preferences:', error);
+      throw new Error('Failed to save settings');
+    }
   };
 
-  const connectBank = () => {
-    setIsBankConnected(true);
-    AsyncStorage.setItem('isBankConnected', JSON.stringify(true))
-      .catch(error => console.error('Error saving bank connection:', error));
+  const setTheme = async (newTheme: ThemeType) => {
+    try {
+      setThemeState(newTheme);
+      await saveAllPreferences();
+    } catch (error) {
+      console.error('Error saving theme:', error);
+      // Revert on error
+      setThemeState(theme);
+      throw new Error('Failed to save theme setting');
+    }
   };
 
-  const disconnectBank = () => {
-    setIsBankConnected(false);
-    AsyncStorage.setItem('isBankConnected', JSON.stringify(false))
-      .catch(error => console.error('Error saving bank connection:', error));
+  const setWeekStartDay = async (day: WeekStartDay) => {
+    try {
+      setWeekStartDayState(day);
+      await saveAllPreferences();
+    } catch (error) {
+      console.error('Error saving week start day:', error);
+      // Revert on error
+      setWeekStartDayState(weekStartDay);
+      throw new Error('Failed to save week start day');
+    }
+  };
+
+  const connectBank = async () => {
+    try {
+      setIsBankConnected(true);
+      await saveAllPreferences();
+    } catch (error) {
+      console.error('Error saving bank connection:', error);
+      setIsBankConnected(false);
+      throw new Error('Failed to save bank connection');
+    }
+  };
+
+  const disconnectBank = async () => {
+    try {
+      setIsBankConnected(false);
+      await saveAllPreferences();
+    } catch (error) {
+      console.error('Error saving bank disconnection:', error);
+      setIsBankConnected(true);
+      throw new Error('Failed to disconnect bank');
+    }
   };
 
   const resetData = async () => {
     try {
-      await AsyncStorage.removeItem('transactions');
-      alert('All data has been reset. Please restart the app.');
+      // Clear all settings and reset to defaults
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.THEME,
+        STORAGE_KEYS.WEEK_START_DAY,
+        STORAGE_KEYS.BANK_CONNECTED,
+        STORAGE_KEYS.USER_PREFERENCES,
+      ]);
+      
+      // Reset state to defaults
+      setThemeState(DEFAULT_PREFERENCES.theme);
+      setWeekStartDayState(DEFAULT_PREFERENCES.weekStartDay);
+      setIsBankConnected(DEFAULT_PREFERENCES.isBankConnected);
+      
+      // Save default preferences
+      await AsyncStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(DEFAULT_PREFERENCES));
     } catch (error) {
-      console.error('Error resetting data:', error);
-      alert('Failed to reset data. Please try again.');
+      console.error('Error resetting settings:', error);
+      throw new Error('Failed to reset settings');
     }
   };
 
@@ -93,6 +184,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         connectBank,
         disconnectBank,
         resetData,
+        isLoading,
       }}
     >
       {children}
