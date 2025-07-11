@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
+import { useSettings } from '@/context/SettingsContext';
 import CategoryPicker from '@/components/CategoryPicker';
 import DayPicker from '@/components/DayPicker';
 import DatePicker from '@/components/DatePicker';
@@ -24,7 +25,7 @@ import MonthlyDaysPicker from '@/components/MonthlyDaysPicker';
 import Button from '@/components/Button';
 import AlertModal from '@/components/AlertModal';
 import { useAlert } from '@/hooks/useAlert';
-import Colors from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 import { CategoryType, TransactionType, PayCadence, PaySchedule, Transaction } from '@/types/finance';
 import { calculateNextPayDate } from '@/utils/payScheduleUtils';
@@ -40,6 +41,8 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 export default function AddTransactionModal({ visible, onClose, editTransaction }: AddTransactionModalProps) {
   const { addTransaction, updateTransaction } = useFinance();
   const { alertState, showAlert, hideAlert } = useAlert();
+  const { theme } = useSettings();
+  const colors = useThemeColors(theme);
   
   const [transactionType, setTransactionType] = useState<TransactionType>('expense');
   const [name, setName] = useState('');
@@ -310,6 +313,186 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
     return null;
   };
 
+  // Create dynamic styles based on theme
+  const dynamicStyles = StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: Spacing.lg,
+      paddingBottom: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.text,
+      letterSpacing: -0.4,
+    },
+    closeButton: {
+      width: Math.max(40, Spacing.minTouchTarget),
+      height: Math.max(40, Spacing.minTouchTarget),
+      borderRadius: BorderRadius.full,
+      backgroundColor: colors.cardSecondary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    content: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollContent: {
+      paddingHorizontal: Spacing.lg,
+      paddingBottom: Spacing.lg,
+    },
+    typeToggle: {
+      flexDirection: 'row',
+      backgroundColor: colors.cardSecondary,
+      borderRadius: BorderRadius.lg,
+      padding: 4,
+      marginVertical: Spacing.lg,
+    },
+    typeButton: {
+      flex: 1,
+      paddingVertical: Spacing.md,
+      alignItems: 'center',
+      borderRadius: BorderRadius.md,
+    },
+    typeButtonActive: {
+      backgroundColor: colors.card,
+      ...Shadow.light,
+    },
+    incomeTypeButtonActive: {
+      backgroundColor: colors.income,
+      borderWidth: 1,
+      borderColor: colors.income,
+    },
+    typeButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    typeButtonTextActive: {
+      color: colors.text,
+    },
+    incomeTypeButtonTextActive: {
+      color: colors.card,
+    },
+    formGroup: {
+      marginBottom: Spacing.lg,
+    },
+    label: {
+      fontSize: 17,
+      fontWeight: '600',
+      marginBottom: Spacing.md,
+      color: colors.text,
+      letterSpacing: -0.2,
+    },
+    incomeLabel: {
+      color: colors.income,
+    },
+    input: {
+      backgroundColor: colors.card,
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.lg,
+      fontSize: 17,
+      borderWidth: 1,
+      borderColor: colors.border,
+      color: colors.text,
+      ...Shadow.light,
+    },
+    incomeInput: {
+      borderColor: colors.income,
+      borderWidth: 2,
+    },
+    amountContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      borderRadius: BorderRadius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingLeft: Spacing.lg,
+      ...Shadow.light,
+    },
+    incomeAmountContainer: {
+      borderColor: colors.income,
+      borderWidth: 2,
+    },
+    currencySymbol: {
+      fontSize: 20,
+      fontWeight: '600',
+      marginRight: Spacing.sm,
+    },
+    amountInput: {
+      flex: 1,
+      padding: Spacing.lg,
+      paddingLeft: 0,
+      fontSize: 17,
+      color: colors.text,
+    },
+    switchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.card,
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.lg,
+      marginBottom: Spacing.lg,
+      ...Shadow.light,
+    },
+    incomeSwitchContainer: {
+      borderWidth: 2,
+      borderColor: colors.income,
+    },
+    switchTextContainer: {
+      flex: 1,
+    },
+    switchLabel: {
+      fontSize: 17,
+      fontWeight: '600',
+      color: colors.text,
+      letterSpacing: -0.2,
+    },
+    incomeSwitchLabel: {
+      color: colors.income,
+    },
+    switchSubtitle: {
+      fontSize: 15,
+      color: colors.textSecondary,
+      marginTop: 4,
+      fontWeight: '500',
+      lineHeight: 20,
+    },
+    footer: {
+      flexDirection: 'row',
+      padding: Spacing.lg,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      gap: Spacing.md,
+      backgroundColor: colors.background,
+    },
+    cancelButton: {
+      flex: 1,
+    },
+    submitButton: {
+      flex: 2,
+    },
+    incomeSubmitButton: {
+      backgroundColor: colors.income,
+    },
+  });
+
   return (
     <>
       <Modal
@@ -318,42 +501,42 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
         presentationStyle="pageSheet"
         onRequestClose={handleClose}
       >
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={dynamicStyles.safeArea}>
           <KeyboardAvoidingView 
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.container}
+            style={dynamicStyles.container}
           >
             {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>{editTransaction ? 'Edit Transaction' : 'Add Transaction'}</Text>
+            <View style={dynamicStyles.header}>
+              <Text style={dynamicStyles.title}>{editTransaction ? 'Edit Transaction' : 'Add Transaction'}</Text>
               <TouchableOpacity 
                 onPress={handleClose}
-                style={styles.closeButton}
+                style={dynamicStyles.closeButton}
                 activeOpacity={0.7}
               >
-                <X size={24} color={Colors.textSecondary} strokeWidth={2} />
+                <X size={24} color={colors.textSecondary} strokeWidth={2} />
               </TouchableOpacity>
             </View>
             
             <ScrollView 
-              style={styles.content}
+              style={dynamicStyles.content}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.scrollContent}
+              contentContainerStyle={dynamicStyles.scrollContent}
             >
               {/* Transaction Type Toggle */}
-              <View style={styles.typeToggle}>
+              <View style={dynamicStyles.typeToggle}>
                 <TouchableOpacity
                   style={[
-                    styles.typeButton,
-                    transactionType === 'expense' && styles.typeButtonActive
+                    dynamicStyles.typeButton,
+                    transactionType === 'expense' && dynamicStyles.typeButtonActive
                   ]}
                   onPress={() => setTransactionType('expense')}
                   activeOpacity={0.8}
                 >
                   <Text style={[
-                    styles.typeButtonText,
-                    transactionType === 'expense' && styles.typeButtonTextActive
+                    dynamicStyles.typeButtonText,
+                    transactionType === 'expense' && dynamicStyles.typeButtonTextActive
                   ]}>
                     Expense
                   </Text>
@@ -361,16 +544,16 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
                 
                 <TouchableOpacity
                   style={[
-                    styles.typeButton,
-                    transactionType === 'income' && styles.typeButtonActive,
-                    transactionType === 'income' && styles.incomeTypeButtonActive
+                    dynamicStyles.typeButton,
+                    transactionType === 'income' && dynamicStyles.typeButtonActive,
+                    transactionType === 'income' && dynamicStyles.incomeTypeButtonActive
                   ]}
                   onPress={() => setTransactionType('income')}
                   activeOpacity={0.8}
                 >
                   <Text style={[
-                    styles.typeButtonText,
-                    transactionType === 'income' && styles.incomeTypeButtonTextActive
+                    dynamicStyles.typeButtonText,
+                    transactionType === 'income' && dynamicStyles.incomeTypeButtonTextActive
                   ]}>
                     Income
                   </Text>
@@ -378,51 +561,51 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
               </View>
               
               {/* Form Fields */}
-              <View style={styles.formGroup}>
+              <View style={dynamicStyles.formGroup}>
                 <Text style={[
-                  styles.label,
-                  transactionType === 'income' && styles.incomeLabel
+                  dynamicStyles.label,
+                  transactionType === 'income' && dynamicStyles.incomeLabel
                 ]}>
                   {transactionType === 'income' ? 'Income Source' : 'Expense Name'} *
                 </Text>
                 <TextInput
                   style={[
-                    styles.input,
-                    transactionType === 'income' && styles.incomeInput
+                    dynamicStyles.input,
+                    transactionType === 'income' && dynamicStyles.incomeInput
                   ]}
                   value={name}
                   onChangeText={setName}
                   placeholder={transactionType === 'income' ? 'e.g., Salary, Freelance' : 'e.g., Groceries, Netflix'}
-                  placeholderTextColor={Colors.inactive}
+                  placeholderTextColor={colors.inactive}
                   returnKeyType="next"
                   autoCapitalize="words"
                   maxLength={50}
                 />
               </View>
               
-              <View style={styles.formGroup}>
+              <View style={dynamicStyles.formGroup}>
                 <Text style={[
-                  styles.label,
-                  transactionType === 'income' && styles.incomeLabel
+                  dynamicStyles.label,
+                  transactionType === 'income' && dynamicStyles.incomeLabel
                 ]}>
                   Amount *
                 </Text>
                 <View style={[
-                  styles.amountContainer,
-                  transactionType === 'income' && styles.incomeAmountContainer
+                  dynamicStyles.amountContainer,
+                  transactionType === 'income' && dynamicStyles.incomeAmountContainer
                 ]}>
                   <Text style={[
-                    styles.currencySymbol,
-                    { color: transactionType === 'income' ? Colors.income : Colors.text }
+                    dynamicStyles.currencySymbol,
+                    { color: transactionType === 'income' ? colors.income : colors.text }
                   ]}>
                     $
                   </Text>
                   <TextInput
-                    style={styles.amountInput}
+                    style={dynamicStyles.amountInput}
                     value={amount}
                     onChangeText={(text) => setAmount(formatAmount(text))}
                     placeholder="0.00"
-                    placeholderTextColor={Colors.inactive}
+                    placeholderTextColor={colors.inactive}
                     keyboardType="decimal-pad"
                     returnKeyType="done"
                     maxLength={10}
@@ -441,7 +624,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
               
               {/* Date/Schedule Selection */}
               {transactionType === 'income' ? (
-                <View style={styles.formGroup}>
+                <View style={dynamicStyles.formGroup}>
                   <DatePicker
                     selectedDate={lastPaidDate}
                     onDateSelect={setLastPaidDate}
@@ -457,8 +640,8 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
                   {renderPayScheduleInputs()}
                 </View>
               ) : (
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Day of Month *</Text>
+                <View style={dynamicStyles.formGroup}>
+                  <Text style={dynamicStyles.label}>Day of Month *</Text>
                   <DayPicker
                     selectedDay={selectedDay}
                     onDaySelect={setSelectedDay}
@@ -467,17 +650,17 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
               )}
               
               <View style={[
-                styles.switchContainer,
-                transactionType === 'income' && styles.incomeSwitchContainer
+                dynamicStyles.switchContainer,
+                transactionType === 'income' && dynamicStyles.incomeSwitchContainer
               ]}>
-                <View style={styles.switchTextContainer}>
+                <View style={dynamicStyles.switchTextContainer}>
                   <Text style={[
-                    styles.switchLabel,
-                    transactionType === 'income' && styles.incomeSwitchLabel
+                    dynamicStyles.switchLabel,
+                    transactionType === 'income' && dynamicStyles.incomeSwitchLabel
                   ]}>
                     {transactionType === 'income' ? 'Recurring Income' : 'Recurring Expense'}
                   </Text>
-                  <Text style={styles.switchSubtitle}>
+                  <Text style={dynamicStyles.switchSubtitle}>
                     {transactionType === 'income' 
                       ? (isRecurring 
                           ? 'This income repeats based on your pay schedule' 
@@ -492,22 +675,22 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
                   value={isRecurring}
                   onValueChange={setIsRecurring}
                   trackColor={{ 
-                    false: Colors.border, 
-                    true: transactionType === 'income' ? Colors.income : Colors.primary 
+                    false: colors.border, 
+                    true: transactionType === 'income' ? colors.income : colors.primary 
                   }}
-                  thumbColor={Colors.card}
+                  thumbColor={colors.card}
                 />
               </View>
             </ScrollView>
             
             {/* Footer */}
-            <View style={styles.footer}>
+            <View style={dynamicStyles.footer}>
               <Button
                 title="Cancel"
                 onPress={handleClose}
                 variant="outline"
                 size="large"
-                style={styles.cancelButton}
+                style={dynamicStyles.cancelButton}
               />
               <Button
                 title={`Save ${transactionType === 'income' ? 'Income' : 'Expense'}`}
@@ -517,8 +700,8 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
                 loading={isLoading}
                 disabled={!name.trim() || !amount || parseFloat(amount) <= 0}
                 style={[
-                  styles.submitButton,
-                  transactionType === 'income' && styles.incomeSubmitButton
+                  dynamicStyles.submitButton,
+                  transactionType === 'income' && dynamicStyles.incomeSubmitButton
                 ]}
               />
             </View>
@@ -538,181 +721,3 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.lg,
-    paddingBottom: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    backgroundColor: Colors.background,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.text,
-    letterSpacing: -0.4,
-  },
-  closeButton: {
-    width: Math.max(40, Spacing.minTouchTarget),
-    height: Math.max(40, Spacing.minTouchTarget),
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.cardSecondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scrollContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
-  },
-  typeToggle: {
-    flexDirection: 'row',
-    backgroundColor: Colors.cardSecondary,
-    borderRadius: BorderRadius.lg,
-    padding: 4,
-    marginVertical: Spacing.lg,
-  },
-  typeButton: {
-    flex: 1,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    borderRadius: BorderRadius.md,
-  },
-  typeButtonActive: {
-    backgroundColor: Colors.card,
-    ...Shadow.light,
-  },
-  incomeTypeButtonActive: {
-    backgroundColor: Colors.income,
-    borderWidth: 1,
-    borderColor: Colors.income,
-  },
-  typeButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  typeButtonTextActive: {
-    color: Colors.text,
-  },
-  incomeTypeButtonTextActive: {
-    color: Colors.card,
-  },
-  formGroup: {
-    marginBottom: Spacing.lg,
-  },
-  label: {
-    fontSize: 17,
-    fontWeight: '600',
-    marginBottom: Spacing.md,
-    color: Colors.text,
-    letterSpacing: -0.2,
-  },
-  incomeLabel: {
-    color: Colors.income,
-  },
-  input: {
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    fontSize: 17,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    color: Colors.text,
-    ...Shadow.light,
-  },
-  incomeInput: {
-    borderColor: Colors.income,
-    borderWidth: 2,
-  },
-  amountContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingLeft: Spacing.lg,
-    ...Shadow.light,
-  },
-  incomeAmountContainer: {
-    borderColor: Colors.income,
-    borderWidth: 2,
-  },
-  currencySymbol: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginRight: Spacing.sm,
-  },
-  amountInput: {
-    flex: 1,
-    padding: Spacing.lg,
-    paddingLeft: 0,
-    fontSize: 17,
-    color: Colors.text,
-  },
-  switchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
-    ...Shadow.light,
-  },
-  incomeSwitchContainer: {
-    borderWidth: 2,
-    borderColor: Colors.income,
-  },
-  switchTextContainer: {
-    flex: 1,
-  },
-  switchLabel: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: Colors.text,
-    letterSpacing: -0.2,
-  },
-  incomeSwitchLabel: {
-    color: Colors.income,
-  },
-  switchSubtitle: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    marginTop: 4,
-    fontWeight: '500',
-    lineHeight: 20,
-  },
-  footer: {
-    flexDirection: 'row',
-    padding: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    gap: Spacing.md,
-    backgroundColor: Colors.background,
-  },
-  cancelButton: {
-    flex: 1,
-  },
-  submitButton: {
-    flex: 2,
-  },
-  incomeSubmitButton: {
-    backgroundColor: Colors.income,
-  },
-});
