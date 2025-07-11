@@ -75,12 +75,12 @@ export default function OverviewScreen() {
         
         <Text style={styles.sectionTitle}>Pay Period Contributions</Text>
         <View style={styles.categoryGrid}>
-          {['bill', 'subscription', 'debt', 'savings'].map((categoryId) => {
-            const data = contributions[categoryId as any] || { total: 0, count: 0 };
+          {(['bill', 'subscription', 'debt', 'savings'] as const).map((categoryId) => {
+            const data = contributions[categoryId] || { total: 0, count: 0 };
             return (
               <CategoryCard 
                 key={categoryId}
-                category={categoryId as any} 
+                category={categoryId} 
                 amount={data.total}
                 count={data.count}
               />
