@@ -14,6 +14,10 @@ interface SettingsContextType {
   disconnectBank: () => Promise<void>;
   resetData: () => Promise<void>;
   isLoading: boolean;
+  nickname: string;
+  setNickname: (name: string) => Promise<void>;
+  avatarUri: string | null;
+  setAvatarUri: (uri: string | null) => Promise<void>;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -34,6 +38,8 @@ interface UserPreferences {
   notificationsEnabled: boolean;
   budgetAlerts: boolean;
   version: string;
+  nickname: string;
+  avatarUri: string | null;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
@@ -43,6 +49,8 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   notificationsEnabled: true,
   budgetAlerts: true,
   version: '2.0.0',
+  nickname: '',
+  avatarUri: null,
 };
 
 const CURRENT_SETTINGS_VERSION = '2.0.0';
@@ -51,6 +59,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeType>(DEFAULT_PREFERENCES.theme);
   const [weekStartDay, setWeekStartDayState] = useState<WeekStartDay>(DEFAULT_PREFERENCES.weekStartDay);
   const [isBankConnected, setIsBankConnected] = useState(DEFAULT_PREFERENCES.isBankConnected);
+  const [nickname, setNicknameState] = useState<string>(DEFAULT_PREFERENCES.nickname);
+  const [avatarUri, setAvatarUriState] = useState<string | null>(DEFAULT_PREFERENCES.avatarUri);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load settings from AsyncStorage on mount
@@ -88,6 +98,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           }
           if (typeof preferences.isBankConnected === 'boolean') {
             setIsBankConnected(preferences.isBankConnected);
+          }
+          if (typeof preferences.nickname === 'string') {
+            setNicknameState(preferences.nickname);
+          }
+          if (preferences.avatarUri === null || typeof preferences.avatarUri === 'string') {
+            setAvatarUriState(preferences.avatarUri);
           }
         } catch (parseError) {
           console.error('SettingsContext: Error parsing stored preferences:', parseError);
@@ -170,6 +186,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         notificationsEnabled: true,
         budgetAlerts: true,
         version: CURRENT_SETTINGS_VERSION,
+        nickname,
+        avatarUri,
       };
       
       await AsyncStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(preferences));
@@ -230,6 +248,32 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const setNickname = async (name: string) => {
+    try {
+      console.log('SettingsContext: Setting nickname to', name);
+      setNicknameState(name);
+      await saveAllPreferences();
+    } catch (error) {
+      console.error('SettingsContext: Error saving nickname:', error);
+      // Revert on error
+      setNicknameState(nickname);
+      throw new Error('Failed to save nickname');
+    }
+  };
+
+  const setAvatarUri = async (uri: string | null) => {
+    try {
+      console.log('SettingsContext: Setting avatar URI to', uri);
+      setAvatarUriState(uri);
+      await saveAllPreferences();
+    } catch (error) {
+      console.error('SettingsContext: Error saving avatar URI:', error);
+      // Revert on error
+      setAvatarUriState(avatarUri);
+      throw new Error('Failed to save avatar URI');
+    }
+  };
+
   const resetData = async () => {
     try {
       console.log('SettingsContext: Resetting all settings data...');
@@ -248,6 +292,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setThemeState(DEFAULT_PREFERENCES.theme);
       setWeekStartDayState(DEFAULT_PREFERENCES.weekStartDay);
       setIsBankConnected(DEFAULT_PREFERENCES.isBankConnected);
+      setNicknameState(DEFAULT_PREFERENCES.nickname);
+      setAvatarUriState(DEFAULT_PREFERENCES.avatarUri);
       
       // Save default preferences
       await AsyncStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(DEFAULT_PREFERENCES));
@@ -272,6 +318,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         disconnectBank,
         resetData,
         isLoading,
+        nickname,
+        setNickname,
+        avatarUri,
+        setAvatarUri,
       }}
     >
       {children}
