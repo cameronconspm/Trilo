@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import Colors from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
+import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 
 interface CardProps {
@@ -20,16 +21,20 @@ export default function Card({
   contentStyle,
   variant = 'default'
 }: CardProps) {
+  const { theme } = useSettings();
+  const Colors = useThemeColors(theme);
+  
   const cardStyle = [
     styles.card,
-    variant === 'elevated' && styles.elevated,
-    variant === 'subtle' && styles.subtle,
+    { backgroundColor: Colors.card },
+    variant === 'elevated' && [styles.elevated, { backgroundColor: Colors.card }],
+    variant === 'subtle' && [styles.subtle, { backgroundColor: Colors.cardSecondary }],
     style
   ];
 
   return (
     <View style={cardStyle}>
-      {title && <Text style={[styles.title, titleStyle]}>{title}</Text>}
+      {title && <Text style={[styles.title, { color: Colors.text }, titleStyle]}>{title}</Text>}
       <View style={[styles.content, contentStyle]}>
         {children}
       </View>

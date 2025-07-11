@@ -10,6 +10,7 @@ import {
   Image,
   Alert,
   Platform,
+  StatusBar,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Header from '@/components/Header';
@@ -20,7 +21,7 @@ import TimePicker from '@/components/TimePicker';
 import { useSettings } from '@/context/SettingsContext';
 import { useNotifications } from '@/context/NotificationContext';
 import { useAlert } from '@/hooks/useAlert';
-import Colors from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
 import { Spacing, BorderRadius } from '@/constants/spacing';
 import { Shield, HelpCircle, RefreshCw, Edit3, Camera } from 'lucide-react-native';
 import NameEditModal from '@/components/NameEditModal';
@@ -50,6 +51,9 @@ export default function ProfileScreen() {
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showWeekStartModal, setShowWeekStartModal] = useState(false);
   const [showNameEditModal, setShowNameEditModal] = useState(false);
+  
+  // Get theme-aware colors
+  const Colors = useThemeColors(theme);
 
   const formatTime = (time: string): string => {
     const [hours, minutes] = time.split(':');
@@ -70,25 +74,41 @@ export default function ProfileScreen() {
       return;
     }
 
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
+    // Request both camera and media library permissions
+    const [mediaLibraryStatus, cameraStatus] = await Promise.all([
+      ImagePicker.requestMediaLibraryPermissionsAsync(),
+      ImagePicker.requestCameraPermissionsAsync(),
+    ]);
+
+    if (mediaLibraryStatus.status !== 'granted' && cameraStatus.status !== 'granted') {
       Alert.alert(
         'Permission Required',
-        'Please grant permission to access your photo library to update your avatar.',
+        'Please grant permission to access your camera or photo library to update your avatar.',
         [{ text: 'OK' }]
       );
       return;
     }
 
+    const options = [
+      { text: 'Cancel', style: 'cancel' as const },
+    ];
+    
+    if (cameraStatus.status === 'granted') {
+      options.push({ text: 'Camera', onPress: () => openCamera() });
+    }
+    
+    if (mediaLibraryStatus.status === 'granted') {
+      options.push({ text: 'Photo Library', onPress: () => openImagePicker() });
+    }
+    
+    if (avatarUri) {
+      options.push({ text: 'Remove Photo', style: 'destructive' as const, onPress: () => removeAvatar() });
+    }
+
     Alert.alert(
       'Update Avatar',
       'Choose how you\'d like to update your profile picture',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Camera', onPress: () => openCamera() },
-        { text: 'Photo Library', onPress: () => openImagePicker() },
-        ...(avatarUri ? [{ text: 'Remove Photo', style: 'destructive' as const, onPress: () => removeAvatar() }] : []),
-      ]
+      options
     );
   };
 
@@ -144,93 +164,109 @@ export default function ProfileScreen() {
     });
   };
 
+  // Set status bar style based on theme
+  const statusBarStyle = theme === 'dark' || (theme === 'system' && Colors === useThemeColors('dark')) ? 'light-content' : 'dark-content';
+
   return (
     <>
-      <View style={styles.container}>
+      <StatusBar barStyle={statusBarStyle} backgroundColor={Colors.background} />
+      <View style={[styles.container, { backgroundColor: Colors.background }]}>
         <Header title="Profile" subtitle="Manage your account and preferences" />
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
           {/* Account Info */}
-          <Card style={styles.card}>
+          <Card style={[styles.card, { backgroundColor: Colors.card }]}>
             <View style={styles.profileHeader}>
-              <Pressable style={styles.avatarContainer} onPress={handleAvatarPress}>
+              <Pressable 
+                style={styles.avatarContainer} 
+                onPress={handleAvatarPress}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 {avatarUri ? (
                   <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
                 ) : (
-                  <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>
+                  <View style={[styles.avatar, { backgroundColor: Colors.primary }]}>
+                    <Text style={[styles.avatarText, { color: Colors.card }]}>
                       {nickname?.[0]?.toUpperCase() || 'U'}
                     </Text>
                   </View>
                 )}
-                <View style={styles.cameraIcon}>
+                <View style={[styles.cameraIcon, { backgroundColor: Colors.primary, borderColor: Colors.card }]}>
                   <Camera size={16} color={Colors.card} />
                 </View>
               </Pressable>
               <View style={styles.nameSection}>
-                <Text style={[styles.nameText, !nickname && styles.nameTextPlaceholder]}>
+                <Text style={[styles.nameText, { color: Colors.text }, !nickname && { color: Colors.textSecondary }]}>
                   {nickname || 'Add Your Name'}
                 </Text>
               </View>
-              <Pressable style={styles.editIcon} onPress={() => setShowNameEditModal(true)}>
+              <Pressable 
+                style={styles.editIcon} 
+                onPress={() => setShowNameEditModal(true)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 <Edit3 size={18} color={Colors.textSecondary} />
               </Pressable>
             </View>
           </Card>
 
           {/* Preferences */}
-          <Card style={styles.card}>
-            <Text style={styles.cardTitle}>Preferences</Text>
+          <Card style={[styles.card, { backgroundColor: Colors.card }]}>
+            <Text style={[styles.cardTitle, { color: Colors.text }]}>Preferences</Text>
             <SettingsItem title="Theme" value={theme} onPress={() => setShowThemeModal(true)} />
             <SettingsItem title="Week Starts On" value={weekStartDay} onPress={() => setShowWeekStartModal(true)} isLast />
           </Card>
 
           {/* Notifications */}
-          <Card style={styles.card}>
-            <Text style={styles.cardTitle}>Notifications</Text>
+          <Card style={[styles.card, { backgroundColor: Colors.card }]}>
+            <Text style={[styles.cardTitle, { color: Colors.text }]}>Notifications</Text>
             <View style={styles.rowBetween}>
-              <Text style={styles.itemLabel}>Expense Reminders</Text>
+              <Text style={[styles.itemLabel, { color: Colors.text }]}>Expense Reminders</Text>
               <Switch
                 value={notificationSettings.expenseReminders}
                 onValueChange={(value) => updateNotificationSettings({ expenseReminders: value })}
+                trackColor={{ false: Colors.inactive, true: Colors.primary }}
+                thumbColor={Colors.card}
               />
             </View>
             {notificationSettings.expenseReminders && (
-              <Pressable style={styles.timeRow} onPress={() => setShowTimePicker('reminder')}>
-                <Text style={styles.timeLabel}>Reminder Time</Text>
-                <Text style={styles.timeValue}>{formatTime(notificationSettings.reminderTime)}</Text>
+              <Pressable style={[styles.timeRow, { borderColor: Colors.border }]} onPress={() => setShowTimePicker('reminder')}>
+                <Text style={[styles.timeLabel, { color: Colors.textSecondary }]}>Reminder Time</Text>
+                <Text style={[styles.timeValue, { color: Colors.primary }]}>{formatTime(notificationSettings.reminderTime)}</Text>
               </Pressable>
             )}
 
             <View style={styles.rowBetween}>
-              <Text style={styles.itemLabel}>Weekly Insights</Text>
+              <Text style={[styles.itemLabel, { color: Colors.text }]}>Weekly Insights</Text>
               <Switch
                 value={notificationSettings.insightAlerts}
                 onValueChange={(value) => updateNotificationSettings({ insightAlerts: value })}
+                trackColor={{ false: Colors.inactive, true: Colors.primary }}
+                thumbColor={Colors.card}
               />
             </View>
             {notificationSettings.insightAlerts && (
-              <Pressable style={styles.timeRow} onPress={() => setShowTimePicker('insight')}>
-                <Text style={styles.timeLabel}>Insight Time</Text>
-                <Text style={styles.timeValue}>{formatTime(notificationSettings.weeklyInsightTime)}</Text>
+              <Pressable style={[styles.timeRow, { borderColor: Colors.border }]} onPress={() => setShowTimePicker('insight')}>
+                <Text style={[styles.timeLabel, { color: Colors.textSecondary }]}>Insight Time</Text>
+                <Text style={[styles.timeValue, { color: Colors.primary }]}>{formatTime(notificationSettings.weeklyInsightTime)}</Text>
               </Pressable>
             )}
           </Card>
 
           {/* Utilities */}
-          <Card style={styles.card}>
-            <Text style={styles.cardTitle}>Utilities</Text>
+          <Card style={[styles.card, { backgroundColor: Colors.card }]}>
+            <Text style={[styles.cardTitle, { color: Colors.text }]}>Utilities</Text>
             <SettingsItem title="Reset Data" icon={<RefreshCw size={18} color={Colors.destructive} />} onPress={handleResetData} isLast />
           </Card>
 
           {/* Help & Support */}
-          <Card style={styles.card}>
-            <Text style={styles.cardTitle}>Support</Text>
+          <Card style={[styles.card, { backgroundColor: Colors.card }]}>
+            <Text style={[styles.cardTitle, { color: Colors.text }]}>Support</Text>
             <SettingsItem title="Help & Tutorials" icon={<HelpCircle size={18} color={Colors.primary} />} onPress={() => {}} />
             <SettingsItem title="Contact Support" onPress={() => {}} isLast />
           </Card>
 
-          <Text style={styles.versionText}>Version 1.0.0 — Data stored locally</Text>
+          <Text style={[styles.versionText, { color: Colors.inactive }]}>Version 1.0.0 — Data stored locally</Text>
         </ScrollView>
       </View>
 
@@ -263,18 +299,25 @@ export default function ProfileScreen() {
         onRequestClose={() => setShowThemeModal(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setShowThemeModal(false)}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Choose Theme</Text>
+          <View style={[styles.modalContent, { backgroundColor: Colors.card }]}>
+            <Text style={[styles.modalTitle, { color: Colors.text }]}>Choose Theme</Text>
             {(['system', 'light', 'dark'] as const).map((themeOption) => (
               <Pressable
                 key={themeOption}
-                style={[styles.modalOption, theme === themeOption && styles.modalOptionSelected]}
+                style={[
+                  styles.modalOption, 
+                  theme === themeOption && [styles.modalOptionSelected, { backgroundColor: Colors.primary }]
+                ]}
                 onPress={async () => {
                   await setTheme(themeOption);
                   setShowThemeModal(false);
                 }}
               >
-                <Text style={[styles.modalOptionText, theme === themeOption && styles.modalOptionTextSelected]}>
+                <Text style={[
+                  styles.modalOptionText, 
+                  { color: Colors.text },
+                  theme === themeOption && [styles.modalOptionTextSelected, { color: Colors.card }]
+                ]}>
                   {themeOption.charAt(0).toUpperCase() + themeOption.slice(1)}
                 </Text>
               </Pressable>
@@ -291,18 +334,25 @@ export default function ProfileScreen() {
         onRequestClose={() => setShowWeekStartModal(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setShowWeekStartModal(false)}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Week Starts On</Text>
+          <View style={[styles.modalContent, { backgroundColor: Colors.card }]}>
+            <Text style={[styles.modalTitle, { color: Colors.text }]}>Week Starts On</Text>
             {(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const).map((day) => (
               <Pressable
                 key={day}
-                style={[styles.modalOption, weekStartDay === day && styles.modalOptionSelected]}
+                style={[
+                  styles.modalOption, 
+                  weekStartDay === day && [styles.modalOptionSelected, { backgroundColor: Colors.primary }]
+                ]}
                 onPress={async () => {
                   await setWeekStartDay(day);
                   setShowWeekStartModal(false);
                 }}
               >
-                <Text style={[styles.modalOptionText, weekStartDay === day && styles.modalOptionTextSelected]}>
+                <Text style={[
+                  styles.modalOptionText, 
+                  { color: Colors.text },
+                  weekStartDay === day && [styles.modalOptionTextSelected, { color: Colors.card }]
+                ]}>
                   {day.charAt(0).toUpperCase() + day.slice(1)}
                 </Text>
               </Pressable>
@@ -317,7 +367,6 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   scrollContent: {
     paddingHorizontal: Spacing.screenHorizontal,
@@ -331,7 +380,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.text,
     marginBottom: Spacing.md,
   },
   rowBetween: {
@@ -343,7 +391,6 @@ const styles = StyleSheet.create({
   itemLabel: {
     fontSize: 15,
     fontWeight: '500',
-    color: Colors.text,
   },
   profileHeader: {
     flexDirection: 'row',
@@ -357,7 +404,6 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -369,7 +415,6 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 24,
     fontWeight: '700',
-    color: Colors.card,
   },
   cameraIcon: {
     position: 'absolute',
@@ -378,11 +423,9 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: Colors.card,
   },
   nameSection: {
     flex: 1,
@@ -391,11 +434,6 @@ const styles = StyleSheet.create({
   nameText: {
     fontSize: 18,
     fontWeight: '600',
-    color: Colors.text,
-  },
-  nameTextPlaceholder: {
-    color: Colors.textSecondary,
-    fontWeight: '500',
   },
   editIcon: {
     padding: Spacing.sm,
@@ -411,21 +449,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.sm,
     borderTopWidth: 1,
-    borderColor: Colors.border,
   },
   timeLabel: {
     fontSize: 14,
-    color: Colors.textSecondary,
   },
   timeValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.primary,
   },
   versionText: {
     textAlign: 'center',
     fontSize: 12,
-    color: Colors.inactive,
     paddingVertical: Spacing.lg,
   },
   modalOverlay: {
@@ -435,7 +469,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: Colors.card,
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
     width: '80%',
@@ -444,7 +477,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: Colors.text,
     marginBottom: Spacing.lg,
     textAlign: 'center',
   },
@@ -455,15 +487,13 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   modalOptionSelected: {
-    backgroundColor: Colors.primary,
+    // backgroundColor will be set dynamically
   },
   modalOptionText: {
     fontSize: 16,
-    color: Colors.text,
     textAlign: 'center',
   },
   modalOptionTextSelected: {
-    color: Colors.card,
     fontWeight: '600',
   },
 });

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import AddTransactionModal from '@/components/AddTransactionModal';
-import Colors from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
+import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 
 interface HeaderProps {
@@ -13,22 +14,24 @@ interface HeaderProps {
 
 export default function Header({ title, subtitle, showAddButton = false }: HeaderProps) {
   const [showModal, setShowModal] = useState(false);
+  const { theme } = useSettings();
+  const Colors = useThemeColors(theme);
   
   return (
     <>
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: Colors.background }]}>
         <View style={styles.textContainer}>
-          <Text style={styles.title}>{title}</Text>
-          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+          <Text style={[styles.title, { color: Colors.text }]}>{title}</Text>
+          {subtitle && <Text style={[styles.subtitle, { color: Colors.textSecondary }]}>{subtitle}</Text>}
         </View>
         
         {showAddButton && (
           <TouchableOpacity 
-            style={styles.addButton}
+            style={[styles.addButton, { backgroundColor: Colors.primary }]}
             onPress={() => setShowModal(true)}
             activeOpacity={0.8}
           >
-            <Plus size={24} color={Colors.background} strokeWidth={2.5} />
+            <Plus size={24} color={Colors.card} strokeWidth={2.5} />
           </TouchableOpacity>
         )}
       </View>
@@ -49,7 +52,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.screenHorizontal,
     paddingTop: Spacing.screenTop,
     paddingBottom: Spacing.xl,
-    backgroundColor: Colors.background,
   },
   textContainer: {
     flex: 1,
@@ -57,12 +59,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 34,
     fontWeight: '700',
-    color: Colors.text,
     letterSpacing: -0.8,
   },
   subtitle: {
     fontSize: 17,
-    color: Colors.textSecondary,
     marginTop: Spacing.xs,
     fontWeight: '500',
   },
@@ -70,7 +70,6 @@ const styles = StyleSheet.create({
     width: Math.max(52, Spacing.minTouchTarget),
     height: Math.max(52, Spacing.minTouchTarget),
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     ...Shadow.medium,
