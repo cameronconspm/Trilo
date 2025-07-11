@@ -99,7 +99,7 @@ export function useStorage(): StorageHook {
     try {
       const keys = await AsyncStorage.getAllKeys();
       console.log(`Storage: Retrieved ${keys.length} keys`);
-      return keys;
+      return [...keys];
     } catch (error) {
       console.error('Storage: Error getting all keys:', error);
       return [];
@@ -110,7 +110,7 @@ export function useStorage(): StorageHook {
     try {
       const result = await AsyncStorage.multiGet(keys);
       console.log(`Storage: Retrieved ${keys.length} items via multiGet`);
-      return result;
+      return [...result];
     } catch (error) {
       console.error('Storage: Error with multiGet:', error);
       return keys.map(key => [key, null]);
