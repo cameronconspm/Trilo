@@ -22,6 +22,9 @@
         "image": "./assets/images/Splashscreen-Trilo.jpg",
         "resizeMode": "contain",
         "backgroundColor": "#4E91F9"
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -51,5 +54,14 @@
     "experiments": {
       "typedRoutes": true
     },
+<<<<<<< HEAD
+=======
+    "extra": {
+      "router": {
+        "origin": "https://rork.com/"
+      },
+      "eas": {
+        "projectId": "75bef967-5779-49d0-bc57-ae4f0621a7d4"
+>>>>>>> 9b03b3e (Remove lucide-react-native and fix build dependency conflict)
       }
     }
