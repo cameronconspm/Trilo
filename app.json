@@ -16,7 +16,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.ios-personal-finance-tracker",
+      "bundleIdentifier": "app.ios-trilo",
       "buildNumber": "2",
       "splash": {
         "image": "./assets/images/Splashscreen-Trilo.jpg",
@@ -29,7 +29,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.ios-personal-finance-tracker",
+      "package": "app.android-trilo",
       "versionCode": 2,
       "splash": {
         "image": "./assets/images/Splashscreen-Trilo.jpg",
