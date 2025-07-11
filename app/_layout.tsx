@@ -9,6 +9,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { FinanceProvider } from "@/context/FinanceContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { NotificationProvider } from "@/context/NotificationContext";
+import CustomSplashScreen from "@/components/SplashScreen";
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",
@@ -42,19 +43,14 @@ export default function RootLayout() {
     // Set body background color for web to match splash screen
     if (Platform.OS === 'web') {
       document.body.style.backgroundColor = '#4E91F9';
+      // Also set the html element background
+      document.documentElement.style.backgroundColor = '#4E91F9';
     }
   }, []);
 
   if (!loaded) {
-    // Show splash screen background color while loading
-    return (
-      <View style={{ 
-        flex: 1, 
-        backgroundColor: '#4E91F9',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }} />
-    );
+    // Show custom splash screen while loading
+    return <CustomSplashScreen />;
   }
 
   return <RootLayoutNav />;
@@ -66,6 +62,7 @@ function RootLayoutNav() {
     if (Platform.OS === 'web') {
       const timer = setTimeout(() => {
         document.body.style.backgroundColor = '';
+        document.documentElement.style.backgroundColor = '';
       }, 2500);
       return () => clearTimeout(timer);
     }
