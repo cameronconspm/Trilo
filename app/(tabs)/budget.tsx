@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Plus, Edit3, Target } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
+import { useSettings } from '@/context/SettingsContext';
+import { useThemeColors } from '@/constants/colors';
 import { useAlert } from '@/hooks/useAlert';
 import Header from '@/components/Header';
 import Card from '@/components/Card';
@@ -11,12 +13,13 @@ import TransactionItem from '@/components/TransactionItem';
 import EmptyState from '@/components/EmptyState';
 import AddTransactionModal from '@/components/AddTransactionModal';
 import AlertModal from '@/components/AlertModal';
-import Colors from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 import { Transaction } from '@/types/finance';
 
 export default function BudgetScreen() {
   const { budget, transactions, isLoading } = useFinance();
+  const { theme } = useSettings();
+  const colors = useThemeColors(theme);
   const { alertState, showAlert, hideAlert } = useAlert();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
@@ -75,14 +78,14 @@ export default function BudgetScreen() {
   
   if (isLoading) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Header 
           title="Budget"
           subtitle="Monthly planning"
           showAddButton
         />
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={[styles.loadingText, { color: colors.inactive }]}>Loading...</Text>
         </View>
       </View>
     );
@@ -90,7 +93,7 @@ export default function BudgetScreen() {
   
   return (
     <>
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Header 
           title="Budget"
           subtitle="Monthly planning"
@@ -106,27 +109,27 @@ export default function BudgetScreen() {
           <Card variant="elevated" style={styles.summaryCard}>
             <View style={styles.budgetHeader}>
               <View style={styles.budgetTitleContainer}>
-                <Text style={styles.budgetTitle}>Monthly Budget</Text>
+                <Text style={[styles.budgetTitle, { color: colors.text }]}>Monthly Budget</Text>
                 <TouchableOpacity 
                   onPress={handleSetBudgetGoal}
-                  style={styles.editButton}
+                  style={[styles.editButton, { backgroundColor: colors.cardSecondary }]}
                   activeOpacity={0.7}
                 >
-                  <Edit3 size={16} color={Colors.primary} strokeWidth={2} />
+                  <Edit3 size={16} color={colors.primary} strokeWidth={2} />
                 </TouchableOpacity>
               </View>
             </View>
             
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Monthly Income</Text>
-                <Text style={styles.summaryValue}>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Monthly Income</Text>
+                <Text style={[styles.summaryValue, { color: colors.text }]}>
                   ${budget.income > 0 ? budget.income.toFixed(2) : '0.00'}
                 </Text>
               </View>
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Total Expenses</Text>
-                <Text style={styles.summaryValue}>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total Expenses</Text>
+                <Text style={[styles.summaryValue, { color: colors.text }]}>
                   ${totalExpenses.toFixed(2)}
                 </Text>
               </View>
@@ -135,35 +138,35 @@ export default function BudgetScreen() {
             <View style={styles.progressContainer}>
               <ProgressBar
                 progress={budgetUtilization}
-                color={budgetUtilization > 90 ? Colors.error : budgetUtilization > 75 ? Colors.warning : Colors.success}
+                color={budgetUtilization > 90 ? colors.error : budgetUtilization > 75 ? colors.warning : colors.success}
                 label="Budget Utilization"
                 showPercentage
               />
             </View>
             
             <View style={styles.remainingContainer}>
-              <Text style={styles.remainingLabel}>Remaining Budget</Text>
+              <Text style={[styles.remainingLabel, { color: colors.textSecondary }]}>Remaining Budget</Text>
               <Text style={[
                 styles.remainingValue,
-                remainingIncome < 0 && styles.negativeValue
+                { color: remainingIncome < 0 ? colors.error : colors.success }
               ]}>
                 ${remainingIncome.toFixed(2)}
               </Text>
             </View>
             
             <View style={styles.breakdownContainer}>
-              <Text style={styles.breakdownTitle}>Expense Breakdown</Text>
+              <Text style={[styles.breakdownTitle, { color: colors.text }]}>Expense Breakdown</Text>
               <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>Given expenses</Text>
-                <Text style={styles.breakdownValue}>${budget.expenses.given.toFixed(2)}</Text>
+                <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Given expenses</Text>
+                <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.given.toFixed(2)}</Text>
               </View>
               <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>One-time expenses</Text>
-                <Text style={styles.breakdownValue}>${budget.expenses.oneTime.toFixed(2)}</Text>
+                <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>One-time expenses</Text>
+                <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.oneTime.toFixed(2)}</Text>
               </View>
               <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>Recurring expenses</Text>
-                <Text style={styles.breakdownValue}>${budget.expenses.recurring.toFixed(2)}</Text>
+                <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Recurring expenses</Text>
+                <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.recurring.toFixed(2)}</Text>
               </View>
             </View>
           </Card>
@@ -188,13 +191,13 @@ export default function BudgetScreen() {
           
           {/* Income Section */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Income</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Income</Text>
             <TouchableOpacity 
               onPress={() => setShowAddModal(true)}
-              style={styles.addButton}
+              style={[styles.addButton, { backgroundColor: colors.card }]}
               activeOpacity={0.7}
             >
-              <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
+              <Plus size={20} color={colors.primary} strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
           <Card>
@@ -219,13 +222,13 @@ export default function BudgetScreen() {
           
           {/* Given Expenses Section */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Given Expenses</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Given Expenses</Text>
             <TouchableOpacity 
               onPress={() => setShowAddModal(true)}
-              style={styles.addButton}
+              style={[styles.addButton, { backgroundColor: colors.card }]}
               activeOpacity={0.7}
             >
-              <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
+              <Plus size={20} color={colors.primary} strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
           <Card>
@@ -250,13 +253,13 @@ export default function BudgetScreen() {
           
           {/* Recurring Expenses Section */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recurring Expenses</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recurring Expenses</Text>
             <TouchableOpacity 
               onPress={() => setShowAddModal(true)}
-              style={styles.addButton}
+              style={[styles.addButton, { backgroundColor: colors.card }]}
               activeOpacity={0.7}
             >
-              <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
+              <Plus size={20} color={colors.primary} strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
           <Card>
@@ -281,13 +284,13 @@ export default function BudgetScreen() {
           
           {/* One-Time Expenses Section */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>One-Time Expenses</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>One-Time Expenses</Text>
             <TouchableOpacity 
               onPress={() => setShowAddModal(true)}
-              style={styles.addButton}
+              style={[styles.addButton, { backgroundColor: colors.card }]}
               activeOpacity={0.7}
             >
-              <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
+              <Plus size={20} color={colors.primary} strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
           <Card>
@@ -333,7 +336,6 @@ export default function BudgetScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   scrollView: {
     flex: 1,
@@ -349,7 +351,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: Colors.inactive,
   },
   summaryCard: {
     marginBottom: Spacing.lg,
@@ -365,14 +366,12 @@ const styles = StyleSheet.create({
   budgetTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: Colors.text,
     letterSpacing: -0.3,
   },
   editButton: {
     width: Math.max(32, Spacing.minTouchTarget),
     height: Math.max(32, Spacing.minTouchTarget),
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.cardSecondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -386,7 +385,6 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 15,
-    color: Colors.textSecondary,
     marginBottom: Spacing.sm,
     fontWeight: '600',
   },
@@ -402,12 +400,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.lg,
     paddingVertical: Spacing.lg,
-    backgroundColor: Colors.cardSecondary,
     borderRadius: BorderRadius.lg,
   },
   remainingLabel: {
     fontSize: 15,
-    color: Colors.textSecondary,
     marginBottom: Spacing.sm,
     fontWeight: '600',
   },
@@ -415,20 +411,14 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: '700',
     letterSpacing: -0.6,
-    color: Colors.success,
-  },
-  negativeValue: {
-    color: Colors.error,
   },
   breakdownContainer: {
-    backgroundColor: Colors.background,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
   },
   breakdownTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.text,
     marginBottom: Spacing.md,
     letterSpacing: -0.2,
   },
@@ -439,13 +429,11 @@ const styles = StyleSheet.create({
   },
   breakdownLabel: {
     fontSize: 15,
-    color: Colors.textSecondary,
     fontWeight: '500',
   },
   breakdownValue: {
     fontSize: 15,
     fontWeight: '600',
-    color: Colors.text,
   },
   quickActions: {
     flexDirection: 'row',
@@ -471,7 +459,6 @@ const styles = StyleSheet.create({
     width: Math.max(40, Spacing.minTouchTarget),
     height: Math.max(40, Spacing.minTouchTarget),
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.card,
     justifyContent: 'center',
     alignItems: 'center',
     ...Shadow.light,

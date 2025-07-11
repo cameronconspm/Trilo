@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import Colors from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
 import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 
@@ -22,18 +22,19 @@ export default function Card({
   variant = 'default'
 }: CardProps) {
   const { theme } = useSettings();
+  const colors = useThemeColors(theme);
   
   const cardStyle = [
     styles.card,
-    { backgroundColor: Colors.card },
-    variant === 'elevated' && [styles.elevated, { backgroundColor: Colors.card }],
-    variant === 'subtle' && [styles.subtle, { backgroundColor: Colors.cardSecondary }],
+    { backgroundColor: colors.card },
+    variant === 'elevated' && [styles.elevated, { backgroundColor: colors.card }],
+    variant === 'subtle' && [styles.subtle, { backgroundColor: colors.cardSecondary }],
     style
   ];
 
   return (
     <View style={cardStyle}>
-      {title && <Text style={[styles.title, { color: Colors.text }, titleStyle]}>{title}</Text>}
+      {title && <Text style={[styles.title, { color: colors.text }, titleStyle]}>{title}</Text>}
       <View style={[styles.content, contentStyle]}>
         {children}
       </View>
@@ -43,7 +44,6 @@ export default function Card({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.card,
     borderRadius: BorderRadius.xl,
     padding: Spacing.cardPadding,
     marginVertical: Spacing.sm,
@@ -51,11 +51,9 @@ const styles = StyleSheet.create({
   },
   elevated: {
     ...Shadow.medium,
-    backgroundColor: Colors.card,
     borderRadius: BorderRadius.xxl,
   },
   subtle: {
-    backgroundColor: Colors.cardSecondary,
     ...Shadow.light,
     borderRadius: BorderRadius.lg,
   },
@@ -63,7 +61,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: Spacing.md,
-    color: Colors.text,
     letterSpacing: -0.3,
   },
   content: {

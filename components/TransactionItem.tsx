@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Trash2, Edit3 } from 'lucide-react-native';
-import Colors from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
+import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius } from '@/constants/spacing';
 import { Transaction } from '@/types/finance';
 import { useFinance } from '@/context/FinanceContext';
@@ -27,6 +28,8 @@ export default function TransactionItem({
   enableSwipeActions = false
 }: TransactionItemProps) {
   const { deleteTransaction } = useFinance();
+  const { theme } = useSettings();
+  const colors = useThemeColors(theme);
   const { alertState, showAlert, hideAlert } = useAlert();
   const { name, amount, date, category, isRecurring, type, paySchedule, weekDay, weekNumber } = transaction;
   const categoryInfo = categories.find(c => c.id === category) || categories[0];
@@ -93,8 +96,8 @@ export default function TransactionItem({
           onPress={handleDelete}
           activeOpacity={0.7}
         >
-          <Trash2 size={20} color={Colors.surface} strokeWidth={2} />
-          <Text style={styles.actionText}>Delete</Text>
+          <Trash2 size={20} color={colors.surface} strokeWidth={2} />
+          <Text style={[styles.actionText, { color: colors.surface }]}>Delete</Text>
         </TouchableOpacity>
       </View>
     );
@@ -102,7 +105,7 @@ export default function TransactionItem({
 
   const content = (
     <TouchableOpacity 
-      style={[styles.container, isLast && styles.lastItem]}
+      style={[styles.container, { borderBottomColor: colors.border }, isLast && styles.lastItem]}
       onPress={handleEdit}
       activeOpacity={onEdit ? 0.7 : 1}
       disabled={!onEdit}
@@ -111,20 +114,20 @@ export default function TransactionItem({
         <View style={[styles.categoryDot, { backgroundColor: categoryInfo.color }]} />
         <View style={styles.textContainer}>
           <View style={styles.nameRow}>
-            <Text style={styles.name} numberOfLines={1}>{name}</Text>
+            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{name}</Text>
             {isRecurring && (
-              <View style={styles.recurringBadge}>
-                <Text style={styles.recurringText}>Recurring</Text>
+              <View style={[styles.recurringBadge, { backgroundColor: colors.cardSecondary }]}>
+                <Text style={[styles.recurringText, { color: colors.textSecondary }]}>Recurring</Text>
               </View>
             )}
           </View>
-          <Text style={styles.category}>{categoryInfo.name}</Text>
+          <Text style={[styles.category, { color: colors.textSecondary }]}>{categoryInfo.name}</Text>
         </View>
       </View>
       <View style={styles.rightContent}>
         <Text style={[
           styles.amount, 
-          transaction.type === 'income' ? styles.income : styles.expense,
+          transaction.type === 'income' ? { color: colors.income } : { color: colors.text },
           isFuture && styles.futureAmount
         ]}>
           {transaction.type === 'income' ? '+' : ''}${amount.toFixed(2)}
@@ -132,8 +135,9 @@ export default function TransactionItem({
         <View style={styles.dateRow}>
           <Text style={[
             styles.date, 
-            isFuture && styles.futureDate,
-            type === 'income' && styles.incomeSchedule
+            { color: colors.textSecondary },
+            isFuture && { color: colors.primary, fontWeight: '600' },
+            type === 'income' && { color: colors.income, fontWeight: '600', fontSize: 12 }
           ]}>
             {formattedDate}
           </Text>
@@ -143,7 +147,7 @@ export default function TransactionItem({
               style={styles.deleteButton}
               activeOpacity={0.7}
             >
-              <Trash2 size={16} color={Colors.error} strokeWidth={2} />
+              <Trash2 size={16} color={colors.error} strokeWidth={2} />
             </TouchableOpacity>
           )}
         </View>
@@ -180,7 +184,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   lastItem: {
     borderBottomWidth: 0,
@@ -207,11 +210,9 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontWeight: '500',
-    color: Colors.text,
     flex: 1,
   },
   recurringBadge: {
-    backgroundColor: Colors.cardSecondary,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: BorderRadius.sm,
@@ -220,11 +221,9 @@ const styles = StyleSheet.create({
   recurringText: {
     fontSize: 11,
     fontWeight: '600',
-    color: Colors.textSecondary,
   },
   category: {
     fontSize: 14,
-    color: Colors.textSecondary,
     marginTop: 2,
     fontWeight: '400',
   },
@@ -234,12 +233,6 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  income: {
-    color: Colors.income,
-  },
-  expense: {
-    color: Colors.text,
   },
   futureAmount: {
     opacity: 0.7,
@@ -251,17 +244,7 @@ const styles = StyleSheet.create({
   },
   date: {
     fontSize: 13,
-    color: Colors.textSecondary,
     fontWeight: '500',
-  },
-  futureDate: {
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  incomeSchedule: {
-    color: Colors.income,
-    fontWeight: '600',
-    fontSize: 12,
   },
   deleteButton: {
     marginLeft: Spacing.sm,
@@ -272,7 +255,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteAction: {
-    backgroundColor: Colors.error,
     justifyContent: 'center',
     alignItems: 'center',
     width: 80,
@@ -280,7 +262,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   },
   actionText: {
-    color: Colors.surface,
     fontSize: 12,
     fontWeight: '600',
     marginTop: 4,

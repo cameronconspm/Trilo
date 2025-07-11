@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useFinance } from '@/context/FinanceContext';
+import { useSettings } from '@/context/SettingsContext';
+import { useThemeColors } from '@/constants/colors';
 import Header from '@/components/Header';
 import Card from '@/components/Card';
 import CircularProgress from '@/components/CircularProgress';
@@ -8,12 +10,13 @@ import CategoryCard from '@/components/CategoryCard';
 import TransactionItem from '@/components/TransactionItem';
 import EmptyState from '@/components/EmptyState';
 import AddTransactionModal from '@/components/AddTransactionModal';
-import Colors from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { Transaction } from '@/types/finance';
 
 export default function OverviewScreen() {
   const { weeklyOverview, isLoading } = useFinance();
+  const { theme } = useSettings();
+  const colors = useThemeColors(theme);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
   const { weekIncome, remainingBalance, utilization, contributions, upcomingExpenses, currentPayPeriod } = weeklyOverview;
@@ -38,21 +41,21 @@ export default function OverviewScreen() {
   
   if (isLoading) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Header 
           title={`${month} ${year}`}
           subtitle={currentPayPeriod || 'No pay period'}
           showAddButton
         />
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={[styles.loadingText, { color: colors.inactive }]}>Loading...</Text>
         </View>
       </View>
     );
   }
   
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header 
         title={`${month} ${year}`}
         subtitle={currentPayPeriod || 'No pay period'}
@@ -67,14 +70,15 @@ export default function OverviewScreen() {
         <Card variant="elevated" style={styles.incomeCard}>
           <View style={styles.incomeContainer}>
             <View style={styles.incomeTextContainer}>
-              <Text style={styles.incomeLabel}>Pay period income</Text>
-              <Text style={styles.incomeValue}>
+              <Text style={[styles.incomeLabel, { color: colors.textSecondary }]}>Pay period income</Text>
+              <Text style={[styles.incomeValue, { color: colors.text }]}>
                 ${weekIncome > 0 ? weekIncome.toFixed(2) : '0.00'}
               </Text>
-              <Text style={styles.balanceLabel}>Remaining balance</Text>
+              <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>Remaining balance</Text>
               <Text style={[
                 styles.balanceValue,
-                remainingBalance < 0 && styles.negativeBalance
+                { color: colors.text },
+                remainingBalance < 0 && { color: colors.error }
               ]}>
                 ${remainingBalance.toFixed(2)}
               </Text>
@@ -82,12 +86,12 @@ export default function OverviewScreen() {
             <CircularProgress 
               percentage={utilization} 
               size={100} 
-              color={utilization > 90 ? Colors.warning : Colors.primary}
+              color={utilization > 90 ? colors.warning : colors.primary}
             />
           </View>
         </Card>
         
-        <Text style={styles.sectionTitle}>Pay Period Contributions</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Pay Period Contributions</Text>
         <View style={styles.categoryGrid}>
           {(['bill', 'subscription', 'debt', 'savings'] as const).map((categoryId) => {
             const data = contributions[categoryId] || { total: 0, count: 0 };
@@ -102,7 +106,7 @@ export default function OverviewScreen() {
           })}
         </View>
         
-        <Text style={styles.sectionTitle}>Upcoming Expenses</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Upcoming Expenses</Text>
         <Card variant="default">
           {hasUpcomingExpenses ? (
             upcomingExpenses.map((expense, index) => (
@@ -136,7 +140,6 @@ export default function OverviewScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   scrollView: {
     flex: 1,
@@ -152,7 +155,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: Colors.inactive,
   },
   incomeCard: {
     marginBottom: Spacing.md,
@@ -167,7 +169,6 @@ const styles = StyleSheet.create({
   },
   incomeLabel: {
     fontSize: 14,
-    color: Colors.textSecondary,
     marginBottom: Spacing.xs,
     fontWeight: '500',
   },
@@ -179,7 +180,6 @@ const styles = StyleSheet.create({
   },
   balanceLabel: {
     fontSize: 14,
-    color: Colors.textSecondary,
     marginBottom: Spacing.xs,
     fontWeight: '500',
   },
@@ -187,9 +187,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     letterSpacing: -0.3,
-  },
-  negativeBalance: {
-    color: Colors.error,
   },
   sectionTitle: {
     fontSize: 20,

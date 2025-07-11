@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import Colors from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
+import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 
 interface CircularProgressProps {
@@ -16,10 +17,13 @@ export default function CircularProgress({
   percentage,
   size = 110,
   strokeWidth = 10,
-  color = Colors.primary,
+  color,
   label = 'Utilization',
 }: CircularProgressProps) {
+  const { theme } = useSettings();
+  const colors = useThemeColors(theme);
   const validPercentage = Math.min(Math.max(percentage, 0), 100);
+  const progressColor = color || colors.primary;
   
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
@@ -33,7 +37,7 @@ export default function CircularProgress({
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke={Colors.border}
+            stroke={colors.border}
             strokeWidth={strokeWidth}
             fill="transparent"
           />
@@ -41,7 +45,7 @@ export default function CircularProgress({
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke={color}
+            stroke={progressColor}
             strokeWidth={strokeWidth}
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
@@ -51,8 +55,8 @@ export default function CircularProgress({
           />
         </Svg>
         <View style={styles.textContainer}>
-          <Text style={styles.percentageText}>{validPercentage.toFixed(0)}%</Text>
-          <Text style={styles.labelText}>{label}</Text>
+          <Text style={[styles.percentageText, { color: colors.text }]}>{validPercentage.toFixed(0)}%</Text>
+          <Text style={[styles.labelText, { color: colors.textSecondary }]}>{label}</Text>
         </View>
       </View>
     </View>
@@ -77,12 +81,10 @@ const styles = StyleSheet.create({
   percentageText: {
     fontSize: 20,
     fontWeight: '700',
-    color: Colors.text,
     letterSpacing: -0.4,
   },
   labelText: {
     fontSize: 12,
-    color: Colors.textSecondary,
     fontWeight: '600',
     marginTop: 2,
   },

@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle, ActivityIndicator } from 'react-native';
-import Colors from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
+import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 
 interface ButtonProps {
@@ -24,18 +25,49 @@ export default function Button({
   style,
   textStyle,
 }: ButtonProps) {
+  const { theme } = useSettings();
+  const colors = useThemeColors(theme);
+  
+  const getVariantStyles = () => {
+    switch (variant) {
+      case 'primary':
+        return { backgroundColor: colors.primary };
+      case 'secondary':
+        return { backgroundColor: colors.secondary };
+      case 'outline':
+        return { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.primary };
+      case 'ghost':
+        return { backgroundColor: 'transparent' };
+      default:
+        return { backgroundColor: colors.primary };
+    }
+  };
+  
+  const getTextColor = () => {
+    switch (variant) {
+      case 'primary':
+      case 'secondary':
+        return colors.card;
+      case 'outline':
+      case 'ghost':
+        return colors.primary;
+      default:
+        return colors.card;
+    }
+  };
+  
   const buttonStyle = [
     styles.button,
-    styles[variant],
     styles[size],
+    getVariantStyles(),
     disabled && styles.disabled,
     style,
   ];
 
   const buttonTextStyle = [
     styles.text,
-    styles[`${variant}Text`],
     styles[`${size}Text`],
+    { color: getTextColor() },
     disabled && styles.disabledText,
     textStyle,
   ];
@@ -49,7 +81,7 @@ export default function Button({
     >
       {loading ? (
         <ActivityIndicator 
-          color={variant === 'primary' ? Colors.card : Colors.primary} 
+          color={variant === 'primary' || variant === 'secondary' ? colors.card : colors.primary} 
           size="small" 
         />
       ) : (
@@ -65,22 +97,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: BorderRadius.lg,
     ...Shadow.light,
-  },
-  
-  // Variants
-  primary: {
-    backgroundColor: Colors.primary,
-  },
-  secondary: {
-    backgroundColor: Colors.secondary,
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
   },
   
   // Sizes
@@ -109,19 +125,6 @@ const styles = StyleSheet.create({
   text: {
     fontWeight: '600',
     textAlign: 'center',
-  },
-  
-  primaryText: {
-    color: Colors.card,
-  },
-  secondaryText: {
-    color: Colors.card,
-  },
-  outlineText: {
-    color: Colors.primary,
-  },
-  ghostText: {
-    color: Colors.primary,
   },
   
   smallText: {

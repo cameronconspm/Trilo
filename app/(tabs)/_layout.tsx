@@ -2,17 +2,21 @@ import React from "react";
 import { Tabs } from "expo-router";
 import { Home, BarChart3, LineChart, User } from "lucide-react-native";
 import { Platform } from "react-native";
-import Colors from "@/constants/colors";
+import { useThemeColors } from "@/constants/colors";
+import { useSettings } from "@/context/SettingsContext";
 import { Spacing, Shadow } from "@/constants/spacing";
 
 export default function TabLayout() {
+  const { theme } = useSettings();
+  const colors = useThemeColors(theme);
+  
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.inactive,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.inactive,
         tabBarStyle: {
-          backgroundColor: Colors.card,
+          backgroundColor: colors.card,
           borderTopWidth: 0,
           height: Platform.OS === 'ios' ? 90 : 70,
           paddingBottom: Platform.OS === 'ios' ? 30 : 15,

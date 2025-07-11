@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TouchableOpacityProps } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
-import Colors from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
+import { useSettings } from '@/context/SettingsContext';
 import { Spacing } from '@/constants/spacing';
 
 interface SettingsItemProps extends TouchableOpacityProps {
@@ -20,9 +21,12 @@ export default function SettingsItem({
   isLast = false,
   ...props 
 }: SettingsItemProps) {
+  const { theme } = useSettings();
+  const colors = useThemeColors(theme);
+  
   return (
     <TouchableOpacity 
-      style={[styles.container, isLast && styles.lastItem]} 
+      style={[styles.container, { borderBottomColor: colors.border }, isLast && styles.lastItem]} 
       activeOpacity={0.7}
       {...props}
     >
@@ -30,14 +34,15 @@ export default function SettingsItem({
         {icon && <View style={styles.iconContainer}>{icon}</View>}
         <Text style={[
           styles.title,
-          isDestructive && styles.destructiveText
+          { color: colors.text },
+          isDestructive && { color: colors.error }
         ]}>
           {title}
         </Text>
       </View>
       <View style={styles.rightContent}>
-        {value && <Text style={styles.value}>{value}</Text>}
-        <ChevronRight size={18} color={Colors.inactive} />
+        {value && <Text style={[styles.value, { color: colors.textSecondary }]}>{value}</Text>}
+        <ChevronRight size={18} color={colors.inactive} />
       </View>
     </TouchableOpacity>
   );
@@ -50,14 +55,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   lastItem: {
     borderBottomWidth: 0,
   },
   title: {
     fontSize: 16,
-    color: Colors.text,
     fontWeight: '500',
   },
   leftContent: {
@@ -74,11 +77,7 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: 15,
-    color: Colors.textSecondary,
     marginRight: Spacing.sm,
     fontWeight: '500',
-  },
-  destructiveText: {
-    color: Colors.error,
   },
 });

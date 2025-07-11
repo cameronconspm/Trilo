@@ -2,16 +2,19 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { TrendingUp, TrendingDown, DollarSign, Target } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
+import { useSettings } from '@/context/SettingsContext';
+import { useThemeColors } from '@/constants/colors';
 import Header from '@/components/Header';
 import Card from '@/components/Card';
 import InsightCard from '@/components/InsightCard';
 import TransactionItem from '@/components/TransactionItem';
 import EmptyState from '@/components/EmptyState';
-import Colors from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 
 export default function InsightsScreen() {
   const { monthlyInsights, isLoading } = useFinance();
+  const { theme } = useSettings();
+  const colors = useThemeColors(theme);
   const { totalSpent, totalSaved, topSpendingCategory, insights, recentTransactions } = monthlyInsights;
   
   const hasInsights = insights.length > 0;
@@ -20,20 +23,20 @@ export default function InsightsScreen() {
   
   if (isLoading) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Header 
           title="Insights"
           subtitle="Financial overview"
         />
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={[styles.loadingText, { color: colors.inactive }]}>Loading...</Text>
         </View>
       </View>
     );
   }
   
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header 
         title="Insights"
         subtitle="Financial overview"
@@ -50,20 +53,20 @@ export default function InsightsScreen() {
             <View style={styles.metricsContainer}>
               <Card variant="elevated" style={styles.metricCard}>
                 <View style={styles.metricIcon}>
-                  <TrendingDown size={24} color={Colors.error} strokeWidth={2} />
+                  <TrendingDown size={24} color={colors.error} strokeWidth={2} />
                 </View>
-                <Text style={styles.metricLabel}>Total Spent</Text>
-                <Text style={[styles.metricValue, { color: Colors.error }]}>
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total Spent</Text>
+                <Text style={[styles.metricValue, { color: colors.error }]}>
                   ${totalSpent.toFixed(2)}
                 </Text>
               </Card>
               
               <Card variant="elevated" style={styles.metricCard}>
                 <View style={styles.metricIcon}>
-                  <TrendingUp size={24} color={Colors.success} strokeWidth={2} />
+                  <TrendingUp size={24} color={colors.success} strokeWidth={2} />
                 </View>
-                <Text style={styles.metricLabel}>Total Saved</Text>
-                <Text style={[styles.metricValue, { color: Colors.success }]}>
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total Saved</Text>
+                <Text style={[styles.metricValue, { color: colors.success }]}>
                   ${totalSaved.toFixed(2)}
                 </Text>
               </Card>
@@ -74,19 +77,19 @@ export default function InsightsScreen() {
               <Card variant="elevated" style={styles.topCategoryCard}>
                 <View style={styles.topCategoryHeader}>
                   <View style={styles.topCategoryIcon}>
-                    <Target size={20} color={Colors.primary} strokeWidth={2} />
+                    <Target size={20} color={colors.primary} strokeWidth={2} />
                   </View>
-                  <Text style={styles.topCategoryTitle}>Top Spending Category</Text>
+                  <Text style={[styles.topCategoryTitle, { color: colors.textSecondary }]}>Top Spending Category</Text>
                 </View>
                 
                 <View style={styles.categoryInfo}>
                   <View style={[styles.categoryDot, { backgroundColor: topSpendingCategory.category.color }]} />
-                  <Text style={styles.topCategoryName}>{topSpendingCategory.category.name}</Text>
+                  <Text style={[styles.topCategoryName, { color: colors.text }]}>{topSpendingCategory.category.name}</Text>
                 </View>
-                <Text style={styles.topCategoryAmount}>${topSpendingCategory.amount.toFixed(2)}</Text>
+                <Text style={[styles.topCategoryAmount, { color: colors.text }]}>${topSpendingCategory.amount.toFixed(2)}</Text>
                 
                 <View style={styles.categoryInsight}>
-                  <Text style={styles.categoryInsightText}>
+                  <Text style={[styles.categoryInsightText, { color: colors.textSecondary }]}>
                     This represents your highest spending area this month
                   </Text>
                 </View>
@@ -94,7 +97,7 @@ export default function InsightsScreen() {
             )}
             
             {/* AI Insights */}
-            <Text style={styles.sectionTitle}>Smart Insights</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Smart Insights</Text>
             {hasInsights ? (
               <View style={styles.insightsContainer}>
                 {insights.map((insight, index) => (
@@ -112,7 +115,7 @@ export default function InsightsScreen() {
             )}
             
             {/* Recent Transactions */}
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
             <Card>
               {hasRecentTransactions ? (
                 recentTransactions.map((transaction, index) => (
@@ -136,25 +139,25 @@ export default function InsightsScreen() {
           <View style={styles.noDataContainer}>
             <Card variant="elevated" style={styles.welcomeCard}>
               <View style={styles.welcomeIcon}>
-                <DollarSign size={48} color={Colors.primary} strokeWidth={2} />
+                <DollarSign size={48} color={colors.primary} strokeWidth={2} />
               </View>
-              <Text style={styles.welcomeTitle}>Welcome to Insights!</Text>
-              <Text style={styles.welcomeSubtitle}>
+              <Text style={[styles.welcomeTitle, { color: colors.text }]}>Welcome to Insights!</Text>
+              <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>
                 Start tracking your expenses and income to see personalized financial insights and trends.
               </Text>
               
               <View style={styles.welcomeFeatures}>
                 <View style={styles.featureItem}>
-                  <TrendingUp size={20} color={Colors.success} strokeWidth={2} />
-                  <Text style={styles.featureText}>Spending trends</Text>
+                  <TrendingUp size={20} color={colors.success} strokeWidth={2} />
+                  <Text style={[styles.featureText, { color: colors.text }]}>Spending trends</Text>
                 </View>
                 <View style={styles.featureItem}>
-                  <Target size={20} color={Colors.primary} strokeWidth={2} />
-                  <Text style={styles.featureText}>Category analysis</Text>
+                  <Target size={20} color={colors.primary} strokeWidth={2} />
+                  <Text style={[styles.featureText, { color: colors.text }]}>Category analysis</Text>
                 </View>
                 <View style={styles.featureItem}>
-                  <DollarSign size={20} color={Colors.warning} strokeWidth={2} />
-                  <Text style={styles.featureText}>Savings tracking</Text>
+                  <DollarSign size={20} color={colors.warning} strokeWidth={2} />
+                  <Text style={[styles.featureText, { color: colors.text }]}>Savings tracking</Text>
                 </View>
               </View>
             </Card>
@@ -168,7 +171,6 @@ export default function InsightsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   scrollView: {
     flex: 1,
@@ -184,7 +186,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: Colors.inactive,
   },
   metricsContainer: {
     flexDirection: 'row',
@@ -201,14 +202,12 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.cardSecondary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
   },
   metricLabel: {
     fontSize: 14,
-    color: Colors.textSecondary,
     marginBottom: Spacing.sm,
     textAlign: 'center',
     fontWeight: '500',
@@ -233,7 +232,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.cardSecondary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.sm,
@@ -241,7 +239,6 @@ const styles = StyleSheet.create({
   topCategoryTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.textSecondary,
     letterSpacing: -0.2,
   },
   categoryInfo: {
@@ -263,19 +260,16 @@ const styles = StyleSheet.create({
   topCategoryAmount: {
     fontSize: 28,
     fontWeight: '700',
-    color: Colors.text,
     letterSpacing: -0.5,
     marginBottom: Spacing.md,
   },
   categoryInsight: {
-    backgroundColor: Colors.cardSecondary,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginTop: Spacing.sm,
   },
   categoryInsightText: {
     fontSize: 14,
-    color: Colors.textSecondary,
     textAlign: 'center',
     fontWeight: '500',
   },
@@ -302,7 +296,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.cardSecondary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.xl,
@@ -310,13 +303,11 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: Colors.text,
     marginBottom: Spacing.md,
     letterSpacing: -0.4,
   },
   welcomeSubtitle: {
     fontSize: 16,
-    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: Spacing.xl,
@@ -330,14 +321,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.background,
     borderRadius: BorderRadius.lg,
     marginBottom: Spacing.sm,
   },
   featureText: {
     fontSize: 16,
     fontWeight: '500',
-    color: Colors.text,
     marginLeft: Spacing.md,
   },
 });
