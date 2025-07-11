@@ -32,6 +32,11 @@ const categories: Category[] = [
     name: 'One-Time Expense',
     color: Colors.oneTimeExpense,
   },
+  {
+    id: 'miscellaneous',
+    name: 'Miscellaneous',
+    color: Colors.textSecondary,
+  },
 ];
 
 export default categories;

@@ -44,7 +44,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
   const [transactionType, setTransactionType] = useState<TransactionType>('expense');
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<CategoryType>('one_time_expense');
+  const [category, setCategory] = useState<CategoryType>('miscellaneous');
   const [isRecurring, setIsRecurring] = useState(false);
   
   // For expenses (day of month)
@@ -95,12 +95,16 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
   useEffect(() => {
     if (transactionType === 'income') {
       setCategory('income');
-      setIsRecurring(true);
+      if (!editTransaction) {
+        setIsRecurring(true);
+      }
     } else {
-      setCategory('one_time_expense');
-      setIsRecurring(false);
+      if (!editTransaction) {
+        setCategory('miscellaneous');
+        setIsRecurring(false);
+      }
     }
-  }, [transactionType]);
+  }, [transactionType, editTransaction]);
   
   const handleSubmit = async () => {
     console.log('Submit button pressed'); // Debug log
@@ -127,7 +131,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
     }
     
     // Validate pay schedule for income
-    if (transactionType === 'income') {
+    if (transactionType === 'income' && isRecurring) {
       if (payCadence === 'twice_monthly' && monthlyDays.length === 0) {
         showAlert({
           title: 'Missing Pay Days',
@@ -155,8 +159,8 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
       let transactionDate: string;
       let paySchedule: PaySchedule | undefined;
       
-      if (transactionType === 'income') {
-        // Create pay schedule
+      if (transactionType === 'income' && isRecurring) {
+        // Create pay schedule for recurring income
         paySchedule = {
           cadence: payCadence,
           lastPaidDate: lastPaidDate.toISOString(),
@@ -167,6 +171,9 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
         // Calculate next pay date
         const nextPayDate = calculateNextPayDate(paySchedule);
         transactionDate = nextPayDate.toISOString();
+      } else if (transactionType === 'income' && !isRecurring) {
+        // For one-time income, use the last paid date as the transaction date
+        transactionDate = lastPaidDate.toISOString();
       } else {
         // Use day of month for expenses
         const today = new Date();
@@ -217,17 +224,17 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
       setTimeout(() => {
         showAlert({
           title: 'Success!',
-          message: `${transactionType === 'income' ? 'Income' : 'Expense'} added successfully!`,
+          message: `${transactionType === 'income' ? 'Income' : 'Expense'} ${editTransaction ? 'updated' : 'added'} successfully!`,
           type: 'success',
           actions: [{ text: 'OK', onPress: () => {} }],
         });
       }, 100);
       
     } catch (error) {
-      console.error('Error adding transaction:', error); // Debug log
+      console.error('Error saving transaction:', error); // Debug log
       showAlert({
         title: 'Error',
-        message: `Failed to add ${transactionType}. Please try again.`,
+        message: `Failed to ${editTransaction ? 'update' : 'add'} ${transactionType}. Please try again.`,
         type: 'error',
         actions: [{ text: 'OK', onPress: () => {} }],
       });
@@ -305,7 +312,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
           >
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Add Transaction</Text>
+              <Text style={styles.title}>{editTransaction ? 'Edit Transaction' : 'Add Transaction'}</Text>
               <TouchableOpacity 
                 onPress={handleClose}
                 style={styles.closeButton}

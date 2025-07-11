@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useFinance } from '@/context/FinanceContext';
 import Header from '@/components/Header';
@@ -7,11 +7,15 @@ import CircularProgress from '@/components/CircularProgress';
 import CategoryCard from '@/components/CategoryCard';
 import TransactionItem from '@/components/TransactionItem';
 import EmptyState from '@/components/EmptyState';
+import AddTransactionModal from '@/components/AddTransactionModal';
 import Colors from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
+import { Transaction } from '@/types/finance';
 
 export default function OverviewScreen() {
   const { weeklyOverview, isLoading } = useFinance();
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
   const { weekIncome, remainingBalance, utilization, contributions, upcomingExpenses, currentPayPeriod } = weeklyOverview;
   
   // Get current month and year
@@ -21,6 +25,16 @@ export default function OverviewScreen() {
   
   const hasContributions = Object.keys(contributions).length > 0;
   const hasUpcomingExpenses = upcomingExpenses.length > 0;
+  
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditTransaction(transaction);
+    setShowAddModal(true);
+  };
+  
+  const handleCloseModal = () => {
+    setShowAddModal(false);
+    setEditTransaction(undefined);
+  };
   
   if (isLoading) {
     return (
@@ -96,6 +110,8 @@ export default function OverviewScreen() {
                 key={expense.id} 
                 transaction={expense}
                 isLast={index === upcomingExpenses.length - 1}
+                onEdit={handleEditTransaction}
+                enableSwipeActions={true}
               />
             ))
           ) : (
@@ -107,6 +123,12 @@ export default function OverviewScreen() {
           )}
         </Card>
       </ScrollView>
+      
+      <AddTransactionModal 
+        visible={showAddModal}
+        onClose={handleCloseModal}
+        editTransaction={editTransaction}
+      />
     </View>
   );
 }

@@ -6,7 +6,8 @@ export type CategoryType =
   | 'subscription'
   | 'bill'
   | 'savings'
-  | 'one_time_expense';
+  | 'one_time_expense'
+  | 'miscellaneous';
 
 export type PayCadence = 
   | 'weekly'

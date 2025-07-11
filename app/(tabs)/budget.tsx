@@ -13,11 +13,25 @@ import AddTransactionModal from '@/components/AddTransactionModal';
 import AlertModal from '@/components/AlertModal';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
+import { Transaction } from '@/types/finance';
 
 export default function BudgetScreen() {
   const { budget, transactions, isLoading } = useFinance();
   const { alertState, showAlert, hideAlert } = useAlert();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
+  
+  // Get current month transactions
+  const today = new Date();
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  
+  const incomeTransactions = transactions.filter(t => {
+    const transactionDate = new Date(t.date);
+    return t.type === 'income' && 
+           transactionDate >= startOfMonth && 
+           transactionDate <= endOfMonth;
+  });
   
   const givenExpenses = transactions.filter(t => 
     t.type === 'expense' && 
@@ -47,6 +61,16 @@ export default function BudgetScreen() {
       type: 'info',
       actions: [{ text: 'OK', onPress: () => {} }],
     });
+  };
+  
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditTransaction(transaction);
+    setShowAddModal(true);
+  };
+  
+  const handleCloseModal = () => {
+    setShowAddModal(false);
+    setEditTransaction(undefined);
   };
   
   if (isLoading) {
@@ -162,6 +186,37 @@ export default function BudgetScreen() {
             />
           </View>
           
+          {/* Income Section */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Income</Text>
+            <TouchableOpacity 
+              onPress={() => setShowAddModal(true)}
+              style={styles.addButton}
+              activeOpacity={0.7}
+            >
+              <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
+            </TouchableOpacity>
+          </View>
+          <Card>
+            {incomeTransactions.length > 0 ? (
+              incomeTransactions.map((income, index) => (
+                <TransactionItem 
+                  key={income.id} 
+                  transaction={income}
+                  isLast={index === incomeTransactions.length - 1}
+                  onEdit={handleEditTransaction}
+                  enableSwipeActions={true}
+                />
+              ))
+            ) : (
+              <EmptyState 
+                icon="dollar"
+                title="No income this month"
+                subtitle="Add your salary, freelance work, or other income sources"
+              />
+            )}
+          </Card>
+          
           {/* Given Expenses Section */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Given Expenses</Text>
@@ -180,6 +235,8 @@ export default function BudgetScreen() {
                   key={expense.id} 
                   transaction={expense}
                   isLast={index === givenExpenses.length - 1}
+                  onEdit={handleEditTransaction}
+                  enableSwipeActions={true}
                 />
               ))
             ) : (
@@ -209,6 +266,8 @@ export default function BudgetScreen() {
                   key={expense.id} 
                   transaction={expense}
                   isLast={index === recurringExpenses.length - 1}
+                  onEdit={handleEditTransaction}
+                  enableSwipeActions={true}
                 />
               ))
             ) : (
@@ -238,6 +297,8 @@ export default function BudgetScreen() {
                   key={expense.id} 
                   transaction={expense}
                   isLast={index === oneTimeExpenses.length - 1}
+                  onEdit={handleEditTransaction}
+                  enableSwipeActions={true}
                 />
               ))
             ) : (
@@ -252,7 +313,8 @@ export default function BudgetScreen() {
         
         <AddTransactionModal 
           visible={showAddModal}
-          onClose={() => setShowAddModal(false)}
+          onClose={handleCloseModal}
+          editTransaction={editTransaction}
         />
       </View>
       
