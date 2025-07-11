@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Trilo",
-    "slug": "trilo",
+    "slug": "trilo-personal-finance-tracker-new",
     "owner": "cameroncons",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -50,6 +50,11 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_THIS_WITH_YOUR_NEW_PROJECT_ID"
+      }
     }
   }
 }
