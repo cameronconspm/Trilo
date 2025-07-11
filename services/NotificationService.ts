@@ -27,26 +27,17 @@ class NotificationService {
   private settings: NotificationSettings = DEFAULT_SETTINGS;
 
   async initialize() {
-    if (Platform.OS === 'web') {
-      console.log('Notifications not supported on web');
-      return;
-    }
+    if (Platform.OS === 'web') return;
 
-    // Configure notification behavior
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
         shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
-        shouldShowBanner: true,
-        shouldShowList: true,
       }),
     });
 
-    // Load settings
     await this.loadSettings();
-
-    // Request permissions
     await this.requestPermissions();
   }
 
@@ -81,8 +72,6 @@ class NotificationService {
     try {
       this.settings = { ...this.settings, ...settings };
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.settings));
-      
-      // Reschedule notifications with new settings
       await this.scheduleAllNotifications();
     } catch (error) {
       console.error('Failed to save notification settings:', error);
@@ -97,10 +86,8 @@ class NotificationService {
   async scheduleAllNotifications() {
     if (Platform.OS === 'web') return;
 
-    // Cancel all existing notifications
     await Notifications.cancelAllScheduledNotificationsAsync();
 
-    // Schedule weekly insights
     if (this.settings.insightAlerts) {
       await this.scheduleWeeklyInsights();
     }
@@ -109,25 +96,20 @@ class NotificationService {
   async scheduleExpenseReminders(transactions: Transaction[]) {
     if (Platform.OS === 'web' || !this.settings.expenseReminders) return;
 
-    // Cancel existing expense reminders
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-    const expenseNotifications = scheduled.filter(n => 
-      n.identifier.startsWith('expense_reminder_')
-    );
-    
-    for (const notification of expenseNotifications) {
-      await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+
+    for (const notification of scheduled) {
+      if (notification.identifier.startsWith('expense_reminder_')) {
+        await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+      }
     }
 
-    // Schedule new reminders for upcoming expenses
     const now = new Date();
-    const upcomingExpenses = transactions.filter(transaction => {
-      if (transaction.type !== 'expense') return false;
-      
-      const dueDate = new Date(transaction.date);
+    const upcomingExpenses = transactions.filter((t) => {
+      if (t.type !== 'expense') return false;
+      const dueDate = new Date(t.date);
       const reminderDate = new Date(dueDate);
       reminderDate.setDate(dueDate.getDate() - this.settings.reminderDaysBefore);
-      
       return reminderDate > now && dueDate > now;
     });
 
@@ -135,60 +117,53 @@ class NotificationService {
       const dueDate = new Date(expense.date);
       const reminderDate = new Date(dueDate);
       reminderDate.setDate(dueDate.getDate() - this.settings.reminderDaysBefore);
-      
-      // Set reminder time
-      const [hours, minutes] = this.settings.reminderTime.split(':');
-      reminderDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+      const [h, m] = this.settings.reminderTime.split(':');
+      reminderDate.setHours(parseInt(h), parseInt(m), 0, 0);
 
       if (reminderDate > now) {
         await Notifications.scheduleNotificationAsync({
-          identifier: `expense_reminder_${expense.id}`,
           content: {
             title: 'Upcoming Expense',
-            body: `${expense.name} (${expense.category}) - ${expense.amount.toFixed(2)} due ${this.settings.reminderDaysBefore === 1 ? 'tomorrow' : `in ${this.settings.reminderDaysBefore} days`}`,
+            body: `${expense.name} (${expense.category}) - $${expense.amount.toFixed(2)} due soon`,
             data: { type: 'expense_reminder', transactionId: expense.id },
           },
-          trigger: reminderDate,
+          trigger: {
+            type: 'datetime',
+            date: reminderDate,
+          } as Notifications.DateTriggerInput,
         });
       }
     }
   }
 
   async scheduleWeeklyInsights() {
-    if (Platform.OS === 'web') return;
-
     const dayMap = {
-      sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
-      thursday: 4, friday: 5, saturday: 6
+      sunday: 1,
+      monday: 2,
+      tuesday: 3,
+      wednesday: 4,
+      thursday: 5,
+      friday: 6,
+      saturday: 7,
     };
 
     const targetDay = dayMap[this.settings.weeklyInsightDay as keyof typeof dayMap];
-    const [hours, minutes] = this.settings.weeklyInsightTime.split(':');
-
-    // Calculate next occurrence
-    const now = new Date();
-    const nextWeek = new Date();
-    nextWeek.setDate(now.getDate() + (7 - now.getDay() + targetDay) % 7);
-    nextWeek.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
-    // If the time has passed today and it's the target day, schedule for next week
-    if (nextWeek <= now) {
-      nextWeek.setDate(nextWeek.getDate() + 7);
-    }
+    const [hour, minute] = this.settings.weeklyInsightTime.split(':');
 
     await Notifications.scheduleNotificationAsync({
-      identifier: 'weekly_insights',
       content: {
         title: 'Weekly Financial Insights',
         body: 'Check out your spending patterns and budget progress for this week!',
         data: { type: 'weekly_insights' },
       },
       trigger: {
-        weekday: targetDay + 1, // expo-notifications uses 1-7 for Sunday-Saturday
-        hour: parseInt(hours),
-        minute: parseInt(minutes),
+        type: 'calendar',
+        weekday: targetDay,
+        hour: parseInt(hour),
+        minute: parseInt(minute),
         repeats: true,
-      },
+      } as Notifications.CalendarTriggerInput,
     });
   }
 
@@ -197,7 +172,6 @@ class NotificationService {
     await Notifications.cancelAllScheduledNotificationsAsync();
   }
 
-  // Helper method to format time for display
   formatTime(time: string): string {
     const [hours, minutes] = time.split(':');
     const hour = parseInt(hours);
@@ -206,7 +180,6 @@ class NotificationService {
     return `${displayHour}:${minutes} ${ampm}`;
   }
 
-  // Helper method to get day display name
   formatDay(day: string): string {
     return day.charAt(0).toUpperCase() + day.slice(1);
   }
