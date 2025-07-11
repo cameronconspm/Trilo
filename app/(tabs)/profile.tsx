@@ -12,6 +12,7 @@ import {
   Platform,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import Header from '@/components/Header';
 import Card from '@/components/Card';
@@ -170,7 +171,7 @@ export default function ProfileScreen() {
   return (
     <>
       <StatusBar barStyle={statusBarStyle} backgroundColor={colors.background} />
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
         <Header title="Profile" subtitle="Manage your account and preferences" />
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
@@ -268,7 +269,7 @@ export default function ProfileScreen() {
 
           <Text style={[styles.versionText, { color: colors.inactive }]}>Version 1.0.0 — Data stored locally</Text>
         </ScrollView>
-      </View>
+      </SafeAreaView>
 
       {showTimePicker && (
         <TimePicker

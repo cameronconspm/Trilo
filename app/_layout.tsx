@@ -4,6 +4,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { FinanceProvider } from "@/context/FinanceContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { NotificationProvider } from "@/context/NotificationContext";
@@ -42,16 +43,18 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SettingsProvider>
-        <FinanceProvider>
-          <NotificationProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            </Stack>
-          </NotificationProvider>
-        </FinanceProvider>
-      </SettingsProvider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SettingsProvider>
+          <FinanceProvider>
+            <NotificationProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              </Stack>
+            </NotificationProvider>
+          </FinanceProvider>
+        </SettingsProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }

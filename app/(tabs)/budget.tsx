@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Edit3, Target } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
 import { useSettings } from '@/context/SettingsContext';
@@ -78,7 +79,7 @@ export default function BudgetScreen() {
   
   if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
         <Header 
           title="Budget"
           subtitle="Monthly planning"
@@ -87,13 +88,13 @@ export default function BudgetScreen() {
         <View style={styles.loadingContainer}>
           <Text style={[styles.loadingText, { color: colors.inactive }]}>Loading...</Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
   
   return (
     <>
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
         <Header 
           title="Budget"
           subtitle="Monthly planning"
@@ -319,7 +320,7 @@ export default function BudgetScreen() {
           onClose={handleCloseModal}
           editTransaction={editTransaction}
         />
-      </View>
+      </SafeAreaView>
       
       <AlertModal
         visible={alertState.visible}

@@ -50,7 +50,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     paddingHorizontal: Spacing.screenHorizontal,
-    paddingTop: Spacing.screenTop,
     paddingBottom: Spacing.xl,
   },
   textContainer: {

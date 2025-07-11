@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFinance } from '@/context/FinanceContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useThemeColors } from '@/constants/colors';
@@ -41,7 +42,7 @@ export default function OverviewScreen() {
   
   if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
         <Header 
           title={`${month} ${year}`}
           subtitle={currentPayPeriod || 'No pay period'}
@@ -50,12 +51,12 @@ export default function OverviewScreen() {
         <View style={styles.loadingContainer}>
           <Text style={[styles.loadingText, { color: colors.inactive }]}>Loading...</Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
   
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       <Header 
         title={`${month} ${year}`}
         subtitle={currentPayPeriod || 'No pay period'}
@@ -133,7 +134,7 @@ export default function OverviewScreen() {
         onClose={handleCloseModal}
         editTransaction={editTransaction}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
