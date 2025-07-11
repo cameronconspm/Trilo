@@ -2,46 +2,43 @@
   "expo": {
     "name": "Trilo",
     "slug": "trilo-personal-finance-tracker",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-
     "splash": {
       "image": "./assets/images/Splashscreen-Trilo.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#4E91F9"
     },
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.rork.ios-personal-finance-tracker",
+      "buildNumber": "2",
       "splash": {
         "image": "./assets/images/Splashscreen-Trilo.jpg",
         "resizeMode": "contain",
         "backgroundColor": "#4E91F9"
       }
     },
-
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "app.rork.ios-personal-finance-tracker",
+      "versionCode": 2,
       "splash": {
         "image": "./assets/images/Splashscreen-Trilo.jpg",
         "resizeMode": "contain",
         "backgroundColor": "#4E91F9"
       }
     },
-
     "web": {
       "favicon": "./assets/images/favicon.png"
     },
-
     "plugins": [
       [
         "expo-router",
@@ -50,7 +47,6 @@
         }
       ]
     ],
-
     "experiments": {
       "typedRoutes": true
     }
