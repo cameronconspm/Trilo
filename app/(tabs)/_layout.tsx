@@ -17,12 +17,13 @@ export default function TabLayout() {
           height: Platform.OS === 'ios' ? 90 : 70,
           paddingBottom: Platform.OS === 'ios' ? 30 : 15,
           paddingTop: Spacing.tabVertical,
-          paddingHorizontal: Spacing.tabHorizontal,
+          paddingHorizontal: Platform.OS === 'ios' ? 24 : 20, // Updated for better spacing
           ...Shadow.nav,
         },
         tabBarItemStyle: {
           paddingVertical: Spacing.sm,
           minHeight: Spacing.minTouchTarget,
+          paddingHorizontal: 12, // Added to create spacing between icons and screen edge
         },
         tabBarLabelStyle: {
           fontSize: 12,
