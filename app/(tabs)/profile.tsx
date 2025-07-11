@@ -165,7 +165,7 @@ export default function ProfileScreen() {
   };
 
   // Set status bar style based on theme
-  const statusBarStyle = theme === 'dark' || (theme === 'system' && Colors === useThemeColors('dark')) ? 'light-content' : 'dark-content';
+  const statusBarStyle = theme === 'dark' || (theme === 'system' && Colors.background === '#000000') ? 'light-content' : 'dark-content';
 
   return (
     <>
