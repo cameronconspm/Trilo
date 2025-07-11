@@ -67,8 +67,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   addButton: {
-    width: 52,
-    height: 52,
+    width: Math.max(52, Spacing.minTouchTarget),
+    height: Math.max(52, Spacing.minTouchTarget),
     borderRadius: BorderRadius.full,
     backgroundColor: Colors.primary,
     justifyContent: 'center',

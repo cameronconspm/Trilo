@@ -16,12 +16,13 @@ export default function TabLayout() {
           borderTopWidth: 0,
           height: Platform.OS === 'ios' ? 90 : 70,
           paddingBottom: Platform.OS === 'ios' ? 30 : 15,
-          paddingTop: 15,
-          paddingHorizontal: Spacing.md,
+          paddingTop: Spacing.tabVertical,
+          paddingHorizontal: Spacing.tabHorizontal,
           ...Shadow.nav,
         },
         tabBarItemStyle: {
-          paddingVertical: 8,
+          paddingVertical: Spacing.sm,
+          minHeight: Spacing.minTouchTarget,
         },
         tabBarLabelStyle: {
           fontSize: 12,

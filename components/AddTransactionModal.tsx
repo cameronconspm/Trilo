@@ -509,8 +509,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   closeButton: {
-    width: 40,
-    height: 40,
+    width: Math.max(40, Spacing.minTouchTarget),
+    height: Math.max(40, Spacing.minTouchTarget),
     borderRadius: BorderRadius.full,
     backgroundColor: Colors.cardSecondary,
     alignItems: 'center',

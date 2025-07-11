@@ -8,10 +8,17 @@ export const Spacing = {
   xl: 32,
   xxl: 48,
   
-  // Screen margins
-  screenHorizontal: 20,
-  screenTop: Platform.OS === 'ios' ? 60 : 40,
+  // Screen margins - Updated for better mobile spacing
+  screenHorizontal: 24, // Increased from 20 to 24px for better horizontal padding
+  screenTop: Platform.OS === 'ios' ? 60 : 48, // Improved top spacing for Android
   screenBottom: Platform.OS === 'ios' ? 120 : 100,
+  
+  // Tab navigation spacing
+  tabHorizontal: 20, // 20px padding between icons and screen edges
+  tabVertical: 16, // Vertical padding for tab items
+  
+  // Touch targets
+  minTouchTarget: 44, // Minimum 44x44px touch area
   
   // Component spacing
   cardPadding: 20,

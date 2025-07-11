@@ -307,8 +307,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   editButton: {
-    width: 32,
-    height: 32,
+    width: Math.max(32, Spacing.minTouchTarget),
+    height: Math.max(32, Spacing.minTouchTarget),
     borderRadius: BorderRadius.full,
     backgroundColor: Colors.cardSecondary,
     alignItems: 'center',
@@ -406,8 +406,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   addButton: {
-    width: 40,
-    height: 40,
+    width: Math.max(40, Spacing.minTouchTarget),
+    height: Math.max(40, Spacing.minTouchTarget),
     borderRadius: BorderRadius.full,
     backgroundColor: Colors.card,
     justifyContent: 'center',
