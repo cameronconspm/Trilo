@@ -40,7 +40,12 @@ export default function BudgetScreen() {
   const givenExpenses = transactions.filter(t => 
     t.type === 'expense' && 
     !t.isRecurring && 
-    t.category !== 'one_time_expense'
+    t.category === 'given_expenses'
+  );
+  
+  const savingsTransactions = transactions.filter(t => 
+    t.type === 'expense' && 
+    t.category === 'savings'
   );
   
   const oneTimeExpenses = transactions.filter(t => 
@@ -54,7 +59,7 @@ export default function BudgetScreen() {
     t.isRecurring
   );
 
-  const totalExpenses = budget.expenses.given + budget.expenses.oneTime + budget.expenses.recurring;
+  const totalExpenses = budget.expenses.given + budget.expenses.oneTime + budget.expenses.recurring + budget.expenses.savings;
   const remainingIncome = budget.income - totalExpenses;
   const budgetUtilization = budget.income > 0 ? (totalExpenses / budget.income) * 100 : 0;
   
@@ -169,6 +174,10 @@ export default function BudgetScreen() {
                 <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Recurring expenses</Text>
                 <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.recurring.toFixed(2)}</Text>
               </View>
+              <View style={styles.breakdownRow}>
+                <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Savings</Text>
+                <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.savings.toFixed(2)}</Text>
+              </View>
             </View>
           </Card>
 
@@ -248,6 +257,37 @@ export default function BudgetScreen() {
                 icon="dollar"
                 title="No given expenses"
                 subtitle="Add essential expenses like bills, debt payments, and subscriptions"
+              />
+            )}
+          </Card>
+          
+          {/* Savings Section */}
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Savings</Text>
+            <TouchableOpacity 
+              onPress={() => setShowAddModal(true)}
+              style={[styles.addButton, { backgroundColor: colors.card }]}
+              activeOpacity={0.7}
+            >
+              <Plus size={20} color={colors.primary} strokeWidth={2.5} />
+            </TouchableOpacity>
+          </View>
+          <Card>
+            {savingsTransactions.length > 0 ? (
+              savingsTransactions.map((saving, index) => (
+                <TransactionItem 
+                  key={saving.id} 
+                  transaction={saving}
+                  isLast={index === savingsTransactions.length - 1}
+                  onEdit={handleEditTransaction}
+                  enableSwipeActions={true}
+                />
+              ))
+            ) : (
+              <EmptyState 
+                icon="piggy-bank"
+                title="No savings"
+                subtitle="Add your savings goals and contributions"
               />
             )}
           </Card>

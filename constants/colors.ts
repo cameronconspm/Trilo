@@ -27,6 +27,7 @@ const LightColors = {
   bill: "#4E91F9",             // Blue - Bills & Utilities
   savings: "#9B59B6",          // Purple - Savings
   oneTimeExpense: "#95A5A6",   // Gray-blue - One-Time Expense
+  givenExpenses: "#F39C12",    // Orange - Given Expenses
   
   // Shadow colors
   shadowColor: "rgba(0, 0, 0, 0.12)",
@@ -61,6 +62,7 @@ const DarkColors = {
   bill: "#64D2FF",             // Brighter blue for dark mode
   savings: "#BF5AF2",          // Brighter purple for dark mode
   oneTimeExpense: "#8E8E93",   // Gray for dark mode
+  givenExpenses: "#F39C12",    // Orange - Given Expenses
   
   // Shadow colors
   shadowColor: "rgba(0, 0, 0, 0.3)",

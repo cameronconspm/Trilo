@@ -6,7 +6,8 @@ export type CategoryType =
   | 'subscription'
   | 'bill'
   | 'savings'
-  | 'one_time_expense';
+  | 'one_time_expense'
+  | 'given_expenses';
 
 export type PayCadence = 
   | 'weekly'
@@ -52,6 +53,7 @@ export interface Budget {
     given: number;
     oneTime: number;
     recurring: number;
+    savings: number;
   };
 }
 

@@ -57,6 +57,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       given: 0,
       oneTime: 0,
       recurring: 0,
+      savings: 0,
     },
   });
 
@@ -442,7 +443,17 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         const transactionDate = new Date(t.date);
         return t.type === 'expense' && 
                !t.isRecurring && 
-               t.category !== 'one_time_expense' &&
+               t.category === 'given_expenses' &&
+               transactionDate >= startOfMonth && 
+               transactionDate <= endOfMonth;
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const savingsExpenses = transactions
+      .filter(t => {
+        const transactionDate = new Date(t.date);
+        return t.type === 'expense' && 
+               t.category === 'savings' &&
                transactionDate >= startOfMonth && 
                transactionDate <= endOfMonth;
       })
@@ -454,6 +465,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         recurring: recurringExpenses,
         oneTime: oneTimeExpenses,
         given: givenExpenses,
+        savings: savingsExpenses,
       },
     });
   };
