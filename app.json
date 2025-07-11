@@ -9,9 +9,9 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/Splashscreen-Trilo.png",
+      "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#4E91F9"
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
