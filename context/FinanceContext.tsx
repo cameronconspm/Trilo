@@ -421,9 +421,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Calculate recurring expenses
+    // Calculate recurring expenses (excluding given expenses which are handled separately)
     const recurringExpenses = transactions
-      .filter(t => t.type === 'expense' && t.isRecurring)
+      .filter(t => t.type === 'expense' && t.isRecurring && t.category !== 'given_expenses')
       .reduce((sum, t) => sum + t.amount, 0);
 
     // Calculate one-time expenses for current month
@@ -438,16 +438,40 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       })
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const givenExpenses = transactions
-      .filter(t => {
-        const transactionDate = new Date(t.date);
-        return t.type === 'expense' && 
-               !t.isRecurring && 
-               t.category === 'given_expenses' &&
-               transactionDate >= startOfMonth && 
-               transactionDate <= endOfMonth;
-      })
-      .reduce((sum, t) => sum + t.amount, 0);
+    // Calculate given expenses based on their frequency schedule
+    let givenExpenses = 0;
+    const givenExpenseTransactions = transactions.filter(t => 
+      t.type === 'expense' && t.category === 'given_expenses'
+    );
+    
+    givenExpenseTransactions.forEach(transaction => {
+      if (transaction.givenExpenseSchedule) {
+        const schedule = transaction.givenExpenseSchedule;
+        const startDate = new Date(schedule.startDate);
+        
+        // Calculate how many times this expense occurs in the current month
+        let occurrences = 0;
+        
+        if (schedule.frequency === 'every_week') {
+          // Weekly: approximately 4.33 times per month
+          occurrences = 4.33;
+        } else if (schedule.frequency === 'every_other_week') {
+          // Bi-weekly: approximately 2.17 times per month
+          occurrences = 2.17;
+        } else if (schedule.frequency === 'once_a_month') {
+          // Monthly: once per month
+          occurrences = 1;
+        }
+        
+        givenExpenses += transaction.amount * occurrences;
+      } else {
+        // Legacy given expenses (treat as one-time for current month)
+        const transactionDate = new Date(transaction.date);
+        if (transactionDate >= startOfMonth && transactionDate <= endOfMonth) {
+          givenExpenses += transaction.amount;
+        }
+      }
+    });
 
     const savingsExpenses = transactions
       .filter(t => {
