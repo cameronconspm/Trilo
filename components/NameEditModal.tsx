@@ -23,6 +23,13 @@ interface NameEditModalProps {
 export default function NameEditModal({ visible, currentName, onSave, onClose }: NameEditModalProps) {
   const [name, setName] = useState(currentName);
 
+  // Reset name when modal becomes visible
+  React.useEffect(() => {
+    if (visible) {
+      setName(currentName);
+    }
+  }, [visible, currentName]);
+
   const handleSave = () => {
     const trimmedName = name.trim();
     if (trimmedName) {

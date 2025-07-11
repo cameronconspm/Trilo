@@ -168,14 +168,13 @@ export default function ProfileScreen() {
                 </View>
               </Pressable>
               <View style={styles.nameSection}>
-                <Text style={styles.label}>Your Name</Text>
-                <Pressable style={styles.nameDisplay} onPress={() => setShowNameEditModal(true)}>
-                  <Text style={styles.nameText}>
-                    {nickname || 'Tap to add your name'}
-                  </Text>
-                  <Edit3 size={16} color={Colors.textSecondary} />
-                </Pressable>
+                <Text style={[styles.nameText, !nickname && styles.nameTextPlaceholder]}>
+                  {nickname || 'Add Your Name'}
+                </Text>
               </View>
+              <Pressable style={styles.editIcon} onPress={() => setShowNameEditModal(true)}>
+                <Edit3 size={18} color={Colors.textSecondary} />
+              </Pressable>
             </View>
           </Card>
 
@@ -387,29 +386,24 @@ const styles = StyleSheet.create({
   },
   nameSection: {
     flex: 1,
-  },
-  label: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.xs,
-  },
-  nameDisplay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.background,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    minHeight: Spacing.minTouchTarget,
+    justifyContent: 'center',
   },
   nameText: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 18,
+    fontWeight: '600',
     color: Colors.text,
-    flex: 1,
+  },
+  nameTextPlaceholder: {
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  editIcon: {
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    minWidth: Spacing.minTouchTarget,
+    minHeight: Spacing.minTouchTarget,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   timeRow: {
     flexDirection: 'row',
