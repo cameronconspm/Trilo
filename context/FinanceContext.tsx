@@ -292,18 +292,16 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const totalPeriodExpenses = pastExpenses + totalUpcomingExpenses;
     const utilization = periodIncome > 0 ? Math.min((totalPeriodExpenses / periodIncome) * 100, 100) : 0;
 
-    // Calculate contributions by category (past expenses only)
+    // Calculate contributions by category (all expenses in pay period)
     const contributions: Record<CategoryType, { total: number; count: number }> = {} as any;
     
-    resolvedExpenses
-      .filter(t => t.resolvedDate <= today)
-      .forEach(t => {
-        if (!contributions[t.category]) {
-          contributions[t.category] = { total: 0, count: 0 };
-        }
-        contributions[t.category].total += t.amount;
-        contributions[t.category].count += 1;
-      });
+    resolvedExpenses.forEach(t => {
+      if (!contributions[t.category]) {
+        contributions[t.category] = { total: 0, count: 0 };
+      }
+      contributions[t.category].total += t.amount;
+      contributions[t.category].count += 1;
+    });
 
     setWeeklyOverview({
       weekIncome: periodIncome,
