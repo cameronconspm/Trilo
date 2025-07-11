@@ -14,12 +14,12 @@ const categories: Category[] = [
   },
   {
     id: 'subscription',
-    name: 'Subscription',
+    name: 'Subscriptions',
     color: Colors.subscription,
   },
   {
     id: 'bill',
-    name: 'Bill',
+    name: 'Bills & Utilities',
     color: Colors.bill,
   },
   {

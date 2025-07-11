@@ -16,12 +16,13 @@ const Colors = {
   overlay: "rgba(0, 0, 0, 0.05)",
   overlayLight: "rgba(0, 0, 0, 0.02)",
   
-  // Updated category colors - simplified to 5 categories
-  income: "#4CAF50",
-  debt: "#EF5350",
-  subscription: "#AB47BC",
-  bill: "#42A5F5",
-  oneTimeExpense: "#FFA726",
+  // Category colors - modern, vibrant, flat design
+  // Designed for high visibility on light and dark backgrounds
+  income: "#27AE60",           // Green - Income
+  debt: "#E74C3C",             // Red - Debt  
+  subscription: "#FFA94D",     // Orange - Subscriptions
+  bill: "#4E91F9",             // Blue - Bills & Utilities
+  oneTimeExpense: "#95A5A6",   // Gray-blue - One-Time Expense
   
   // Shadow colors
   shadowColor: "rgba(0, 0, 0, 0.12)",
