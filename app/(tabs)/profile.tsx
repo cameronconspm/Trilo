@@ -7,11 +7,11 @@ import {
   TextInput,
   Pressable,
   Switch,
+  Modal,
 } from 'react-native';
 import Header from '@/components/Header';
 import Card from '@/components/Card';
 import SettingsItem from '@/components/SettingsItem';
-import Button from '@/components/Button';
 import AlertModal from '@/components/AlertModal';
 import TimePicker from '@/components/TimePicker';
 import { useSettings } from '@/context/SettingsContext';
@@ -19,7 +19,7 @@ import { useNotifications } from '@/context/NotificationContext';
 import { useAlert } from '@/hooks/useAlert';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius } from '@/constants/spacing';
-import { Bell, Shield, HelpCircle, RefreshCw } from 'lucide-react-native';
+import { Shield, HelpCircle, RefreshCw } from 'lucide-react-native';
 
 export default function ProfileScreen() {
   const {
@@ -27,8 +27,6 @@ export default function ProfileScreen() {
     setTheme,
     weekStartDay,
     setWeekStartDay,
-    defaultTab,
-    setDefaultTab,
     nickname,
     setNickname,
     resetData,
@@ -42,7 +40,9 @@ export default function ProfileScreen() {
   } = useNotifications();
 
   const { alertState, showAlert, hideAlert } = useAlert();
-  const [showTimePicker, setShowTimePicker] = useState<'reminder' | 'insight' | 'daily' | null>(null);
+  const [showTimePicker, setShowTimePicker] = useState<'reminder' | 'insight' | null>(null);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showWeekStartModal, setShowWeekStartModal] = useState(false);
 
   const formatTime = (time: string): string => {
     const [hours, minutes] = time.split(':');
@@ -73,54 +73,67 @@ export default function ProfileScreen() {
   return (
     <>
       <View style={styles.container}>
-        <Header title="Profile" subtitle="Customize your experience" />
+        <Header title="Profile" subtitle="Manage your account and preferences" />
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Account Overview */}
+
+          {/* Account Info */}
           <Card style={styles.card}>
-            <Text style={styles.cardTitle}>Nickname</Text>
-            <TextInput
-              value={nickname}
-              onChangeText={setNickname}
-              placeholder="Enter your name"
-              style={styles.textInputFull}
-            />
+            <View style={styles.profileHeader}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{nickname?.[0]?.toUpperCase() || 'U'}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Your Name</Text>
+                <TextInput
+                  value={nickname}
+                  onChangeText={setNickname}
+                  placeholder="Enter your name"
+                  style={styles.nameInput}
+                />
+              </View>
+            </View>
           </Card>
 
           {/* Preferences */}
           <Card style={styles.card}>
             <Text style={styles.cardTitle}>Preferences</Text>
-            <SettingsItem title="Theme" value={theme} onPress={() => setTheme(theme === 'light' ? 'dark' : 'light')} />
-            <SettingsItem title="Week Starts On" value={weekStartDay} onPress={() => setWeekStartDay('monday')} />
-            <SettingsItem title="Default Tab" value={defaultTab} onPress={() => setDefaultTab('Overview')} isLast />
+            <SettingsItem title="Theme" value={theme} onPress={() => setShowThemeModal(true)} />
+            <SettingsItem title="Week Starts On" value={weekStartDay} onPress={() => setShowWeekStartModal(true)} isLast />
           </Card>
 
           {/* Notifications */}
           <Card style={styles.card}>
+            <Text style={styles.cardTitle}>Notifications</Text>
             <View style={styles.rowBetween}>
-              <Text style={styles.cardTitle}>Expense Reminders</Text>
+              <Text style={styles.itemLabel}>Expense Reminders</Text>
               <Switch
                 value={notificationSettings.expenseReminders}
                 onValueChange={(value) => updateNotificationSettings({ expenseReminders: value })}
               />
             </View>
-            <Pressable style={styles.timeRow} onPress={() => setShowTimePicker('reminder')}>
-              <Text style={styles.timeLabel}>Reminder Time</Text>
-              <Text style={styles.timeValue}>{formatTime(notificationSettings.reminderTime)}</Text>
-            </Pressable>
+            {notificationSettings.expenseReminders && (
+              <Pressable style={styles.timeRow} onPress={() => setShowTimePicker('reminder')}>
+                <Text style={styles.timeLabel}>Reminder Time</Text>
+                <Text style={styles.timeValue}>{formatTime(notificationSettings.reminderTime)}</Text>
+              </Pressable>
+            )}
+
             <View style={styles.rowBetween}>
-              <Text style={styles.cardTitle}>Weekly Insights</Text>
+              <Text style={styles.itemLabel}>Weekly Insights</Text>
               <Switch
                 value={notificationSettings.insightAlerts}
                 onValueChange={(value) => updateNotificationSettings({ insightAlerts: value })}
               />
             </View>
-            <Pressable style={styles.timeRow} onPress={() => setShowTimePicker('insight')}>
-              <Text style={styles.timeLabel}>Insight Time</Text>
-              <Text style={styles.timeValue}>{formatTime(notificationSettings.weeklyInsightTime)}</Text>
-            </Pressable>
+            {notificationSettings.insightAlerts && (
+              <Pressable style={styles.timeRow} onPress={() => setShowTimePicker('insight')}>
+                <Text style={styles.timeLabel}>Insight Time</Text>
+                <Text style={styles.timeValue}>{formatTime(notificationSettings.weeklyInsightTime)}</Text>
+              </Pressable>
+            )}
           </Card>
 
-          {/* App Utilities */}
+          {/* Utilities */}
           <Card style={styles.card}>
             <Text style={styles.cardTitle}>Utilities</Text>
             <SettingsItem title="Reset Data" icon={<RefreshCw size={18} color={Colors.destructive} />} onPress={handleResetData} isLast />
@@ -130,7 +143,6 @@ export default function ProfileScreen() {
           <Card style={styles.card}>
             <Text style={styles.cardTitle}>Support</Text>
             <SettingsItem title="Help & Tutorials" icon={<HelpCircle size={18} color={Colors.primary} />} onPress={() => {}} />
-            <SettingsItem title="Report a Bug" onPress={() => {}} />
             <SettingsItem title="Contact Support" onPress={() => {}} isLast />
           </Card>
 
@@ -140,11 +152,7 @@ export default function ProfileScreen() {
 
       {showTimePicker && (
         <TimePicker
-          value={
-            showTimePicker === 'reminder'
-              ? notificationSettings.reminderTime
-              : notificationSettings.weeklyInsightTime
-          }
+          value={showTimePicker === 'reminder' ? notificationSettings.reminderTime : notificationSettings.weeklyInsightTime}
           onChange={(time) => {
             const setting = showTimePicker === 'reminder' ? 'reminderTime' : 'weeklyInsightTime';
             updateNotificationSettings({ [setting]: time });
@@ -181,24 +189,53 @@ const styles = StyleSheet.create({
   },
   rowBetween: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.md,
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
   },
-  textInputFull: {
+  itemLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: Colors.text,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.card,
+  },
+  label: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
+  },
+  nameInput: {
+    fontSize: 16,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.card,
+    color: Colors.text,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: Colors.text,
-    backgroundColor: Colors.card,
   },
   timeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
     borderTopWidth: 1,
     borderColor: Colors.border,
   },
