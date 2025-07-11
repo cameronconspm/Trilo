@@ -12,16 +12,12 @@ import { Spacing } from '@/constants/spacing';
 
 export default function OverviewScreen() {
   const { weeklyOverview, isLoading } = useFinance();
-  const { weekIncome, remainingBalance, utilization, contributions, upcomingExpenses } = weeklyOverview;
+  const { weekIncome, remainingBalance, utilization, contributions, upcomingExpenses, currentPayPeriod } = weeklyOverview;
   
-  // Get current month and week
+  // Get current month and year
   const today = new Date();
   const month = today.toLocaleString('default', { month: 'long' });
   const year = today.getFullYear();
-  
-  // Calculate week number (simplified)
-  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const weekNumber = Math.ceil((today.getDate() + startOfMonth.getDay()) / 7);
   
   const hasContributions = Object.keys(contributions).length > 0;
   const hasUpcomingExpenses = upcomingExpenses.length > 0;
@@ -31,7 +27,7 @@ export default function OverviewScreen() {
       <View style={styles.container}>
         <Header 
           title={`${month} ${year}`}
-          subtitle={`Week ${weekNumber} view`}
+          subtitle={currentPayPeriod || 'No pay period'}
           showAddButton
         />
         <View style={styles.loadingContainer}>
@@ -45,7 +41,7 @@ export default function OverviewScreen() {
     <View style={styles.container}>
       <Header 
         title={`${month} ${year}`}
-        subtitle={`Week ${weekNumber} view`}
+        subtitle={currentPayPeriod || 'No pay period'}
         showAddButton
       />
       
@@ -57,7 +53,7 @@ export default function OverviewScreen() {
         <Card variant="elevated" style={styles.incomeCard}>
           <View style={styles.incomeContainer}>
             <View style={styles.incomeTextContainer}>
-              <Text style={styles.incomeLabel}>This week's income</Text>
+              <Text style={styles.incomeLabel}>Pay period income</Text>
               <Text style={styles.incomeValue}>
                 ${weekIncome > 0 ? weekIncome.toFixed(2) : '0.00'}
               </Text>
@@ -77,7 +73,7 @@ export default function OverviewScreen() {
           </View>
         </Card>
         
-        <Text style={styles.sectionTitle}>Week of Contributions</Text>
+        <Text style={styles.sectionTitle}>Pay Period Contributions</Text>
         {hasContributions ? (
           <View style={styles.categoryGrid}>
             {Object.entries(contributions).map(([categoryId, data]) => (
@@ -94,7 +90,7 @@ export default function OverviewScreen() {
             <EmptyState 
               icon="dollar"
               title="No contributions yet"
-              subtitle="Add your first expense to see weekly contributions by category"
+              subtitle="Add your first expense to see pay period contributions by category"
             />
           </Card>
         )}
@@ -113,7 +109,7 @@ export default function OverviewScreen() {
             <EmptyState 
               icon="trending"
               title="No upcoming expenses"
-              subtitle="You're all caught up for this week!"
+              subtitle="You're all caught up for this pay period!"
             />
           )}
         </Card>

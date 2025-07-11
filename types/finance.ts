@@ -65,6 +65,7 @@ export interface WeeklyOverview {
     };
   };
   upcomingExpenses: Transaction[];
+  currentPayPeriod?: string;
 }
 
 export interface MonthlyInsights {

@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Transaction, WeeklyOverview, MonthlyInsights, Budget, CategoryType } from '@/types/finance';
 import categories from '@/constants/categories';
 import { getPayDatesInRange, getWeeklyIncomeAmount, formatPaySchedule } from '@/utils/payScheduleUtils';
+import { getCurrentPayPeriod } from '@/utils/payPeriodUtils';
 
 interface FinanceContextType {
   transactions: Transaction[];
@@ -38,6 +39,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     utilization: 0,
     contributions: {},
     upcomingExpenses: [],
+    currentPayPeriod: undefined,
   });
   const [monthlyInsights, setMonthlyInsights] = useState<MonthlyInsights>({
     totalSpent: 0,
@@ -181,53 +183,64 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const calculateWeeklyOverview = () => {
     const today = new Date();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    today.setHours(0, 0, 0, 0);
 
-    // Calculate week income using pay schedules
-    let weekIncome = 0;
-    const incomeTransactions = transactions.filter(t => t.type === 'income');
+    // Get current pay period
+    const currentPayPeriod = getCurrentPayPeriod(transactions);
     
-    incomeTransactions.forEach(transaction => {
-      if (transaction.paySchedule) {
-        // Use new pay schedule system
-        weekIncome += getWeeklyIncomeAmount(transaction.paySchedule, transaction.amount, startOfWeek, endOfWeek);
-      } else if (transaction.weekDay && transaction.weekNumber) {
-        // Legacy system - calculate if this week matches
-        const transactionDate = new Date(transaction.date);
-        if (transactionDate >= startOfWeek && transactionDate <= endOfWeek) {
-          weekIncome += transaction.amount;
-        }
-      }
-    });
+    let periodIncome = 0;
+    let periodStartDate: Date;
+    let periodEndDate: Date;
 
-    // Calculate upcoming expenses (future transactions this week)
+    if (currentPayPeriod) {
+      periodStartDate = currentPayPeriod.startDate;
+      periodEndDate = currentPayPeriod.endDate;
+      
+      // Find the income transaction for this period
+      const incomeTransactions = transactions.filter(t => t.type === 'income');
+      const periodIncomeTransaction = incomeTransactions.find(t => {
+        const transactionDate = new Date(t.date);
+        transactionDate.setHours(0, 0, 0, 0);
+        return transactionDate.getTime() === periodStartDate.getTime();
+      });
+      
+      if (periodIncomeTransaction) {
+        periodIncome = periodIncomeTransaction.amount;
+      }
+    } else {
+      // Fallback to weekly calculation if no pay period found
+      periodStartDate = new Date(today);
+      periodStartDate.setDate(today.getDate() - today.getDay());
+      periodEndDate = new Date(periodStartDate);
+      periodEndDate.setDate(periodStartDate.getDate() + 6);
+      periodEndDate.setHours(23, 59, 59, 999);
+    }
+
+    // Calculate upcoming expenses (future transactions in this period)
     const upcomingExpenses = transactions
       .filter(t => {
         const transactionDate = new Date(t.date);
-        return transactionDate > today && transactionDate <= endOfWeek && t.type === 'expense';
+        return transactionDate > today && transactionDate <= periodEndDate && t.type === 'expense';
       })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // Calculate past expenses this week
+    // Calculate past expenses in this period
     const pastExpenses = transactions
       .filter(t => {
         const transactionDate = new Date(t.date);
         return t.type === 'expense' && 
-               transactionDate >= startOfWeek && 
+               transactionDate >= periodStartDate && 
                transactionDate <= today;
       })
       .reduce((sum, t) => sum + t.amount, 0);
 
     // Calculate remaining balance
     const totalUpcomingExpenses = upcomingExpenses.reduce((sum, t) => sum + t.amount, 0);
-    const remainingBalance = weekIncome - pastExpenses - totalUpcomingExpenses;
+    const remainingBalance = periodIncome - pastExpenses - totalUpcomingExpenses;
 
     // Calculate utilization
-    const totalWeekExpenses = pastExpenses + totalUpcomingExpenses;
-    const utilization = weekIncome > 0 ? Math.min((totalWeekExpenses / weekIncome) * 100, 100) : 0;
+    const totalPeriodExpenses = pastExpenses + totalUpcomingExpenses;
+    const utilization = periodIncome > 0 ? Math.min((totalPeriodExpenses / periodIncome) * 100, 100) : 0;
 
     // Calculate contributions by category (past expenses only)
     const contributions: Record<CategoryType, { total: number; count: number }> = {} as any;
@@ -236,7 +249,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       .filter(t => {
         const transactionDate = new Date(t.date);
         return t.type === 'expense' && 
-               transactionDate >= startOfWeek && 
+               transactionDate >= periodStartDate && 
                transactionDate <= today;
       })
       .forEach(t => {
@@ -248,11 +261,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       });
 
     setWeeklyOverview({
-      weekIncome,
+      weekIncome: periodIncome,
       remainingBalance,
       utilization,
       contributions,
       upcomingExpenses,
+      currentPayPeriod: currentPayPeriod?.displayText,
     });
   };
 
