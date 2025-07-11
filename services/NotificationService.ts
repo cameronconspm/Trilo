@@ -148,7 +148,10 @@ class NotificationService {
             body: `${expense.name} (${expense.category}) - ${expense.amount.toFixed(2)} due ${this.settings.reminderDaysBefore === 1 ? 'tomorrow' : `in ${this.settings.reminderDaysBefore} days`}`,
             data: { type: 'expense_reminder', transactionId: expense.id },
           },
-          trigger: reminderDate,
+          trigger: {
+            type: 'datetime' as const,
+            date: reminderDate,
+          },
         });
       }
     }
@@ -184,6 +187,7 @@ class NotificationService {
         data: { type: 'weekly_insights' },
       },
       trigger: {
+        type: 'calendar' as const,
         weekday: targetDay + 1, // expo-notifications uses 1-7 for Sunday-Saturday
         hour: parseInt(hours),
         minute: parseInt(minutes),
