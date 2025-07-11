@@ -21,7 +21,7 @@ import TimePicker from '@/components/TimePicker';
 import { useSettings } from '@/context/SettingsContext';
 import { useNotifications } from '@/context/NotificationContext';
 import { useAlert } from '@/hooks/useAlert';
-import Colors from '@/constants/colors';
+import Colors, { useThemeColors } from '@/constants/colors';
 import { Spacing, BorderRadius } from '@/constants/spacing';
 import { Shield, HelpCircle, RefreshCw, Edit3, Camera } from 'lucide-react-native';
 import NameEditModal from '@/components/NameEditModal';
@@ -53,7 +53,7 @@ export default function ProfileScreen() {
   const [showNameEditModal, setShowNameEditModal] = useState(false);
   
   // Get theme-aware colors
-  const Colors = useThemeColors(theme);
+  const colors = useThemeColors(theme);
 
   const formatTime = (time: string): string => {
     const [hours, minutes] = time.split(':');
@@ -165,17 +165,17 @@ export default function ProfileScreen() {
   };
 
   // Set status bar style based on theme
-  const statusBarStyle = theme === 'dark' || (theme === 'system' && Colors.background === '#000000') ? 'light-content' : 'dark-content';
+  const statusBarStyle = theme === 'dark' || (theme === 'system' && colors.background === '#000000') ? 'light-content' : 'dark-content';
 
   return (
     <>
-      <StatusBar barStyle={statusBarStyle} backgroundColor={Colors.background} />
-      <View style={[styles.container, { backgroundColor: Colors.background }]}>
+      <StatusBar barStyle={statusBarStyle} backgroundColor={colors.background} />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Header title="Profile" subtitle="Manage your account and preferences" />
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
           {/* Account Info */}
-          <Card style={[styles.card, { backgroundColor: Colors.card }]}>
+          <Card style={[styles.card, { backgroundColor: colors.card }]}>
             <View style={styles.profileHeader}>
               <Pressable 
                 style={styles.avatarContainer} 
@@ -185,18 +185,18 @@ export default function ProfileScreen() {
                 {avatarUri ? (
                   <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
                 ) : (
-                  <View style={[styles.avatar, { backgroundColor: Colors.primary }]}>
-                    <Text style={[styles.avatarText, { color: Colors.card }]}>
+                  <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+                    <Text style={[styles.avatarText, { color: colors.card }]}>
                       {nickname?.[0]?.toUpperCase() || 'U'}
                     </Text>
                   </View>
                 )}
-                <View style={[styles.cameraIcon, { backgroundColor: Colors.primary, borderColor: Colors.card }]}>
-                  <Camera size={16} color={Colors.card} />
+                <View style={[styles.cameraIcon, { backgroundColor: colors.primary, borderColor: colors.card }]}>
+                  <Camera size={16} color={colors.card} />
                 </View>
               </Pressable>
               <View style={styles.nameSection}>
-                <Text style={[styles.nameText, { color: Colors.text }, !nickname && { color: Colors.textSecondary }]}>
+                <Text style={[styles.nameText, { color: colors.text }, !nickname && { color: colors.textSecondary }]}>
                   {nickname || 'Add Your Name'}
                 </Text>
               </View>
@@ -205,68 +205,68 @@ export default function ProfileScreen() {
                 onPress={() => setShowNameEditModal(true)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Edit3 size={18} color={Colors.textSecondary} />
+                <Edit3 size={18} color={colors.textSecondary} />
               </Pressable>
             </View>
           </Card>
 
           {/* Preferences */}
-          <Card style={[styles.card, { backgroundColor: Colors.card }]}>
-            <Text style={[styles.cardTitle, { color: Colors.text }]}>Preferences</Text>
+          <Card style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Preferences</Text>
             <SettingsItem title="Theme" value={theme} onPress={() => setShowThemeModal(true)} />
             <SettingsItem title="Week Starts On" value={weekStartDay} onPress={() => setShowWeekStartModal(true)} isLast />
           </Card>
 
           {/* Notifications */}
-          <Card style={[styles.card, { backgroundColor: Colors.card }]}>
-            <Text style={[styles.cardTitle, { color: Colors.text }]}>Notifications</Text>
+          <Card style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Notifications</Text>
             <View style={styles.rowBetween}>
-              <Text style={[styles.itemLabel, { color: Colors.text }]}>Expense Reminders</Text>
+              <Text style={[styles.itemLabel, { color: colors.text }]}>Expense Reminders</Text>
               <Switch
                 value={notificationSettings.expenseReminders}
                 onValueChange={(value) => updateNotificationSettings({ expenseReminders: value })}
-                trackColor={{ false: Colors.inactive, true: Colors.primary }}
-                thumbColor={Colors.card}
+                trackColor={{ false: colors.inactive, true: colors.primary }}
+                thumbColor={colors.card}
               />
             </View>
             {notificationSettings.expenseReminders && (
-              <Pressable style={[styles.timeRow, { borderColor: Colors.border }]} onPress={() => setShowTimePicker('reminder')}>
-                <Text style={[styles.timeLabel, { color: Colors.textSecondary }]}>Reminder Time</Text>
-                <Text style={[styles.timeValue, { color: Colors.primary }]}>{formatTime(notificationSettings.reminderTime)}</Text>
+              <Pressable style={[styles.timeRow, { borderColor: colors.border }]} onPress={() => setShowTimePicker('reminder')}>
+                <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>Reminder Time</Text>
+                <Text style={[styles.timeValue, { color: colors.primary }]}>{formatTime(notificationSettings.reminderTime)}</Text>
               </Pressable>
             )}
 
             <View style={styles.rowBetween}>
-              <Text style={[styles.itemLabel, { color: Colors.text }]}>Weekly Insights</Text>
+              <Text style={[styles.itemLabel, { color: colors.text }]}>Weekly Insights</Text>
               <Switch
                 value={notificationSettings.insightAlerts}
                 onValueChange={(value) => updateNotificationSettings({ insightAlerts: value })}
-                trackColor={{ false: Colors.inactive, true: Colors.primary }}
-                thumbColor={Colors.card}
+                trackColor={{ false: colors.inactive, true: colors.primary }}
+                thumbColor={colors.card}
               />
             </View>
             {notificationSettings.insightAlerts && (
-              <Pressable style={[styles.timeRow, { borderColor: Colors.border }]} onPress={() => setShowTimePicker('insight')}>
-                <Text style={[styles.timeLabel, { color: Colors.textSecondary }]}>Insight Time</Text>
-                <Text style={[styles.timeValue, { color: Colors.primary }]}>{formatTime(notificationSettings.weeklyInsightTime)}</Text>
+              <Pressable style={[styles.timeRow, { borderColor: colors.border }]} onPress={() => setShowTimePicker('insight')}>
+                <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>Insight Time</Text>
+                <Text style={[styles.timeValue, { color: colors.primary }]}>{formatTime(notificationSettings.weeklyInsightTime)}</Text>
               </Pressable>
             )}
           </Card>
 
           {/* Utilities */}
-          <Card style={[styles.card, { backgroundColor: Colors.card }]}>
-            <Text style={[styles.cardTitle, { color: Colors.text }]}>Utilities</Text>
-            <SettingsItem title="Reset Data" icon={<RefreshCw size={18} color={Colors.destructive} />} onPress={handleResetData} isLast />
+          <Card style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Utilities</Text>
+            <SettingsItem title="Reset Data" icon={<RefreshCw size={18} color={colors.destructive} />} onPress={handleResetData} isLast />
           </Card>
 
           {/* Help & Support */}
-          <Card style={[styles.card, { backgroundColor: Colors.card }]}>
-            <Text style={[styles.cardTitle, { color: Colors.text }]}>Support</Text>
-            <SettingsItem title="Help & Tutorials" icon={<HelpCircle size={18} color={Colors.primary} />} onPress={() => {}} />
+          <Card style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Support</Text>
+            <SettingsItem title="Help & Tutorials" icon={<HelpCircle size={18} color={colors.primary} />} onPress={() => {}} />
             <SettingsItem title="Contact Support" onPress={() => {}} isLast />
           </Card>
 
-          <Text style={[styles.versionText, { color: Colors.inactive }]}>Version 1.0.0 — Data stored locally</Text>
+          <Text style={[styles.versionText, { color: colors.inactive }]}>Version 1.0.0 — Data stored locally</Text>
         </ScrollView>
       </View>
 
@@ -299,14 +299,14 @@ export default function ProfileScreen() {
         onRequestClose={() => setShowThemeModal(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setShowThemeModal(false)}>
-          <View style={[styles.modalContent, { backgroundColor: Colors.card }]}>
-            <Text style={[styles.modalTitle, { color: Colors.text }]}>Choose Theme</Text>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Choose Theme</Text>
             {(['system', 'light', 'dark'] as const).map((themeOption) => (
               <Pressable
                 key={themeOption}
                 style={[
                   styles.modalOption, 
-                  theme === themeOption && [styles.modalOptionSelected, { backgroundColor: Colors.primary }]
+                  theme === themeOption && [styles.modalOptionSelected, { backgroundColor: colors.primary }]
                 ]}
                 onPress={async () => {
                   await setTheme(themeOption);
@@ -315,8 +315,8 @@ export default function ProfileScreen() {
               >
                 <Text style={[
                   styles.modalOptionText, 
-                  { color: Colors.text },
-                  theme === themeOption && [styles.modalOptionTextSelected, { color: Colors.card }]
+                  { color: colors.text },
+                  theme === themeOption && [styles.modalOptionTextSelected, { color: colors.card }]
                 ]}>
                   {themeOption.charAt(0).toUpperCase() + themeOption.slice(1)}
                 </Text>
@@ -334,14 +334,14 @@ export default function ProfileScreen() {
         onRequestClose={() => setShowWeekStartModal(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setShowWeekStartModal(false)}>
-          <View style={[styles.modalContent, { backgroundColor: Colors.card }]}>
-            <Text style={[styles.modalTitle, { color: Colors.text }]}>Week Starts On</Text>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Week Starts On</Text>
             {(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const).map((day) => (
               <Pressable
                 key={day}
                 style={[
                   styles.modalOption, 
-                  weekStartDay === day && [styles.modalOptionSelected, { backgroundColor: Colors.primary }]
+                  weekStartDay === day && [styles.modalOptionSelected, { backgroundColor: colors.primary }]
                 ]}
                 onPress={async () => {
                   await setWeekStartDay(day);
@@ -350,8 +350,8 @@ export default function ProfileScreen() {
               >
                 <Text style={[
                   styles.modalOptionText, 
-                  { color: Colors.text },
-                  weekStartDay === day && [styles.modalOptionTextSelected, { color: Colors.card }]
+                  { color: colors.text },
+                  weekStartDay === day && [styles.modalOptionTextSelected, { color: colors.card }]
                 ]}>
                   {day.charAt(0).toUpperCase() + day.slice(1)}
                 </Text>
