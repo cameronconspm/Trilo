@@ -19,7 +19,7 @@ import { useNotifications } from '@/context/NotificationContext';
 import { useAlert } from '@/hooks/useAlert';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius } from '@/constants/spacing';
-import { Bell, Shield, HelpCircle, RefreshCw, User2 } from 'lucide-react-native';
+import { Bell, Shield, HelpCircle, RefreshCw } from 'lucide-react-native';
 
 export default function ProfileScreen() {
   const {
@@ -77,15 +77,13 @@ export default function ProfileScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Account Overview */}
           <Card style={styles.card}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.cardTitle}>Nickname</Text>
-              <TextInput
-                value={nickname}
-                onChangeText={setNickname}
-                placeholder="Enter your name"
-                style={styles.textInput}
-              />
-            </View>
+            <Text style={styles.cardTitle}>Nickname</Text>
+            <TextInput
+              value={nickname}
+              onChangeText={setNickname}
+              placeholder="Enter your name"
+              style={styles.textInputFull}
+            />
           </Card>
 
           {/* Preferences */}
@@ -125,9 +123,7 @@ export default function ProfileScreen() {
           {/* App Utilities */}
           <Card style={styles.card}>
             <Text style={styles.cardTitle}>Utilities</Text>
-            <SettingsItem title="Reset Data" icon={<RefreshCw size={18} color={Colors.destructive} />} onPress={handleResetData} />
-            <SettingsItem title="Export Data" onPress={() => {}} />
-            <SettingsItem title="Import Data" onPress={() => {}} isLast />
+            <SettingsItem title="Reset Data" icon={<RefreshCw size={18} color={Colors.destructive} />} onPress={handleResetData} isLast />
           </Card>
 
           {/* Help & Support */}
@@ -175,6 +171,7 @@ const styles = StyleSheet.create({
   },
   card: {
     padding: Spacing.lg,
+    borderRadius: BorderRadius.lg,
   },
   cardTitle: {
     fontSize: 16,
@@ -188,15 +185,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: Spacing.md,
   },
-  textInput: {
+  textInputFull: {
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-    flex: 1,
-    textAlign: 'right',
+    paddingVertical: 10,
+    fontSize: 16,
     color: Colors.text,
+    backgroundColor: Colors.card,
   },
   timeRow: {
     flexDirection: 'row',
