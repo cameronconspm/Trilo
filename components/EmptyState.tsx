@@ -19,16 +19,25 @@ export default function EmptyState({
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
   
-  const IconComponent = {
-    plus: Plus,
-    trending: TrendingUp,
-    dollar: DollarSign,
-  }[icon];
+  const getIconComponent = () => {
+    switch (icon) {
+      case 'plus':
+        return Plus;
+      case 'trending':
+        return TrendingUp;
+      case 'dollar':
+        return DollarSign;
+      default:
+        return Plus;
+    }
+  };
+
+  const IconComponent = getIconComponent();
 
   return (
     <View style={styles.container}>
       <View style={[styles.iconContainer, { backgroundColor: colors.cardSecondary, borderColor: colors.border }]}>
-        <IconComponent size={36} color={colors.inactive} strokeWidth={2} />
+        {renderIcon()}
       </View>
       <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
       <Text style={[styles.subtitle, { color: colors.inactive }]}>{subtitle}</Text>
