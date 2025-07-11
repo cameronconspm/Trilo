@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Trilo v2",
-    "slug": "ios-personal-finance-tracker",
+    "name": "Trilo",
+    "slug": "trilo-personal-finance-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
