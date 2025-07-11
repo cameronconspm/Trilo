@@ -72,7 +72,6 @@ class NotificationService {
     try {
       this.settings = { ...this.settings, ...settings };
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.settings));
-      await this.scheduleAllNotifications();
     } catch (error) {
       console.error('Failed to save notification settings:', error);
       throw error;
@@ -110,6 +109,7 @@ class NotificationService {
       const dueDate = new Date(t.date);
       const reminderDate = new Date(dueDate);
       reminderDate.setDate(dueDate.getDate() - this.settings.reminderDaysBefore);
+      reminderDate.setHours(12, 0, 0, 0); // Ensure notification is at 12:00 PM
       return reminderDate > now && dueDate > now;
     });
 
@@ -117,23 +117,22 @@ class NotificationService {
       const dueDate = new Date(expense.date);
       const reminderDate = new Date(dueDate);
       reminderDate.setDate(dueDate.getDate() - this.settings.reminderDaysBefore);
+      reminderDate.setHours(12, 0, 0, 0); // Always at 12:00 PM
 
-      const [h, m] = this.settings.reminderTime.split(':');
-      reminderDate.setHours(parseInt(h), parseInt(m), 0, 0);
+      const now = new Date();
+      if (reminderDate <= now) continue;
 
-      if (reminderDate > now) {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: 'Upcoming Expense',
-            body: `${expense.name} (${expense.category}) - $${expense.amount.toFixed(2)} due soon`,
-            data: { type: 'expense_reminder', transactionId: expense.id },
-          },
-          trigger: {
-            type: 'datetime',
-            date: reminderDate,
-          } as Notifications.DateTriggerInput,
-        });
-      }
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Upcoming Expense',
+          body: `${expense.name} (${expense.category}) - $${expense.amount.toFixed(2)} due soon`,
+          data: { type: 'expense_reminder', transactionId: expense.id },
+        },
+        trigger: {
+          type: 'datetime',
+          date: reminderDate,
+        } as Notifications.DateTriggerInput,
+      });
     }
   }
 
