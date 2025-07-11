@@ -175,9 +175,23 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
         // For one-time income, use the last paid date as the transaction date
         transactionDate = lastPaidDate.toISOString();
       } else {
-        // Use day of month for expenses
+        // Use day of month for expenses - resolve to appropriate date
         const today = new Date();
-        const expenseDate = new Date(today.getFullYear(), today.getMonth(), selectedDay);
+        let expenseDate = new Date(today.getFullYear(), today.getMonth(), selectedDay);
+        
+        // For non-recurring expenses, try to place them in the most logical date
+        if (!isRecurring) {
+          // If the date is in the past for this month, try next month
+          if (expenseDate < today) {
+            const nextMonthDate = new Date(today.getFullYear(), today.getMonth() + 1, selectedDay);
+            expenseDate = nextMonthDate;
+          }
+        } else {
+          // For recurring expenses, use the selected day in the current month
+          // The pay period logic will handle the proper scheduling
+          expenseDate = new Date(today.getFullYear(), today.getMonth(), selectedDay);
+        }
+        
         transactionDate = expenseDate.toISOString();
       }
 

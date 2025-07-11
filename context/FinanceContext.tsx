@@ -187,6 +187,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
     // Get current pay period
     const currentPayPeriod = getCurrentPayPeriod(transactions);
+    console.log('FinanceContext: Current pay period:', currentPayPeriod);
     
     let periodIncome = 0;
     let periodStartDate: Date;
@@ -215,22 +216,65 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       periodEndDate.setHours(23, 59, 59, 999);
     }
 
-    // Calculate upcoming expenses (future transactions in this period)
-    const upcomingExpenses = transactions
-      .filter(t => {
-        const transactionDate = new Date(t.date);
-        return transactionDate > today && transactionDate <= periodEndDate && t.type === 'expense';
+    // Get all expense transactions and resolve their dates to the current pay period
+    const resolvedExpenses = transactions
+      .filter(t => t.type === 'expense')
+      .map(t => {
+        let resolvedDate = new Date(t.date);
+        
+        // If this is a non-recurring expense, try to resolve it to the current pay period
+        if (!t.isRecurring && currentPayPeriod) {
+          const originalDate = new Date(t.date);
+          const dayOfMonth = originalDate.getDate();
+          
+          // Try to place this day within the current pay period
+          const periodStart = new Date(periodStartDate);
+          const periodEnd = new Date(periodEndDate);
+          
+          // Create candidate dates for this day of month
+          const candidates = [];
+          
+          // Try current pay period's start month
+          const startMonth = periodStart.getMonth();
+          const startYear = periodStart.getFullYear();
+          candidates.push(new Date(startYear, startMonth, dayOfMonth));
+          
+          // Try next month if pay period spans multiple months
+          if (periodEnd.getMonth() !== startMonth) {
+            candidates.push(new Date(startYear, startMonth + 1, dayOfMonth));
+          }
+          
+          // Find the best candidate date within the pay period
+          const validCandidates = candidates.filter(date => 
+            date >= periodStart && date <= periodEnd
+          );
+          
+          if (validCandidates.length > 0) {
+            // Use the first valid candidate (closest to pay period start)
+            resolvedDate = validCandidates[0];
+          }
+          // If no valid candidates, keep the original date
+        }
+        
+        return {
+          ...t,
+          resolvedDate
+        };
       })
+      .filter(t => {
+        // Only include expenses that fall within the current pay period
+        return t.resolvedDate >= periodStartDate && t.resolvedDate <= periodEndDate;
+      });
+
+    // Calculate upcoming expenses (future transactions in this period)
+    const upcomingExpenses = resolvedExpenses
+      .filter(t => t.resolvedDate > today)
+      .map(t => ({ ...t, date: t.resolvedDate.toISOString() })) // Update the date to resolved date
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     // Calculate past expenses in this period
-    const pastExpenses = transactions
-      .filter(t => {
-        const transactionDate = new Date(t.date);
-        return t.type === 'expense' && 
-               transactionDate >= periodStartDate && 
-               transactionDate <= today;
-      })
+    const pastExpenses = resolvedExpenses
+      .filter(t => t.resolvedDate <= today)
       .reduce((sum, t) => sum + t.amount, 0);
 
     // Calculate remaining balance
@@ -244,13 +288,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     // Calculate contributions by category (past expenses only)
     const contributions: Record<CategoryType, { total: number; count: number }> = {} as any;
     
-    transactions
-      .filter(t => {
-        const transactionDate = new Date(t.date);
-        return t.type === 'expense' && 
-               transactionDate >= periodStartDate && 
-               transactionDate <= today;
-      })
+    resolvedExpenses
+      .filter(t => t.resolvedDate <= today)
       .forEach(t => {
         if (!contributions[t.category]) {
           contributions[t.category] = { total: 0, count: 0 };

@@ -1,4 +1,5 @@
 import { Transaction } from '@/types/finance';
+import { calculateNextPayDate } from '@/utils/payScheduleUtils';
 
 export interface PayPeriod {
   startDate: Date;
@@ -14,16 +15,52 @@ export function calculatePayPeriods(transactions: Transaction[]): PayPeriod[] {
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   if (incomeTransactions.length === 0) {
+    console.log('PayPeriodUtils: No income transactions found');
     return [];
   }
+  
+  console.log('PayPeriodUtils: Found', incomeTransactions.length, 'income transactions');
+  incomeTransactions.forEach(t => {
+    console.log('  Income:', t.name, 'Date:', t.date, 'Recurring:', t.isRecurring);
+  });
 
   const periods: PayPeriod[] = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
 
-  for (let i = 0; i < incomeTransactions.length; i++) {
-    const currentIncome = incomeTransactions[i];
-    const nextIncome = incomeTransactions[i + 1];
+  // Generate additional future income dates for recurring income
+  const allIncomeTransactions = [...incomeTransactions];
+  
+  // For recurring income, generate future dates
+  incomeTransactions.forEach(income => {
+    if (income.isRecurring && income.paySchedule) {
+      try {
+        const lastDate = new Date(income.date);
+        const futureDate = calculateNextPayDate(income.paySchedule, lastDate);
+        
+        // Add future income if it's within the next 3 months
+        const threeMonthsFromNow = new Date();
+        threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+        
+        if (futureDate <= threeMonthsFromNow && futureDate > lastDate) {
+          allIncomeTransactions.push({
+            ...income,
+            id: income.id + '_future',
+            date: futureDate.toISOString()
+          });
+        }
+      } catch (error) {
+        console.warn('Error calculating future pay date for income:', income.id, error);
+      }
+    }
+  });
+  
+  // Sort all income transactions (including generated future ones)
+  allIncomeTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  for (let i = 0; i < allIncomeTransactions.length; i++) {
+    const currentIncome = allIncomeTransactions[i];
+    const nextIncome = allIncomeTransactions[i + 1];
     
     const startDate = new Date(currentIncome.date);
     startDate.setHours(0, 0, 0, 0);
@@ -37,7 +74,7 @@ export function calculatePayPeriods(transactions: Transaction[]): PayPeriod[] {
       endDate.setDate(endDate.getDate() - 1);
       endDate.setHours(23, 59, 59, 999);
       
-      displayText = `${formatDateShort(startDate)} ${formatDateShort(endDate)}`;
+      displayText = `${formatDateShort(startDate)} – ${formatDateShort(endDate)}`;
     } else {
       // Last income period - check if today is after this income date
       if (today >= startDate) {
