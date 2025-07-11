@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/Splashscreen-Trilo.png",
-      "resizeMode": "contain",
+      "resizeMode": "cover",
       "backgroundColor": "#4E91F9"
     },
     "ios": {
