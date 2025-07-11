@@ -141,13 +141,15 @@ export default function OverviewScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 24,
+    paddingBottom: 30,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: Spacing.screenHorizontal,
-    paddingBottom: Spacing.screenBottom,
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,

@@ -368,10 +368,12 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 24,
+    paddingBottom: 30,
   },
   scrollContent: {
     paddingHorizontal: Spacing.screenHorizontal,
-    paddingBottom: Spacing.screenBottom,
+    paddingBottom: 40,
     gap: Spacing.lg,
   },
   card: {

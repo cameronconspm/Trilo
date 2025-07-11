@@ -18,10 +18,10 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: colors.card,
           borderTopWidth: 0,
-          height: Platform.OS === 'ios' ? 90 : 70,
-          paddingBottom: Platform.OS === 'ios' ? 30 : 15,
-          paddingTop: Spacing.tabVertical,
-          paddingHorizontal: Platform.OS === 'ios' ? 24 : 20, // Updated for better spacing
+          height: 90,
+          paddingBottom: 30,
+          paddingTop: 10,
+          paddingHorizontal: 16,
           ...Shadow.nav,
         },
         tabBarItemStyle: {
