@@ -11,6 +11,7 @@
     "splash": {
       "image": "./assets/images/Splashscreen-Trilo.jpg",
       "resizeMode": "contain",
+      "backgroundColor": "#4E91F9",
     },
     "ios": {
       "supportsTablet": true,
