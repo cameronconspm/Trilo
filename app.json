@@ -1,9 +1,9 @@
 {
   "expo": {
     "name": "Trilo",
-    "slug": "ios-personal-finance-tracker",
+    "slug": "trilo-personal-finance-tracker-new",
     "owner": "cameroncons",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.ios-trilo",
-      "buildNumber": "2",
+      "buildNumber": "1",
       "splash": {
         "image": "./assets/images/Splashscreen-Trilo.jpg",
         "resizeMode": "contain",
@@ -30,7 +30,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "app.android-trilo",
-      "versionCode": 2,
+      "versionCode": 1,
       "splash": {
         "image": "./assets/images/Splashscreen-Trilo.jpg",
         "resizeMode": "contain",
