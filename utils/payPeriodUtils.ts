@@ -21,7 +21,7 @@ export function calculatePayPeriods(transactions: Transaction[]): PayPeriod[] {
   
   console.log('PayPeriodUtils: Found', incomeTransactions.length, 'income transactions');
   incomeTransactions.forEach(t => {
-    console.log('  Income:', t.name, 'Date:', t.date, 'Recurring:', t.isRecurring);
+    console.log('  Income:', t.name, 'Date:', t.date, 'Recurring:', t.isRecurring, 'PaySchedule:', t.paySchedule);
   });
 
   const periods: PayPeriod[] = [];
@@ -36,18 +36,26 @@ export function calculatePayPeriods(transactions: Transaction[]): PayPeriod[] {
     if (income.isRecurring && income.paySchedule) {
       try {
         const lastDate = new Date(income.date);
-        const futureDate = calculateNextPayDate(income.paySchedule, lastDate);
+        let currentDate = lastDate;
         
-        // Add future income if it's within the next 3 months
-        const threeMonthsFromNow = new Date();
-        threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
-        
-        if (futureDate <= threeMonthsFromNow && futureDate > lastDate) {
-          allIncomeTransactions.push({
-            ...income,
-            id: income.id + '_future',
-            date: futureDate.toISOString()
-          });
+        // Generate multiple future dates to ensure we have enough coverage
+        for (let i = 0; i < 6; i++) { // Generate up to 6 future pay dates
+          const futureDate = calculateNextPayDate(income.paySchedule, currentDate);
+          
+          // Add future income if it's within the next 6 months
+          const sixMonthsFromNow = new Date();
+          sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
+          
+          if (futureDate <= sixMonthsFromNow && futureDate > currentDate) {
+            allIncomeTransactions.push({
+              ...income,
+              id: income.id + '_future_' + i,
+              date: futureDate.toISOString()
+            });
+            currentDate = futureDate;
+          } else {
+            break;
+          }
         }
       } catch (error) {
         console.warn('Error calculating future pay date for income:', income.id, error);
@@ -57,6 +65,11 @@ export function calculatePayPeriods(transactions: Transaction[]): PayPeriod[] {
   
   // Sort all income transactions (including generated future ones)
   allIncomeTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  
+  console.log('PayPeriodUtils: All income transactions (including future):', allIncomeTransactions.length);
+  allIncomeTransactions.forEach(t => {
+    console.log('  All Income:', t.name, 'Date:', t.date);
+  });
 
   for (let i = 0; i < allIncomeTransactions.length; i++) {
     const currentIncome = allIncomeTransactions[i];
@@ -88,6 +101,8 @@ export function calculatePayPeriods(transactions: Transaction[]): PayPeriod[] {
     // Check if this period is currently active
     const isActive = today >= startDate && today <= endDate;
     
+    console.log(`PayPeriodUtils: Period ${i}: ${displayText}, Active: ${isActive}, Start: ${startDate.toDateString()}, End: ${endDate.toDateString()}`);
+    
     periods.push({
       startDate,
       endDate,
@@ -95,6 +110,10 @@ export function calculatePayPeriods(transactions: Transaction[]): PayPeriod[] {
       displayText,
     });
   }
+
+  console.log('PayPeriodUtils: Generated', periods.length, 'pay periods');
+  const activePeriod = periods.find(p => p.isActive);
+  console.log('PayPeriodUtils: Active period:', activePeriod?.displayText || 'None');
 
   return periods;
 }

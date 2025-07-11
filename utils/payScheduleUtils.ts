@@ -6,25 +6,37 @@ import { PaySchedule, PayCadence } from '@/types/finance';
 export function calculateNextPayDate(paySchedule: PaySchedule, fromDate: Date = new Date()): Date {
   const lastPaid = new Date(paySchedule.lastPaidDate);
   
+  console.log('PayScheduleUtils: Calculating next pay date from:', lastPaid.toDateString(), 'Cadence:', paySchedule.cadence);
+  
+  let nextDate: Date;
+  
   switch (paySchedule.cadence) {
     case 'weekly':
-      return addDays(lastPaid, 7);
+      nextDate = addDays(lastPaid, 7);
+      break;
       
     case 'every_2_weeks':
-      return addDays(lastPaid, 14);
+      nextDate = addDays(lastPaid, 14);
+      break;
       
     case 'monthly':
-      return addMonths(lastPaid, 1);
+      nextDate = addMonths(lastPaid, 1);
+      break;
       
     case 'twice_monthly':
-      return calculateNextTwiceMonthlyPayDate(paySchedule, fromDate);
+      nextDate = calculateNextTwiceMonthlyPayDate(paySchedule, fromDate);
+      break;
       
     case 'custom':
-      return calculateNextCustomPayDate(paySchedule, fromDate);
+      nextDate = calculateNextCustomPayDate(paySchedule, fromDate);
+      break;
       
     default:
-      return lastPaid;
+      nextDate = lastPaid;
   }
+  
+  console.log('PayScheduleUtils: Next pay date calculated as:', nextDate.toDateString());
+  return nextDate;
 }
 
 /**

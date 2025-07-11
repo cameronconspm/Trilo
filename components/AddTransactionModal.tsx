@@ -168,9 +168,8 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
           customDays: payCadence === 'custom' ? customDays : undefined,
         };
         
-        // Calculate next pay date
-        const nextPayDate = calculateNextPayDate(paySchedule);
-        transactionDate = nextPayDate.toISOString();
+        // Use the last paid date as the transaction date (when income was received)
+        transactionDate = lastPaidDate.toISOString();
       } else if (transactionType === 'income' && !isRecurring) {
         // For one-time income, use the last paid date as the transaction date
         transactionDate = lastPaidDate.toISOString();

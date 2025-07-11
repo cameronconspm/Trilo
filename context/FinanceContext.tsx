@@ -197,16 +197,23 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       periodStartDate = currentPayPeriod.startDate;
       periodEndDate = currentPayPeriod.endDate;
       
+      console.log('FinanceContext: Pay period dates:', periodStartDate.toDateString(), 'to', periodEndDate.toDateString());
+      
       // Find all income transactions within this pay period
       const incomeTransactions = transactions.filter(t => {
         if (t.type !== 'income') return false;
         const transactionDate = new Date(t.date);
         transactionDate.setHours(0, 0, 0, 0);
-        return transactionDate >= periodStartDate && transactionDate <= periodEndDate;
+        const isInPeriod = transactionDate >= periodStartDate && transactionDate <= periodEndDate;
+        console.log('FinanceContext: Income transaction', t.name, 'Date:', transactionDate.toDateString(), 'In period:', isInPeriod);
+        return isInPeriod;
       });
+      
+      console.log('FinanceContext: Found', incomeTransactions.length, 'income transactions in current pay period');
       
       // Sum all income transactions in this period
       periodIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
+      console.log('FinanceContext: Total period income:', periodIncome);
     } else {
       // Fallback to weekly calculation if no pay period found
       periodStartDate = new Date(today);
