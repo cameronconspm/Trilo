@@ -149,6 +149,7 @@ class NotificationService {
             data: { type: 'expense_reminder', transactionId: expense.id },
           },
           trigger: {
+            type: 'date',
             date: reminderDate,
           },
         });
@@ -186,6 +187,7 @@ class NotificationService {
         data: { type: 'weekly_insights' },
       },
       trigger: {
+        type: 'calendar',
         weekday: targetDay + 1, // expo-notifications uses 1-7 for Sunday-Saturday
         hour: parseInt(hours),
         minute: parseInt(minutes),
