@@ -89,8 +89,8 @@ export default function ProfileScreen() {
       return;
     }
 
-    const options = [
-      { text: 'Cancel', style: 'cancel' as const },
+    const options: Array<{ text: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }> = [
+      { text: 'Cancel', style: 'cancel' },
     ];
     
     if (cameraStatus.status === 'granted') {
@@ -102,7 +102,7 @@ export default function ProfileScreen() {
     }
     
     if (avatarUri) {
-      options.push({ text: 'Remove Photo', style: 'destructive' as const, onPress: () => removeAvatar() });
+      options.push({ text: 'Remove Photo', style: 'destructive', onPress: () => removeAvatar() });
     }
 
     Alert.alert(
