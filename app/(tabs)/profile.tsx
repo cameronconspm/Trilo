@@ -215,7 +215,7 @@ export default function ProfileScreen() {
           <Card style={[styles.card, { backgroundColor: colors.card }]}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>Preferences</Text>
             <SettingsItem title="Theme" value={theme} onPress={() => setShowThemeModal(true)} />
-            <SettingsItem title="Week Starts On" value={weekStartDay} onPress={() => setShowWeekStartModal(true)} isLast />
+            <SettingsItem title="Week Starts On" value={weekStartDay.charAt(0).toUpperCase() + weekStartDay.slice(1)} onPress={() => setShowWeekStartModal(true)} isLast />
           </Card>
 
           {/* Notifications */}
