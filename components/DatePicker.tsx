@@ -11,6 +11,7 @@ interface DatePickerProps {
   label?: string;
   minimumDate?: Date;
   maximumDate?: Date;
+  variant?: 'default' | 'income';
 }
 
 export default function DatePicker({ 
@@ -18,7 +19,8 @@ export default function DatePicker({
   onDateSelect, 
   label = "Date",
   minimumDate,
-  maximumDate 
+  maximumDate,
+  variant = 'default'
 }: DatePickerProps) {
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
@@ -130,7 +132,7 @@ export default function DatePicker({
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
   
-  const styles = createStyles(colors);
+  const styles = createStyles(colors, variant);
 
   return (
     <View style={styles.container}>
@@ -143,7 +145,7 @@ export default function DatePicker({
       >
         <View style={styles.selectedOption}>
           <View style={styles.iconContainer}>
-            <Calendar size={18} color={colors.income} strokeWidth={2} />
+            <Calendar size={18} color={variant === 'income' ? colors.income : colors.textSecondary} strokeWidth={2} />
           </View>
           <View style={styles.dateContainer}>
             <Text style={styles.selectedText}>{formatShortDate(selectedDate)}</Text>
@@ -212,7 +214,7 @@ export default function DatePicker({
   );
 }
 
-const createStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useThemeColors>, variant: 'default' | 'income') => StyleSheet.create({
   container: {
     marginBottom: Spacing.lg,
   },
@@ -220,7 +222,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.c
     fontSize: 17,
     fontWeight: '600',
     marginBottom: Spacing.md,
-    color: colors.income,
+    color: variant === 'income' ? colors.income : colors.text,
     letterSpacing: -0.2,
   },
   picker: {
@@ -230,8 +232,8 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.c
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 2,
-    borderColor: colors.income,
+    borderWidth: variant === 'income' ? 2 : 1,
+    borderColor: variant === 'income' ? colors.income : colors.border,
     ...Shadow.light,
   },
   selectedOption: {
@@ -351,7 +353,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.c
     margin: 1,
   },
   selectedDay: {
-    backgroundColor: colors.income,
+    backgroundColor: variant === 'income' ? colors.income : colors.primary,
   },
   disabledDay: {
     opacity: 0.3,
@@ -359,7 +361,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.c
   todayDay: {
     backgroundColor: colors.cardSecondary,
     borderWidth: 1,
-    borderColor: colors.income,
+    borderColor: variant === 'income' ? colors.income : colors.primary,
   },
   dayText: {
     fontSize: 16,
@@ -374,7 +376,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.c
     color: colors.inactive,
   },
   todayDayText: {
-    color: colors.income,
+    color: variant === 'income' ? colors.income : colors.primary,
     fontWeight: '600',
   },
 });

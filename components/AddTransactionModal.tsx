@@ -660,6 +660,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
                     onDateSelect={setLastPaidDate}
                     label="Most Recent Pay Date"
                     maximumDate={new Date()}
+                    variant="income"
                   />
                   
                   <PayCadencePicker
@@ -682,6 +683,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
                     onDateSelect={setGivenExpenseStartDate}
                     label="Start Date"
                     minimumDate={new Date()}
+                    variant="default"
                   />
                 </View>
               ) : (
