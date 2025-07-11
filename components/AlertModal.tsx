@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { X, AlertTriangle, CheckCircle, Info } from 'lucide-react-native';
 import Button from '@/components/Button';
-import Colors from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
+import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 
 interface AlertAction {
@@ -38,6 +39,8 @@ export default function AlertModal({
   actions,
   onClose,
 }: AlertModalProps) {
+  const { theme } = useSettings();
+  const colors = useThemeColors(theme);
   const [scaleAnim] = React.useState(new Animated.Value(0));
   const [opacityAnim] = React.useState(new Animated.Value(0));
 
@@ -75,13 +78,13 @@ export default function AlertModal({
   const getIconAndColor = () => {
     switch (type) {
       case 'success':
-        return { Icon: CheckCircle, color: Colors.success };
+        return { Icon: CheckCircle, color: colors.success };
       case 'warning':
-        return { Icon: AlertTriangle, color: Colors.warning };
+        return { Icon: AlertTriangle, color: colors.warning };
       case 'error':
-        return { Icon: AlertTriangle, color: Colors.error };
+        return { Icon: AlertTriangle, color: colors.error };
       default:
-        return { Icon: Info, color: Colors.primary };
+        return { Icon: Info, color: colors.primary };
     }
   };
 
@@ -111,7 +114,7 @@ export default function AlertModal({
         <Animated.View 
           style={[
             styles.modalContainer,
-            { transform: [{ scale: scaleAnim }] }
+            { backgroundColor: colors.card, transform: [{ scale: scaleAnim }] }
           ]}
         >
           <View style={styles.header}>
@@ -120,16 +123,16 @@ export default function AlertModal({
             </View>
             <TouchableOpacity 
               onPress={onClose}
-              style={styles.closeButton}
+              style={[styles.closeButton, { backgroundColor: colors.cardSecondary }]}
               activeOpacity={0.7}
             >
-              <X size={20} color={Colors.textSecondary} strokeWidth={2} />
+              <X size={20} color={colors.textSecondary} strokeWidth={2} />
             </TouchableOpacity>
           </View>
           
           <View style={styles.content}>
-            <Text style={styles.title}>{title}</Text>
-            {message && <Text style={styles.message}>{message}</Text>}
+            <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+            {message && <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>}
           </View>
           
           <View style={styles.actions}>
@@ -148,10 +151,10 @@ export default function AlertModal({
                 size="medium"
                 style={[
                   styles.actionButton,
-                  action.style === 'destructive' && styles.destructiveButton,
+                  action.style === 'destructive' && { borderColor: colors.error },
                   index < actions.length - 1 && styles.actionButtonSpacing
                 ]}
-                textStyle={action.style === 'destructive' ? styles.destructiveText : undefined}
+                textStyle={action.style === 'destructive' ? { color: colors.error } : undefined}
               />
             ))}
           </View>
@@ -177,7 +180,6 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   modalContainer: {
-    backgroundColor: Colors.card,
     borderRadius: BorderRadius.xxl,
     width: Math.min(screenWidth * 0.9, 400),
     maxWidth: '100%',
@@ -201,7 +203,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.cardSecondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -212,13 +213,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: Colors.text,
     marginBottom: Spacing.sm,
     letterSpacing: -0.3,
   },
   message: {
     fontSize: 16,
-    color: Colors.textSecondary,
     lineHeight: 24,
     fontWeight: '500',
   },
@@ -233,11 +232,5 @@ const styles = StyleSheet.create({
   },
   actionButtonSpacing: {
     marginBottom: 0,
-  },
-  destructiveButton: {
-    borderColor: Colors.error,
-  },
-  destructiveText: {
-    color: Colors.error,
   },
 });
