@@ -3,13 +3,12 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { View, Platform } from "react-native";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { FinanceProvider } from "@/context/FinanceContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { NotificationProvider } from "@/context/NotificationContext";
-import CustomSplashScreen from "@/components/SplashScreen";
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",
@@ -49,8 +48,8 @@ export default function RootLayout() {
   }, []);
 
   if (!loaded) {
-    // Show custom splash screen while loading
-    return <CustomSplashScreen />;
+    // Let the native splash screen show while loading
+    return null;
   }
 
   return <RootLayoutNav />;

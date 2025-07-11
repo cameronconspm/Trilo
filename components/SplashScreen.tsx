@@ -7,7 +7,7 @@ export default function SplashScreen() {
       <Image
         source={
           Platform.OS === 'web'
-            ? { uri: './assets/images/Splashscreen-Trilo.jpg' }
+            ? { uri: '/assets/images/Splashscreen-Trilo.jpg' }
             : require('../assets/images/Splashscreen-Trilo.jpg')
         }
         style={styles.image}
