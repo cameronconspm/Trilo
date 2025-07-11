@@ -149,9 +149,8 @@ class NotificationService {
             data: { type: 'expense_reminder', transactionId: expense.id },
           },
           trigger: {
-            type: 'datetime' as const,
             date: reminderDate,
-          } as Notifications.DateTriggerInput,
+          },
         });
       }
     }
@@ -187,12 +186,11 @@ class NotificationService {
         data: { type: 'weekly_insights' },
       },
       trigger: {
-        type: 'calendar' as const,
         weekday: targetDay + 1, // expo-notifications uses 1-7 for Sunday-Saturday
         hour: parseInt(hours),
         minute: parseInt(minutes),
         repeats: true,
-      } as Notifications.CalendarTriggerInput,
+      },
     });
   }
 
