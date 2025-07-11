@@ -328,9 +328,10 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>, variant: 'defau
   weekDaysHeader: {
     flexDirection: 'row',
     marginBottom: Spacing.md,
+    width: '100%',
   },
   weekDayText: {
-    flex: 1,
+    width: '14.285714%',
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '600',
@@ -339,18 +340,19 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>, variant: 'defau
   calendar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    width: '100%',
   },
   emptyDay: {
-    width: '14.28%',
+    width: '14.285714%',
     aspectRatio: 1,
   },
   dayButton: {
-    width: '14.28%',
+    width: '14.285714%',
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: BorderRadius.md,
-    margin: 1,
+    marginVertical: 1,
   },
   selectedDay: {
     backgroundColor: variant === 'income' ? colors.income : colors.primary,
