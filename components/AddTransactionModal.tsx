@@ -47,7 +47,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
   const [transactionType, setTransactionType] = useState<TransactionType>('expense');
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<CategoryType>('miscellaneous');
+  const [category, setCategory] = useState<CategoryType>('one_time_expense');
   const [isRecurring, setIsRecurring] = useState(false);
   
   // For expenses (day of month)
@@ -103,7 +103,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
       }
     } else {
       if (!editTransaction) {
-        setCategory('miscellaneous');
+        setCategory('one_time_expense');
         setIsRecurring(false);
       }
     }

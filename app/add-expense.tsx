@@ -15,7 +15,7 @@ export default function AddExpenseScreen() {
   
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<CategoryType>('miscellaneous');
+  const [category, setCategory] = useState<CategoryType>('one_time_expense');
   const [isRecurring, setIsRecurring] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [isLoading, setIsLoading] = useState(false);
