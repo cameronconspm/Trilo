@@ -7,6 +7,7 @@ import { Spacing } from '@/constants/spacing';
 interface SettingsItemProps extends TouchableOpacityProps {
   title: string;
   value?: string;
+  icon?: React.ReactElement;
   isDestructive?: boolean;
   isLast?: boolean;
 }
@@ -14,6 +15,7 @@ interface SettingsItemProps extends TouchableOpacityProps {
 export default function SettingsItem({ 
   title, 
   value, 
+  icon,
   isDestructive = false,
   isLast = false,
   ...props 
@@ -24,12 +26,15 @@ export default function SettingsItem({
       activeOpacity={0.7}
       {...props}
     >
-      <Text style={[
-        styles.title,
-        isDestructive && styles.destructiveText
-      ]}>
-        {title}
-      </Text>
+      <View style={styles.leftContent}>
+        {icon && <View style={styles.iconContainer}>{icon}</View>}
+        <Text style={[
+          styles.title,
+          isDestructive && styles.destructiveText
+        ]}>
+          {title}
+        </Text>
+      </View>
       <View style={styles.rightContent}>
         {value && <Text style={styles.value}>{value}</Text>}
         <ChevronRight size={18} color={Colors.inactive} />
@@ -54,6 +59,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
     fontWeight: '500',
+  },
+  leftContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconContainer: {
+    marginRight: Spacing.sm,
   },
   rightContent: {
     flexDirection: 'row',
