@@ -37,7 +37,7 @@ export default function EmptyState({
   return (
     <View style={styles.container}>
       <View style={[styles.iconContainer, { backgroundColor: colors.cardSecondary, borderColor: colors.border }]}>
-        {renderIcon()}
+        <IconComponent size={32} color={colors.inactive} />
       </View>
       <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
       <Text style={[styles.subtitle, { color: colors.inactive }]}>{subtitle}</Text>
