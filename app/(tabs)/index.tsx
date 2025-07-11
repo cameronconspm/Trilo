@@ -74,26 +74,19 @@ export default function OverviewScreen() {
         </Card>
         
         <Text style={styles.sectionTitle}>Pay Period Contributions</Text>
-        {hasContributions ? (
-          <View style={styles.categoryGrid}>
-            {Object.entries(contributions).map(([categoryId, data]) => (
+        <View style={styles.categoryGrid}>
+          {['bill', 'subscription', 'debt', 'savings'].map((categoryId) => {
+            const data = contributions[categoryId as any] || { total: 0, count: 0 };
+            return (
               <CategoryCard 
                 key={categoryId}
                 category={categoryId as any} 
                 amount={data.total}
                 count={data.count}
               />
-            ))}
-          </View>
-        ) : (
-          <Card variant="subtle">
-            <EmptyState 
-              icon="dollar"
-              title="No contributions yet"
-              subtitle="Add your first expense to see pay period contributions by category"
-            />
-          </Card>
-        )}
+            );
+          })}
+        </View>
         
         <Text style={styles.sectionTitle}>Upcoming Expenses</Text>
         <Card variant="default">

@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Trash2 } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
+import { Trash2, Edit3 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius } from '@/constants/spacing';
 import { Transaction } from '@/types/finance';
@@ -14,12 +15,16 @@ interface TransactionItemProps {
   transaction: Transaction;
   isLast?: boolean;
   showActions?: boolean;
+  onEdit?: (transaction: Transaction) => void;
+  enableSwipeActions?: boolean;
 }
 
 export default function TransactionItem({ 
   transaction, 
   isLast = false, 
-  showActions = false 
+  showActions = false,
+  onEdit,
+  enableSwipeActions = false
 }: TransactionItemProps) {
   const { deleteTransaction } = useFinance();
   const { alertState, showAlert, hideAlert } = useAlert();
@@ -74,51 +79,87 @@ export default function TransactionItem({
     });
   };
 
-  return (
-    <>
-      <View style={[styles.container, isLast && styles.lastItem]}>
-        <View style={styles.leftContent}>
-          <View style={[styles.categoryDot, { backgroundColor: categoryInfo.color }]} />
-          <View style={styles.textContainer}>
-            <View style={styles.nameRow}>
-              <Text style={styles.name} numberOfLines={1}>{name}</Text>
-              {isRecurring && (
-                <View style={styles.recurringBadge}>
-                  <Text style={styles.recurringText}>Recurring</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.category}>{categoryInfo.name}</Text>
-          </View>
-        </View>
-        <View style={styles.rightContent}>
-          <Text style={[
-            styles.amount, 
-            transaction.type === 'income' ? styles.income : styles.expense,
-            isFuture && styles.futureAmount
-          ]}>
-            {transaction.type === 'income' ? '+' : ''}${amount.toFixed(2)}
-          </Text>
-          <View style={styles.dateRow}>
-            <Text style={[
-              styles.date, 
-              isFuture && styles.futureDate,
-              type === 'income' && styles.incomeSchedule
-            ]}>
-              {formattedDate}
-            </Text>
-            {showActions && (
-              <TouchableOpacity
-                onPress={handleDelete}
-                style={styles.deleteButton}
-                activeOpacity={0.7}
-              >
-                <Trash2 size={16} color={Colors.error} strokeWidth={2} />
-              </TouchableOpacity>
+  const handleEdit = () => {
+    if (onEdit) {
+      onEdit(transaction);
+    }
+  };
+
+  const renderRightActions = () => {
+    return (
+      <View style={styles.rightActions}>
+        <TouchableOpacity
+          style={styles.deleteAction}
+          onPress={handleDelete}
+          activeOpacity={0.7}
+        >
+          <Trash2 size={20} color={Colors.surface} strokeWidth={2} />
+          <Text style={styles.actionText}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const content = (
+    <TouchableOpacity 
+      style={[styles.container, isLast && styles.lastItem]}
+      onPress={handleEdit}
+      activeOpacity={onEdit ? 0.7 : 1}
+      disabled={!onEdit}
+    >
+      <View style={styles.leftContent}>
+        <View style={[styles.categoryDot, { backgroundColor: categoryInfo.color }]} />
+        <View style={styles.textContainer}>
+          <View style={styles.nameRow}>
+            <Text style={styles.name} numberOfLines={1}>{name}</Text>
+            {isRecurring && (
+              <View style={styles.recurringBadge}>
+                <Text style={styles.recurringText}>Recurring</Text>
+              </View>
             )}
           </View>
+          <Text style={styles.category}>{categoryInfo.name}</Text>
         </View>
       </View>
+      <View style={styles.rightContent}>
+        <Text style={[
+          styles.amount, 
+          transaction.type === 'income' ? styles.income : styles.expense,
+          isFuture && styles.futureAmount
+        ]}>
+          {transaction.type === 'income' ? '+' : ''}${amount.toFixed(2)}
+        </Text>
+        <View style={styles.dateRow}>
+          <Text style={[
+            styles.date, 
+            isFuture && styles.futureDate,
+            type === 'income' && styles.incomeSchedule
+          ]}>
+            {formattedDate}
+          </Text>
+          {showActions && (
+            <TouchableOpacity
+              onPress={handleDelete}
+              style={styles.deleteButton}
+              activeOpacity={0.7}
+            >
+              <Trash2 size={16} color={Colors.error} strokeWidth={2} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  return (
+    <>
+      {enableSwipeActions ? (
+        <Swipeable renderRightActions={renderRightActions}>
+          {content}
+        </Swipeable>
+      ) : (
+        content
+      )}
       
       <AlertModal
         visible={alertState.visible}
@@ -225,5 +266,23 @@ const styles = StyleSheet.create({
   deleteButton: {
     marginLeft: Spacing.sm,
     padding: Spacing.xs,
+  },
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deleteAction: {
+    backgroundColor: Colors.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    height: '100%',
+    paddingHorizontal: Spacing.md,
+  },
+  actionText: {
+    color: Colors.surface,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
   },
 });

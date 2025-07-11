@@ -23,6 +23,11 @@ const categories: Category[] = [
     color: Colors.bill,
   },
   {
+    id: 'savings',
+    name: 'Savings',
+    color: Colors.savings,
+  },
+  {
     id: 'one_time_expense',
     name: 'One-Time Expense',
     color: Colors.oneTimeExpense,

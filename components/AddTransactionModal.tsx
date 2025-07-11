@@ -26,18 +26,19 @@ import AlertModal from '@/components/AlertModal';
 import { useAlert } from '@/hooks/useAlert';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
-import { CategoryType, TransactionType, PayCadence, PaySchedule } from '@/types/finance';
+import { CategoryType, TransactionType, PayCadence, PaySchedule, Transaction } from '@/types/finance';
 import { calculateNextPayDate } from '@/utils/payScheduleUtils';
 
 interface AddTransactionModalProps {
   visible: boolean;
   onClose: () => void;
+  editTransaction?: Transaction;
 }
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-export default function AddTransactionModal({ visible, onClose }: AddTransactionModalProps) {
-  const { addTransaction } = useFinance();
+export default function AddTransactionModal({ visible, onClose, editTransaction }: AddTransactionModalProps) {
+  const { addTransaction, updateTransaction } = useFinance();
   const { alertState, showAlert, hideAlert } = useAlert();
   
   const [transactionType, setTransactionType] = useState<TransactionType>('expense');
@@ -57,19 +58,39 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
   
   const [isLoading, setIsLoading] = useState(false);
   
-  // Reset form when modal opens
+  // Reset form when modal opens or populate with edit data
   useEffect(() => {
     if (visible) {
-      setName('');
-      setAmount('');
-      setSelectedDay(new Date().getDate());
-      setLastPaidDate(new Date());
-      setPayCadence('every_2_weeks');
-      setMonthlyDays([]);
-      setCustomDays([]);
+      if (editTransaction) {
+        // Populate form with existing transaction data
+        setTransactionType(editTransaction.type);
+        setName(editTransaction.name);
+        setAmount(editTransaction.amount.toString());
+        setCategory(editTransaction.category);
+        setIsRecurring(editTransaction.isRecurring);
+        
+        if (editTransaction.type === 'income' && editTransaction.paySchedule) {
+          setLastPaidDate(new Date(editTransaction.paySchedule.lastPaidDate));
+          setPayCadence(editTransaction.paySchedule.cadence);
+          setMonthlyDays(editTransaction.paySchedule.monthlyDays || []);
+          setCustomDays(editTransaction.paySchedule.customDays || []);
+        } else {
+          const transactionDate = new Date(editTransaction.date);
+          setSelectedDay(transactionDate.getDate());
+        }
+      } else {
+        // Reset form for new transaction
+        setName('');
+        setAmount('');
+        setSelectedDay(new Date().getDate());
+        setLastPaidDate(new Date());
+        setPayCadence('every_2_weeks');
+        setMonthlyDays([]);
+        setCustomDays([]);
+      }
       setIsLoading(false);
     }
-  }, [visible]);
+  }, [visible, editTransaction]);
   
   useEffect(() => {
     if (transactionType === 'income') {
@@ -153,27 +174,41 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
         transactionDate = expenseDate.toISOString();
       }
 
-      console.log('Adding transaction:', {
-        name: name.trim(),
-        amount: numAmount,
-        category,
-        date: transactionDate,
-        type: transactionType,
-        isRecurring,
-        paySchedule,
-      }); // Debug log
+      if (editTransaction) {
+        console.log('Updating transaction:', editTransaction.id);
+        await updateTransaction(editTransaction.id, {
+          name: name.trim(),
+          amount: numAmount,
+          category,
+          date: transactionDate,
+          type: transactionType,
+          isRecurring,
+          paySchedule,
+        });
+        console.log('Transaction updated successfully');
+      } else {
+        console.log('Adding transaction:', {
+          name: name.trim(),
+          amount: numAmount,
+          category,
+          date: transactionDate,
+          type: transactionType,
+          isRecurring,
+          paySchedule,
+        });
 
-      await addTransaction({
-        name: name.trim(),
-        amount: numAmount,
-        category,
-        date: transactionDate,
-        type: transactionType,
-        isRecurring,
-        paySchedule,
-      });
-      
-      console.log('Transaction added successfully'); // Debug log
+        await addTransaction({
+          name: name.trim(),
+          amount: numAmount,
+          category,
+          date: transactionDate,
+          type: transactionType,
+          isRecurring,
+          paySchedule,
+        });
+        
+        console.log('Transaction added successfully');
+      }
       
       // Close modal immediately after successful save
       onClose();

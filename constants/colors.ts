@@ -24,6 +24,7 @@ const Colors = {
   debt: "#E74C3C",             // Red - Debt  
   subscription: "#FFA94D",     // Orange - Subscriptions
   bill: "#4E91F9",             // Blue - Bills & Utilities
+  savings: "#9B59B6",          // Purple - Savings
   oneTimeExpense: "#95A5A6",   // Gray-blue - One-Time Expense
   
   // Shadow colors
