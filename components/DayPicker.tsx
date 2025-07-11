@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { ChevronDown, Check } from 'lucide-react-native';
-import Colors from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
+import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 
 interface DayPickerProps {
@@ -10,6 +11,8 @@ interface DayPickerProps {
 }
 
 export default function DayPicker({ selectedDay, onDaySelect }: DayPickerProps) {
+  const { theme } = useSettings();
+  const colors = useThemeColors(theme);
   const [isVisible, setIsVisible] = useState(false);
   
   // Generate days 1-31
@@ -30,6 +33,8 @@ export default function DayPicker({ selectedDay, onDaySelect }: DayPickerProps) 
     }
   };
   
+  const styles = createStyles(colors);
+  
   return (
     <View style={styles.container}>
       <TouchableOpacity
@@ -40,7 +45,7 @@ export default function DayPicker({ selectedDay, onDaySelect }: DayPickerProps) 
         <Text style={styles.selectedText}>
           {selectedDay}{getOrdinalSuffix(selectedDay)} of the month
         </Text>
-        <ChevronDown size={20} color={Colors.inactive} />
+        <ChevronDown size={20} color={colors.inactive} />
       </TouchableOpacity>
       
       <Modal
@@ -82,7 +87,7 @@ export default function DayPicker({ selectedDay, onDaySelect }: DayPickerProps) 
                     </Text>
                     {selectedDay === day && (
                       <View style={styles.checkContainer}>
-                        <Check size={16} color={Colors.primary} strokeWidth={2.5} />
+                        <Check size={16} color={colors.primary} strokeWidth={2.5} />
                       </View>
                     )}
                   </TouchableOpacity>
@@ -96,25 +101,25 @@ export default function DayPicker({ selectedDay, onDaySelect }: DayPickerProps) 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
   container: {
     width: '100%',
   },
   picker: {
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     ...Shadow.light,
   },
   selectedText: {
     fontSize: 16,
     fontWeight: '500',
-    color: Colors.text,
+    color: colors.text,
     flex: 1,
   },
   overlay: {
@@ -125,7 +130,7 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
   },
   modal: {
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderRadius: BorderRadius.xxl,
     width: '100%',
     maxHeight: '70%',
@@ -134,13 +139,13 @@ const styles = StyleSheet.create({
   modalHeader: {
     padding: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
     alignItems: 'center',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: Colors.text,
+    color: colors.text,
     marginBottom: Spacing.xs,
     letterSpacing: -0.3,
   },
@@ -165,19 +170,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: BorderRadius.md,
     margin: 2,
-    backgroundColor: Colors.background,
+    backgroundColor: colors.background,
     position: 'relative',
   },
   selectedDayOption: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   dayText: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.text,
+    color: colors.text,
   },
   selectedDayText: {
-    color: Colors.card,
+    color: colors.card,
   },
   checkContainer: {
     position: 'absolute',
@@ -186,7 +191,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },

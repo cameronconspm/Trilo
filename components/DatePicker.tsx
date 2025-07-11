@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { ChevronDown, Calendar } from 'lucide-react-native';
-import Colors from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
+import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 
 interface DatePickerProps {
@@ -19,6 +20,8 @@ export default function DatePicker({
   minimumDate,
   maximumDate 
 }: DatePickerProps) {
+  const { theme } = useSettings();
+  const colors = useThemeColors(theme);
   const [isVisible, setIsVisible] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(selectedDate.getMonth());
   const [currentYear, setCurrentYear] = useState(selectedDate.getFullYear());
@@ -127,6 +130,10 @@ export default function DatePicker({
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
   
+  const styles = createStyles(colors);
+  
+  const styles = createStyles(colors);
+  
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label} *</Text>
@@ -138,14 +145,14 @@ export default function DatePicker({
       >
         <View style={styles.selectedOption}>
           <View style={styles.iconContainer}>
-            <Calendar size={18} color={Colors.income} strokeWidth={2} />
+            <Calendar size={18} color={colors.income} strokeWidth={2} />
           </View>
           <View style={styles.dateContainer}>
             <Text style={styles.selectedText}>{formatShortDate(selectedDate)}</Text>
             <Text style={styles.selectedDescription}>{formatDate(selectedDate)}</Text>
           </View>
         </View>
-        <ChevronDown size={20} color={Colors.inactive} />
+        <ChevronDown size={20} color={colors.inactive} />
       </TouchableOpacity>
       
       <Modal
@@ -207,7 +214,7 @@ export default function DatePicker({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
   container: {
     marginBottom: Spacing.lg,
   },
@@ -215,18 +222,18 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     marginBottom: Spacing.md,
-    color: Colors.income,
+    color: colors.income,
     letterSpacing: -0.2,
   },
   picker: {
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 2,
-    borderColor: Colors.income,
+    borderColor: colors.income,
     ...Shadow.light,
   },
   selectedOption: {
@@ -238,7 +245,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.cardSecondary,
+    backgroundColor: colors.cardSecondary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -249,12 +256,12 @@ const styles = StyleSheet.create({
   selectedText: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.text,
+    color: colors.text,
     marginBottom: 2,
   },
   selectedDescription: {
     fontSize: 13,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   overlay: {
@@ -265,7 +272,7 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
   },
   modal: {
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderRadius: BorderRadius.xxl,
     width: '100%',
     maxHeight: '80%',
@@ -274,19 +281,19 @@ const styles = StyleSheet.create({
   modalHeader: {
     padding: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
     alignItems: 'center',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: Colors.text,
+    color: colors.text,
     marginBottom: Spacing.xs,
     letterSpacing: -0.3,
   },
   modalSubtitle: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     fontWeight: '500',
   },
@@ -303,19 +310,19 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.cardSecondary,
+    backgroundColor: colors.cardSecondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   navButtonText: {
     fontSize: 20,
     fontWeight: '600',
-    color: Colors.text,
+    color: colors.text,
   },
   monthYear: {
     fontSize: 18,
     fontWeight: '600',
-    color: Colors.text,
+    color: colors.text,
     letterSpacing: -0.3,
   },
   weekDaysHeader: {
@@ -327,7 +334,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   calendar: {
     flexDirection: 'row',
@@ -346,20 +353,20 @@ const styles = StyleSheet.create({
     margin: 1,
   },
   selectedDay: {
-    backgroundColor: Colors.income,
+    backgroundColor: colors.income,
   },
   disabledDay: {
     opacity: 0.3,
   },
   todayDay: {
-    backgroundColor: Colors.cardSecondary,
+    backgroundColor: colors.cardSecondary,
     borderWidth: 1,
-    borderColor: Colors.income,
+    borderColor: colors.income,
   },
   dayText: {
     fontSize: 16,
     fontWeight: '500',
-    color: Colors.text,
+    color: colors.text,
   },
   selectedDayText: {
     color: Colors.card,
@@ -369,7 +376,7 @@ const styles = StyleSheet.create({
     color: Colors.inactive,
   },
   todayDayText: {
-    color: Colors.income,
+    color: colors.income,
     fontWeight: '600',
   },
 });
