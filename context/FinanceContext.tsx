@@ -21,10 +21,13 @@ interface FinanceContextType {
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
-  TRANSACTIONS: 'finance_transactions',
-  BUDGET_GOALS: 'finance_budget_goals',
-  LAST_BACKUP: 'finance_last_backup',
+  TRANSACTIONS: 'finance_transactions_v2',
+  BUDGET_GOALS: 'finance_budget_goals_v2',
+  LAST_BACKUP: 'finance_last_backup_v2',
+  APP_VERSION: 'finance_app_version',
 } as const;
+
+const CURRENT_APP_VERSION = '2.0.0';
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -74,44 +77,104 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const loadAllData = async () => {
     try {
       setIsLoading(true);
+      console.log('FinanceContext: Loading data from storage...');
       
-      // Load transactions
+      // Check app version for migration if needed
+      const storedVersion = await AsyncStorage.getItem(STORAGE_KEYS.APP_VERSION);
+      if (!storedVersion) {
+        // First time app launch, set version
+        await AsyncStorage.setItem(STORAGE_KEYS.APP_VERSION, CURRENT_APP_VERSION);
+        console.log('FinanceContext: First app launch, version set to', CURRENT_APP_VERSION);
+      }
+      
+      // Load transactions with error recovery
       const storedTransactions = await AsyncStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
       if (storedTransactions) {
-        const parsedTransactions = JSON.parse(storedTransactions);
-        // Validate and clean data
-        const validTransactions = parsedTransactions.filter(validateTransaction);
-        setTransactions(validTransactions);
+        try {
+          const parsedTransactions = JSON.parse(storedTransactions);
+          if (Array.isArray(parsedTransactions)) {
+            // Validate and clean data
+            const validTransactions = parsedTransactions.filter(validateTransaction);
+            console.log(`FinanceContext: Loaded ${validTransactions.length} valid transactions`);
+            setTransactions(validTransactions);
+            
+            // If some transactions were invalid, save the cleaned data
+            if (validTransactions.length !== parsedTransactions.length) {
+              console.log('FinanceContext: Cleaned invalid transactions, saving updated data');
+              await saveTransactions(validTransactions);
+            }
+          } else {
+            console.warn('FinanceContext: Stored transactions is not an array, resetting to empty');
+            setTransactions([]);
+          }
+        } catch (parseError) {
+          console.error('FinanceContext: Error parsing stored transactions:', parseError);
+          // Try to recover from backup
+          await recoverFromBackup();
+        }
+      } else {
+        console.log('FinanceContext: No stored transactions found, starting fresh');
+        setTransactions([]);
       }
     } catch (error) {
-      console.error('Error loading financial data:', error);
-      // Could show user-friendly error message here
+      console.error('FinanceContext: Error loading financial data:', error);
+      // Try to recover from backup
+      await recoverFromBackup();
     } finally {
       setIsLoading(false);
     }
   };
 
+  const recoverFromBackup = async () => {
+    try {
+      console.log('FinanceContext: Attempting to recover from backup...');
+      const backupData = await AsyncStorage.getItem('finance_auto_backup');
+      if (backupData) {
+        const parsedBackup = JSON.parse(backupData);
+        if (parsedBackup.transactions && Array.isArray(parsedBackup.transactions)) {
+          const validTransactions = parsedBackup.transactions.filter(validateTransaction);
+          console.log(`FinanceContext: Recovered ${validTransactions.length} transactions from backup`);
+          setTransactions(validTransactions);
+          await saveTransactions(validTransactions);
+          return;
+        }
+      }
+      console.log('FinanceContext: No valid backup found, starting with empty data');
+      setTransactions([]);
+    } catch (error) {
+      console.error('FinanceContext: Error recovering from backup:', error);
+      setTransactions([]);
+    }
+  };
+
   const validateTransaction = (transaction: any): transaction is Transaction => {
-    return (
-      transaction &&
-      typeof transaction.id === 'string' &&
-      typeof transaction.name === 'string' &&
-      typeof transaction.amount === 'number' &&
-      typeof transaction.date === 'string' &&
-      typeof transaction.category === 'string' &&
-      typeof transaction.type === 'string' &&
-      typeof transaction.isRecurring === 'boolean' &&
-      transaction.amount > 0 &&
-      ['income', 'expense'].includes(transaction.type) &&
-      categories.some(cat => cat.id === transaction.category)
-    );
+    try {
+      return (
+        transaction &&
+        typeof transaction.id === 'string' &&
+        typeof transaction.name === 'string' &&
+        typeof transaction.amount === 'number' &&
+        typeof transaction.date === 'string' &&
+        typeof transaction.category === 'string' &&
+        typeof transaction.type === 'string' &&
+        typeof transaction.isRecurring === 'boolean' &&
+        transaction.amount > 0 &&
+        ['income', 'expense'].includes(transaction.type) &&
+        categories.some(cat => cat.id === transaction.category) &&
+        !isNaN(new Date(transaction.date).getTime()) // Valid date
+      );
+    } catch (error) {
+      return false;
+    }
   };
 
   const saveTransactions = async (newTransactions: Transaction[]) => {
     try {
-      await AsyncStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(newTransactions));
+      const dataToSave = JSON.stringify(newTransactions);
+      await AsyncStorage.setItem(STORAGE_KEYS.TRANSACTIONS, dataToSave);
+      console.log(`FinanceContext: Saved ${newTransactions.length} transactions to storage`);
     } catch (error) {
-      console.error('Error saving transactions:', error);
+      console.error('FinanceContext: Error saving transactions:', error);
       throw new Error('Failed to save transaction data');
     }
   };
@@ -340,7 +403,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
     try {
-      console.log('FinanceContext: Adding transaction', transaction); // Debug log
+      console.log('FinanceContext: Adding transaction', transaction);
       
       const newTransaction: Transaction = {
         ...transaction,
@@ -351,7 +414,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       setTransactions(updatedTransactions);
       await saveTransactions(updatedTransactions);
       
-      console.log('FinanceContext: Transaction added successfully'); // Debug log
+      console.log('FinanceContext: Transaction added successfully');
     } catch (error) {
       console.error('FinanceContext: Error adding transaction:', error);
       throw error;
@@ -359,29 +422,44 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
-    const updatedTransactions = transactions.map(t => 
-      t.id === id ? { ...t, ...updates } : t
-    );
-    setTransactions(updatedTransactions);
-    await saveTransactions(updatedTransactions);
+    try {
+      const updatedTransactions = transactions.map(t => 
+        t.id === id ? { ...t, ...updates } : t
+      );
+      setTransactions(updatedTransactions);
+      await saveTransactions(updatedTransactions);
+      console.log('FinanceContext: Transaction updated successfully');
+    } catch (error) {
+      console.error('FinanceContext: Error updating transaction:', error);
+      throw error;
+    }
   };
 
   const deleteTransaction = async (id: string) => {
-    const updatedTransactions = transactions.filter(t => t.id !== id);
-    setTransactions(updatedTransactions);
-    await saveTransactions(updatedTransactions);
+    try {
+      const updatedTransactions = transactions.filter(t => t.id !== id);
+      setTransactions(updatedTransactions);
+      await saveTransactions(updatedTransactions);
+      console.log('FinanceContext: Transaction deleted successfully');
+    } catch (error) {
+      console.error('FinanceContext: Error deleting transaction:', error);
+      throw error;
+    }
   };
 
   const clearAllData = async () => {
     try {
+      console.log('FinanceContext: Clearing all data...');
       await AsyncStorage.multiRemove([
         STORAGE_KEYS.TRANSACTIONS,
         STORAGE_KEYS.BUDGET_GOALS,
         STORAGE_KEYS.LAST_BACKUP,
+        'finance_auto_backup',
       ]);
       setTransactions([]);
+      console.log('FinanceContext: All data cleared successfully');
     } catch (error) {
-      console.error('Error clearing financial data:', error);
+      console.error('FinanceContext: Error clearing financial data:', error);
       throw new Error('Failed to clear data');
     }
   };
@@ -391,11 +469,13 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       const exportData = {
         transactions,
         exportDate: new Date().toISOString(),
-        version: '2.0', // Updated version for new pay schedule system
+        version: CURRENT_APP_VERSION,
+        appVersion: CURRENT_APP_VERSION,
       };
+      console.log(`FinanceContext: Exporting ${transactions.length} transactions`);
       return JSON.stringify(exportData, null, 2);
     } catch (error) {
-      console.error('Error exporting data:', error);
+      console.error('FinanceContext: Error exporting data:', error);
       throw new Error('Failed to export data');
     }
   };
@@ -405,14 +485,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       const parsedData = JSON.parse(data);
       if (parsedData.transactions && Array.isArray(parsedData.transactions)) {
         const validTransactions = parsedData.transactions.filter(validateTransaction);
+        console.log(`FinanceContext: Importing ${validTransactions.length} valid transactions`);
         setTransactions(validTransactions);
         await saveTransactions(validTransactions);
       } else {
-        throw new Error('Invalid data format');
+        throw new Error('Invalid data format - no transactions array found');
       }
     } catch (error) {
-      console.error('Error importing data:', error);
-      throw new Error('Failed to import data');
+      console.error('FinanceContext: Error importing data:', error);
+      throw new Error('Failed to import data - invalid format or corrupted data');
     }
   };
 
@@ -422,15 +503,16 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       const now = new Date();
       const lastBackupDate = lastBackup ? new Date(lastBackup) : null;
       
-      // Auto-backup once per day
+      // Auto-backup once per day or if no backup exists
       if (!lastBackupDate || now.getTime() - lastBackupDate.getTime() > 24 * 60 * 60 * 1000) {
         const backupData = await exportData();
         await AsyncStorage.setItem('finance_auto_backup', backupData);
         await AsyncStorage.setItem(STORAGE_KEYS.LAST_BACKUP, now.toISOString());
+        console.log('FinanceContext: Auto-backup completed');
       }
     } catch (error) {
-      console.error('Auto-backup failed:', error);
-      // Don't throw error for backup failures
+      console.error('FinanceContext: Auto-backup failed:', error);
+      // Don't throw error for backup failures - it's not critical
     }
   };
 
