@@ -4,6 +4,7 @@ const Colors = {
   background: "#F2F2F7", // iOS system background - light gray
   card: "#F5F6FA", // Improved contrast - subtle neutral tone
   cardSecondary: "#ECEEF2", // Darker secondary card background
+  surface: "#FFFFFF", // Pure white surface
   text: "#000000",
   textSecondary: "#6C6C70",
   border: "#E5E5EA",
@@ -11,6 +12,7 @@ const Colors = {
   success: "#34C759",
   warning: "#FF9500",
   error: "#FF3B30",
+  destructive: "#FF3B30",
   
   // Semi-transparent overlays
   overlay: "rgba(0, 0, 0, 0.05)",

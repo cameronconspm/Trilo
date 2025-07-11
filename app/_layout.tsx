@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { FinanceProvider } from "@/context/FinanceContext";
 import { SettingsProvider } from "@/context/SettingsContext";
+import { NotificationProvider } from "@/context/NotificationContext";
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",
@@ -44,9 +45,11 @@ function RootLayoutNav() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SettingsProvider>
         <FinanceProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          </Stack>
+          <NotificationProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            </Stack>
+          </NotificationProvider>
         </FinanceProvider>
       </SettingsProvider>
     </GestureHandlerRootView>
