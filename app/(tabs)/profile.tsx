@@ -170,10 +170,10 @@ export default function ProfileScreen() {
 
   return (
     <>
-      <StatusBar barStyle={statusBarStyle} backgroundColor={colors.background} />
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <Header title="Profile" subtitle="Manage your account and preferences" />
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]} showsVerticalScrollIndicator={false}>
 
           {/* Account Info */}
           <Card style={[styles.card, { backgroundColor: colors.card }]}>
@@ -368,12 +368,10 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 24,
-    paddingBottom: 30,
   },
   scrollContent: {
     paddingHorizontal: Spacing.screenHorizontal,
-    paddingBottom: 40,
+    paddingTop: 24,
     gap: Spacing.lg,
   },
   card: {

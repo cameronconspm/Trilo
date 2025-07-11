@@ -51,6 +51,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: Spacing.screenHorizontal,
     paddingBottom: Spacing.xl,
+    paddingTop: Spacing.md,
   },
   textContainer: {
     flex: 1,

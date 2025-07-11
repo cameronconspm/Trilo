@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { TrendingUp, TrendingDown, DollarSign, Target } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
 import { useSettings } from '@/context/SettingsContext';
@@ -24,7 +25,9 @@ export default function InsightsScreen() {
   
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+      <>
+        <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <Header 
           title="Insights"
           subtitle="Financial overview"
@@ -33,11 +36,14 @@ export default function InsightsScreen() {
           <Text style={[styles.loadingText, { color: colors.inactive }]}>Loading...</Text>
         </View>
       </SafeAreaView>
+      </>
     );
   }
   
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+    <>
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <Header 
         title="Insights"
         subtitle="Financial overview"
@@ -46,7 +52,7 @@ export default function InsightsScreen() {
       <ScrollView 
         style={styles.scrollView} 
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
       >
         {hasData ? (
           <>
@@ -166,21 +172,20 @@ export default function InsightsScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 24,
-    paddingBottom: 30,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: Spacing.screenHorizontal,
-    paddingBottom: 40,
+    paddingTop: 24,
   },
   loadingContainer: {
     flex: 1,

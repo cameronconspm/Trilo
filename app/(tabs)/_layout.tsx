@@ -18,10 +18,15 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: colors.card,
           borderTopWidth: 0,
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
           height: 90,
           paddingBottom: 30,
           paddingTop: 10,
           paddingHorizontal: 16,
+          elevation: 0,
           ...Shadow.nav,
         },
         tabBarItemStyle: {

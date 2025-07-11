@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useFinance } from '@/context/FinanceContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useThemeColors } from '@/constants/colors';
@@ -42,7 +43,9 @@ export default function OverviewScreen() {
   
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+      <>
+        <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <Header 
           title={`${month} ${year}`}
           subtitle={currentPayPeriod || 'No pay period'}
@@ -52,11 +55,14 @@ export default function OverviewScreen() {
           <Text style={[styles.loadingText, { color: colors.inactive }]}>Loading...</Text>
         </View>
       </SafeAreaView>
+      </>
     );
   }
   
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+    <>
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <Header 
         title={`${month} ${year}`}
         subtitle={currentPayPeriod || 'No pay period'}
@@ -66,7 +72,7 @@ export default function OverviewScreen() {
       <ScrollView 
         style={styles.scrollView} 
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
       >
         <Card variant="elevated" style={styles.incomeCard}>
           <View style={styles.incomeContainer}>
@@ -135,21 +141,20 @@ export default function OverviewScreen() {
         editTransaction={editTransaction}
       />
     </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 24,
-    paddingBottom: 30,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: Spacing.screenHorizontal,
-    paddingBottom: 40,
+    paddingTop: 24,
   },
   loadingContainer: {
     flex: 1,
