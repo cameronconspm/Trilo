@@ -21,7 +21,7 @@ import TimePicker from '@/components/TimePicker';
 import { useSettings } from '@/context/SettingsContext';
 import { useNotifications } from '@/context/NotificationContext';
 import { useAlert } from '@/hooks/useAlert';
-import { useThemeColors } from '@/constants/colors';
+import Colors from '@/constants/colors';
 import { Spacing, BorderRadius } from '@/constants/spacing';
 import { Shield, HelpCircle, RefreshCw, Edit3, Camera } from 'lucide-react-native';
 import NameEditModal from '@/components/NameEditModal';

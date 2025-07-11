@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { useThemeColors } from '@/constants/colors';
+import Colors from '@/constants/colors';
 import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 
@@ -22,7 +22,6 @@ export default function Card({
   variant = 'default'
 }: CardProps) {
   const { theme } = useSettings();
-  const Colors = useThemeColors(theme);
   
   const cardStyle = [
     styles.card,
