@@ -22,12 +22,13 @@ import DayPicker from '@/components/DayPicker';
 import DatePicker from '@/components/DatePicker';
 import PayCadencePicker from '@/components/PayCadencePicker';
 import MonthlyDaysPicker from '@/components/MonthlyDaysPicker';
+import GivenExpenseFrequencyPicker from '@/components/GivenExpenseFrequencyPicker';
 import Button from '@/components/Button';
 import AlertModal from '@/components/AlertModal';
 import { useAlert } from '@/hooks/useAlert';
 import { useThemeColors } from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
-import { CategoryType, TransactionType, PayCadence, PaySchedule, Transaction } from '@/types/finance';
+import { CategoryType, TransactionType, PayCadence, PaySchedule, Transaction, GivenExpenseFrequency, GivenExpenseSchedule } from '@/types/finance';
 import { calculateNextPayDate } from '@/utils/payScheduleUtils';
 
 interface AddTransactionModalProps {
@@ -58,6 +59,10 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
   const [payCadence, setPayCadence] = useState<PayCadence>('every_2_weeks');
   const [monthlyDays, setMonthlyDays] = useState<number[]>([]);
   const [customDays, setCustomDays] = useState<number[]>([]);
+  
+  // For given expenses
+  const [givenExpenseFrequency, setGivenExpenseFrequency] = useState<GivenExpenseFrequency>('every_week');
+  const [givenExpenseStartDate, setGivenExpenseStartDate] = useState(new Date());
   
   const [isLoading, setIsLoading] = useState(false);
   

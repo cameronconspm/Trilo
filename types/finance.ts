@@ -16,6 +16,11 @@ export type PayCadence =
   | 'monthly'
   | 'custom';
 
+export type GivenExpenseFrequency = 
+  | 'every_week'
+  | 'every_other_week'
+  | 'once_a_month';
+
 export interface Category {
   id: CategoryType;
   name: string;
@@ -32,6 +37,11 @@ export interface PaySchedule {
   customDays?: number[];
 }
 
+export interface GivenExpenseSchedule {
+  frequency: GivenExpenseFrequency;
+  startDate: string; // ISO string
+}
+
 export interface Transaction {
   id: string;
   name: string;
@@ -42,6 +52,8 @@ export interface Transaction {
   isRecurring: boolean;
   // New pay schedule for income
   paySchedule?: PaySchedule;
+  // Given expense schedule
+  givenExpenseSchedule?: GivenExpenseSchedule;
   // Legacy fields (kept for backward compatibility)
   weekDay?: string;
   weekNumber?: number;
