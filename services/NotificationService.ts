@@ -6,10 +6,10 @@ import { Transaction } from '@/types/finance';
 export interface NotificationSettings {
   expenseReminders: boolean;
   insightAlerts: boolean;
-  reminderTime: string; // HH:MM format
+  reminderTime: string; // 'HH:MM'
   reminderDaysBefore: number;
   weeklyInsightDay: string; // 'monday', 'tuesday', etc.
-  weeklyInsightTime: string; // HH:MM format
+  weeklyInsightTime: string; // 'HH:MM'
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
@@ -41,7 +41,7 @@ class NotificationService {
     await this.requestPermissions();
   }
 
-  async requestPermissions() {
+  async requestPermissions(): Promise<boolean> {
     if (Platform.OS === 'web') return false;
 
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -82,6 +82,11 @@ class NotificationService {
     return this.settings;
   }
 
+  async cancelAllNotifications() {
+    if (Platform.OS === 'web') return;
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  }
+
   async scheduleAllNotifications() {
     if (Platform.OS === 'web') return;
 
@@ -104,12 +109,14 @@ class NotificationService {
     }
 
     const now = new Date();
+    const [reminderHour, reminderMinute] = this.settings.reminderTime.split(':').map(Number);
+
     const upcomingExpenses = transactions.filter((t) => {
       if (t.type !== 'expense') return false;
       const dueDate = new Date(t.date);
       const reminderDate = new Date(dueDate);
       reminderDate.setDate(dueDate.getDate() - this.settings.reminderDaysBefore);
-      reminderDate.setHours(12, 0, 0, 0); // Ensure notification is at 12:00 PM
+      reminderDate.setHours(reminderHour, reminderMinute, 0, 0);
       return reminderDate > now && dueDate > now;
     });
 
@@ -117,12 +124,12 @@ class NotificationService {
       const dueDate = new Date(expense.date);
       const reminderDate = new Date(dueDate);
       reminderDate.setDate(dueDate.getDate() - this.settings.reminderDaysBefore);
-      reminderDate.setHours(12, 0, 0, 0); // Always at 12:00 PM
+      reminderDate.setHours(reminderHour, reminderMinute, 0, 0);
 
-      const now = new Date();
       if (reminderDate <= now) continue;
 
       await Notifications.scheduleNotificationAsync({
+        identifier: `expense_reminder_${expense.id}`,
         content: {
           title: 'Upcoming Expense',
           body: `${expense.name} (${expense.category}) - $${expense.amount.toFixed(2)} due soon`,
@@ -148,7 +155,7 @@ class NotificationService {
     };
 
     const targetDay = dayMap[this.settings.weeklyInsightDay as keyof typeof dayMap];
-    const [hour, minute] = this.settings.weeklyInsightTime.split(':');
+    const [hour, minute] = this.settings.weeklyInsightTime.split(':').map(Number);
 
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -159,21 +166,16 @@ class NotificationService {
       trigger: {
         type: 'calendar',
         weekday: targetDay,
-        hour: parseInt(hour),
-        minute: parseInt(minute),
+        hour,
+        minute,
         repeats: true,
       } as Notifications.CalendarTriggerInput,
     });
   }
 
-  async cancelAllNotifications() {
-    if (Platform.OS === 'web') return;
-    await Notifications.cancelAllScheduledNotificationsAsync();
-  }
-
   formatTime(time: string): string {
     const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours);
+    const hour = parseInt(hours, 10);
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour % 12 || 12;
     return `${displayHour}:${minutes} ${ampm}`;
