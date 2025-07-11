@@ -132,8 +132,6 @@ export default function DatePicker({
   
   const styles = createStyles(colors);
   
-  const styles = createStyles(colors);
-  
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label} *</Text>
@@ -369,11 +367,11 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.c
     color: colors.text,
   },
   selectedDayText: {
-    color: Colors.card,
+    color: colors.card,
     fontWeight: '600',
   },
   disabledDayText: {
-    color: Colors.inactive,
+    color: colors.inactive,
   },
   todayDayText: {
     color: colors.income,
