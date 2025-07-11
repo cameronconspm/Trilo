@@ -10,9 +10,9 @@ import {
   Image,
   Alert,
   Platform,
-  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import Header from '@/components/Header';
 import Card from '@/components/Card';

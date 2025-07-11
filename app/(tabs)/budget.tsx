@@ -290,7 +290,7 @@ export default function BudgetScreen() {
               ))
             ) : (
               <EmptyState 
-                icon="piggy-bank"
+                icon="dollar"
                 title="No savings"
                 subtitle="Add your savings goals and contributions"
               />
