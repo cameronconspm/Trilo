@@ -131,7 +131,7 @@ export default function DatePicker({
   ];
   
   const styles = createStyles(colors);
-  
+
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label} *</Text>
