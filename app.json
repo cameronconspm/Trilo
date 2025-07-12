@@ -10,7 +10,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/Splashscreen-Trilo.jpg",
+      "image": "./assets/images/splash-trilo.png",
       "resizeMode": "contain",
       "backgroundColor": "#4E91F9"
     },
