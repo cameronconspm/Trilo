@@ -19,7 +19,7 @@
       "bundleIdentifier": "app.ios-trilo",
       "buildNumber": "1",
       "splash": {
-        "image": "./assets/images/Splashscreen-Trilo.jpg",
+        "image": "./assets/images/splash-trilo.png",
         "resizeMode": "contain",
         "backgroundColor": "#4E91F9"
       },
@@ -35,7 +35,7 @@
       "package": "com.cameroncons.trilo",
       "versionCode": 1,
       "splash": {
-        "image": "./assets/images/Splashscreen-Trilo.jpg",
+        "image": "./assets/images/splash-trilo.png",
         "resizeMode": "contain",
         "backgroundColor": "#4E91F9"
       }
