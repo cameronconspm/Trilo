@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Plus } from 'lucide-react-native';
 import AddTransactionModal from '@/components/AddTransactionModal';
 import { useThemeColors } from '@/constants/colors';
@@ -17,24 +18,47 @@ export default function Header({ title, subtitle, showAddButton = false }: Heade
   const { theme } = useSettings();
   const Colors = useThemeColors(theme);
   
+  // Determine blur intensity and tint based on theme
+  const getBlurSettings = () => {
+    if (theme === 'dark') {
+      return {
+        intensity: 80,
+        tint: 'dark' as const,
+      };
+    } else {
+      return {
+        intensity: 90,
+        tint: 'light' as const,
+      };
+    }
+  };
+
+  const blurSettings = getBlurSettings();
+  
   return (
     <>
-      <View style={[styles.container, { backgroundColor: Colors.background }]}>
-        <View style={styles.textContainer}>
-          <Text style={[styles.title, { color: Colors.text }]}>{title}</Text>
-          {subtitle && <Text style={[styles.subtitle, { color: Colors.textSecondary }]}>{subtitle}</Text>}
+      <BlurView
+        intensity={blurSettings.intensity}
+        tint={blurSettings.tint}
+        style={[styles.container, styles.blurContainer]}
+      >
+        <View style={[styles.content, { backgroundColor: Colors.overlay }]}>
+          <View style={styles.textContainer}>
+            <Text style={[styles.title, { color: Colors.text }]}>{title}</Text>
+            {subtitle && <Text style={[styles.subtitle, { color: Colors.textSecondary }]}>{subtitle}</Text>}
+          </View>
+          
+          {showAddButton && (
+            <TouchableOpacity 
+              style={[styles.addButton, { backgroundColor: Colors.primary }]}
+              onPress={() => setShowModal(true)}
+              activeOpacity={0.8}
+            >
+              <Plus size={24} color={Colors.card} strokeWidth={2.5} />
+            </TouchableOpacity>
+          )}
         </View>
-        
-        {showAddButton && (
-          <TouchableOpacity 
-            style={[styles.addButton, { backgroundColor: Colors.primary }]}
-            onPress={() => setShowModal(true)}
-            activeOpacity={0.8}
-          >
-            <Plus size={24} color={Colors.card} strokeWidth={2.5} />
-          </TouchableOpacity>
-        )}
-      </View>
+      </BlurView>
       
       <AddTransactionModal 
         visible={showModal}
@@ -46,6 +70,12 @@ export default function Header({ title, subtitle, showAddButton = false }: Heade
 
 const styles = StyleSheet.create({
   container: {
+    overflow: 'hidden',
+  },
+  blurContainer: {
+    position: 'relative',
+  },
+  content: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
