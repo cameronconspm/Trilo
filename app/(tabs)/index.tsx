@@ -138,7 +138,7 @@ export default function OverviewScreen() {
         {hasPastExpenses && (
           <>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Past Expenses</Text>
-            <Card variant=\"default\">
+            <Card variant="default">
               {pastExpenses.map((expense, index) => (
                 <TransactionItem 
                   key={expense.id} 
