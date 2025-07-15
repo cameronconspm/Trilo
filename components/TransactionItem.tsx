@@ -212,9 +212,10 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   name: {
-    fontSize: 16,
+    fontSize: 15, // Balanced name font
     fontWeight: '500',
     flex: 1,
+    lineHeight: 20,
   },
   recurringBadge: {
     paddingHorizontal: Spacing.sm,
@@ -227,16 +228,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   category: {
-    fontSize: 14,
+    fontSize: 13, // Balanced category font
     marginTop: 2,
     fontWeight: '400',
+    lineHeight: 16,
   },
   rightContent: {
     alignItems: 'flex-end',
   },
   amount: {
-    fontSize: 16,
+    fontSize: 15, // Balanced amount font
     fontWeight: '600',
+    lineHeight: 18,
   },
   futureAmount: {
     opacity: 0.7,
@@ -247,8 +250,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   date: {
-    fontSize: 13,
+    fontSize: 12, // Balanced date font
     fontWeight: '500',
+    lineHeight: 16,
   },
   deleteButton: {
     marginLeft: Spacing.sm,

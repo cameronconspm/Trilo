@@ -180,34 +180,39 @@ const styles = StyleSheet.create({
     fontSize: 14, // Standard subheader font
     marginBottom: Spacing.xs,
     fontWeight: '500', // Medium gray
+    lineHeight: 18,
   },
   incomeValue: {
-    fontSize: 32, // Large currency display
+    fontSize: 28, // Balanced large currency display
     fontWeight: '700',
     marginBottom: Spacing.lg,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
+    lineHeight: 32,
   },
   balanceLabel: {
     fontSize: 14,
     marginBottom: Spacing.xs,
     fontWeight: '500',
+    lineHeight: 18,
   },
   balanceValue: {
-    fontSize: 24, // Medium currency display
+    fontSize: 20, // Balanced medium currency display
     fontWeight: '600',
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
+    lineHeight: 24,
   },
   sectionTitle: {
-    fontSize: 22, // Standard header font
+    fontSize: 20, // Balanced header font
     fontWeight: '600', // Bold
     marginTop: Spacing.sectionSpacing, // 24px between sections
-    marginBottom: Spacing.cardMargin, // 16px before cards
-    letterSpacing: -0.3,
+    marginBottom: Spacing.lg, // 16px before cards
+    letterSpacing: -0.2,
+    lineHeight: 24,
   },
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12, // Reduced gap for 3-column layout
+    gap: 10, // Optimized gap for 3-column layout
     justifyContent: 'space-between',
   },
 });

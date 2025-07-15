@@ -410,9 +410,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   budgetTitle: {
-    fontSize: 22, // Standard header font
+    fontSize: 20, // Balanced header font
     fontWeight: '600', // Bold
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
+    lineHeight: 24,
   },
   editButton: {
     width: Math.max(32, Spacing.minTouchTarget),
@@ -433,12 +434,14 @@ const styles = StyleSheet.create({
     fontSize: 14, // Standard subheader font
     marginBottom: Spacing.sm,
     fontWeight: '500', // Medium gray
+    lineHeight: 18,
   },
   summaryValue: {
-    fontSize: 18, // Standard currency display
+    fontSize: 16, // Balanced currency display
     fontWeight: '600', // Medium weight
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
     textAlign: 'right', // Right-aligned when in lists
+    lineHeight: 20,
   },
   progressContainer: {
     marginBottom: Spacing.xl,
@@ -453,11 +456,13 @@ const styles = StyleSheet.create({
     fontSize: 14, // Standard subheader font
     marginBottom: Spacing.sm,
     fontWeight: '500', // Medium gray
+    lineHeight: 18,
   },
   remainingValue: {
-    fontSize: 30,
+    fontSize: 24, // Balanced large display
     fontWeight: '700',
-    letterSpacing: -0.6,
+    letterSpacing: -0.3,
+    lineHeight: 28,
   },
   breakdownContainer: {
     borderRadius: BorderRadius.lg,
@@ -467,7 +472,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: Spacing.md,
-    letterSpacing: -0.2,
+    letterSpacing: -0.1,
+    lineHeight: 20,
   },
   breakdownRow: {
     flexDirection: 'row',
@@ -477,13 +483,17 @@ const styles = StyleSheet.create({
     marginVertical: Spacing.xs,
   },
   breakdownLabel: {
-    fontSize: 16, // Body label font
+    fontSize: 15, // Balanced body label font
     fontWeight: '400', // Regular weight
+    lineHeight: 20,
+    flexShrink: 1,
   },
   breakdownValue: {
-    fontSize: 16, // Body label font
+    fontSize: 15, // Balanced body label font
     fontWeight: '600', // Medium weight
     textAlign: 'right', // Right-aligned
+    lineHeight: 20,
+    flexShrink: 0,
   },
   quickActions: {
     flexDirection: 'row',
@@ -501,9 +511,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   sectionTitle: {
-    fontSize: 22, // Standard header font
+    fontSize: 18, // Balanced section header font
     fontWeight: '600', // Bold
-    letterSpacing: -0.3,
+    letterSpacing: -0.1,
+    lineHeight: 22,
   },
   addButton: {
     width: Math.max(40, Spacing.minTouchTarget),

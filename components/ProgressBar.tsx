@@ -69,10 +69,12 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
+    lineHeight: 18,
   },
   percentage: {
     fontSize: 14,
     fontWeight: '600',
+    lineHeight: 18,
   },
   track: {
     overflow: 'hidden',

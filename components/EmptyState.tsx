@@ -62,16 +62,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   title: {
-    fontSize: 20,
+    fontSize: 17, // Balanced empty state title
     fontWeight: '600',
     marginBottom: Spacing.sm,
     textAlign: 'center',
-    letterSpacing: -0.3,
+    letterSpacing: -0.1,
+    lineHeight: 22,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 14, // Balanced empty state subtitle
     textAlign: 'center',
-    lineHeight: 22,
-    fontWeight: '500',
+    lineHeight: 20,
+    fontWeight: '400',
   },
 });

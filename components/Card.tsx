@@ -58,10 +58,11 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
   },
   title: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
     marginBottom: Spacing.md,
-    letterSpacing: -0.3,
+    letterSpacing: -0.1,
+    lineHeight: 22,
   },
   content: {
     width: '100%',

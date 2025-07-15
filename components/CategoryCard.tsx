@@ -38,42 +38,48 @@ const styles = StyleSheet.create({
     flex: 1,
     flexBasis: '31%', // 3 columns with gap
     maxWidth: '31%',
+    minWidth: 0, // Allow shrinking
   },
   card: {
     borderRadius: BorderRadius.lg, // Standard 12px border radius
-    padding: 12, // Reduced padding for smaller cards
-    minHeight: 100, // Reduced height for 3-column layout
+    padding: 10, // Optimized padding for 3-column layout
+    minHeight: 90, // Optimized height for 3-column layout
     justifyContent: 'space-between',
-    borderLeftWidth: 4,
+    borderLeftWidth: 3,
     ...Shadow.card, // Standard card shadow
   },
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 8, // Reduced margin for smaller cards
+    marginBottom: 6, // Optimized margin for smaller cards
+    minHeight: 0,
   },
   colorDot: {
-    width: 10,
-    height: 10,
+    width: 8,
+    height: 8,
     borderRadius: BorderRadius.full,
-    marginRight: Spacing.sm,
-    marginTop: 4,
+    marginRight: 6,
+    marginTop: 3,
+    flexShrink: 0,
   },
   categoryName: {
-    fontSize: 12, // Smaller font for 3-column layout
+    fontSize: 11, // Optimized font for 3-column layout
     fontWeight: '500', // Medium weight
     flex: 1,
-    lineHeight: 16,
-    letterSpacing: -0.1,
+    lineHeight: 14,
+    letterSpacing: -0.05,
+    minHeight: 0,
   },
   amount: {
-    fontSize: 16, // Smaller currency display for 3-column layout
+    fontSize: 14, // Optimized currency display for 3-column layout
     fontWeight: '600', // Medium weight
-    marginBottom: 4, // Reduced margin
-    letterSpacing: -0.2,
+    marginBottom: 2, // Minimal margin
+    letterSpacing: -0.1,
+    lineHeight: 16,
   },
   count: {
-    fontSize: 11, // Smaller count text
+    fontSize: 10, // Optimized count text
     fontWeight: '500',
+    lineHeight: 12,
   },
 });

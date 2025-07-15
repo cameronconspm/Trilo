@@ -453,9 +453,11 @@ const styles = StyleSheet.create({
     ...Shadow.card, // Standard card shadow
   },
   cardTitle: {
-    fontSize: 18, // Standard card title font
+    fontSize: 17, // Balanced card title font
     fontWeight: '600', // Bold
-    marginBottom: Spacing.cardMargin, // 16px margin
+    marginBottom: Spacing.lg, // 16px margin
+    lineHeight: 22,
+    letterSpacing: -0.1,
   },
   rowBetween: {
     flexDirection: 'row',
@@ -465,8 +467,10 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   itemLabel: {
-    fontSize: 16, // Body label font
+    fontSize: 15, // Balanced body label font
     fontWeight: '400', // Regular weight
+    lineHeight: 20,
+    flexShrink: 1,
   },
   profileHeader: {
     flexDirection: 'row',
@@ -508,8 +512,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   nameText: {
-    fontSize: 18, // Standard name font
+    fontSize: 17, // Balanced name font
     fontWeight: '600', // Medium weight
+    lineHeight: 22,
+    flexShrink: 1,
   },
   editIcon: {
     padding: Spacing.sm,
@@ -528,16 +534,21 @@ const styles = StyleSheet.create({
   },
   timeLabel: {
     fontSize: 14, // Standard subtext
+    lineHeight: 18,
+    flexShrink: 1,
   },
   timeValue: {
     fontSize: 14, // Standard subtext
     fontWeight: '600', // Medium weight
     textAlign: 'right', // Right-aligned
+    lineHeight: 18,
+    flexShrink: 0,
   },
   versionText: {
     textAlign: 'center',
     fontSize: 12,
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.xl,
+    lineHeight: 16,
   },
   modalOverlay: {
     flex: 1,

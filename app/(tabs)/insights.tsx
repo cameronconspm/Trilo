@@ -184,8 +184,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.screenHorizontal,
-    paddingTop: 24,
+    paddingHorizontal: Spacing.screenHorizontal, // 16px horizontal padding
+    paddingTop: Spacing.lg, // 16px padding between header and first card
   },
   loadingContainer: {
     flex: 1,
@@ -219,12 +219,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     textAlign: 'center',
     fontWeight: '500',
+    lineHeight: 18,
   },
   metricValue: {
-    fontSize: 24,
+    fontSize: 20, // Balanced metric display
     fontWeight: '700',
     textAlign: 'center',
-    letterSpacing: -0.4,
+    letterSpacing: -0.2,
+    lineHeight: 24,
   },
   topCategoryCard: {
     alignItems: 'center',
@@ -245,9 +247,10 @@ const styles = StyleSheet.create({
     marginRight: Spacing.sm,
   },
   topCategoryTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    letterSpacing: -0.2,
+    letterSpacing: -0.1,
+    lineHeight: 20,
   },
   categoryInfo: {
     flexDirection: 'row',
@@ -261,15 +264,17 @@ const styles = StyleSheet.create({
     marginRight: Spacing.md,
   },
   topCategoryName: {
-    fontSize: 22,
+    fontSize: 18, // Balanced category name
     fontWeight: '600',
-    letterSpacing: -0.4,
+    letterSpacing: -0.2,
+    lineHeight: 22,
   },
   topCategoryAmount: {
-    fontSize: 28,
+    fontSize: 22, // Balanced amount display
     fontWeight: '700',
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
     marginBottom: Spacing.md,
+    lineHeight: 26,
   },
   categoryInsight: {
     borderRadius: BorderRadius.lg,
@@ -280,13 +285,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     fontWeight: '500',
+    lineHeight: 20,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18, // Balanced section header
     fontWeight: '600',
     marginTop: Spacing.sectionSpacing,
-    marginBottom: Spacing.md,
-    letterSpacing: -0.3,
+    marginBottom: Spacing.lg,
+    letterSpacing: -0.1,
+    lineHeight: 22,
   },
   insightsContainer: {
     marginBottom: Spacing.lg,
@@ -309,17 +316,19 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   welcomeTitle: {
-    fontSize: 24,
+    fontSize: 22, // Balanced welcome title
     fontWeight: '700',
     marginBottom: Spacing.md,
-    letterSpacing: -0.4,
+    letterSpacing: -0.2,
+    lineHeight: 26,
   },
   welcomeSubtitle: {
-    fontSize: 16,
+    fontSize: 15, // Balanced subtitle
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
     marginBottom: Spacing.xl,
     paddingHorizontal: Spacing.lg,
+    fontWeight: '400',
   },
   welcomeFeatures: {
     alignSelf: 'stretch',
@@ -333,8 +342,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   featureText: {
-    fontSize: 16,
+    fontSize: 15, // Balanced feature text
     fontWeight: '500',
     marginLeft: Spacing.md,
+    lineHeight: 20,
   },
 });

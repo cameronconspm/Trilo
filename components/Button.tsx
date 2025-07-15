@@ -125,16 +125,20 @@ const styles = StyleSheet.create({
   text: {
     fontWeight: '600',
     textAlign: 'center',
+    letterSpacing: -0.1,
   },
   
   smallText: {
     fontSize: 14,
+    lineHeight: 18,
   },
   mediumText: {
-    fontSize: 16,
+    fontSize: 15, // Balanced button text
+    lineHeight: 20,
   },
   largeText: {
-    fontSize: 18,
+    fontSize: 16, // Balanced large button text
+    lineHeight: 22,
   },
   
   disabledText: {

@@ -57,15 +57,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 28, // Standard header font size
+    fontSize: 26, // Balanced header font size
     fontWeight: '700', // Bold weight
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
+    lineHeight: 30,
   },
   subtitle: {
     fontSize: 14, // Standard subtext size
     marginTop: Spacing.xs,
     fontWeight: '500', // Medium gray
     color: '#666', // Will be overridden by theme
+    lineHeight: 18,
   },
   addButton: {
     width: Math.max(52, Spacing.minTouchTarget),

@@ -3,10 +3,11 @@ import { Platform } from 'react-native';
 export const Spacing = {
   xs: 4,
   sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
+  xxxl: 48,
   
   // Global UI Standards - Universal padding & spacing
   screenHorizontal: 16, // Universal 16px horizontal screen padding
@@ -29,6 +30,13 @@ export const Spacing = {
   // Component spacing
   itemSpacing: 16,
   rowMinHeight: 44, // Minimum height for list rows
+  
+  // Typography spacing
+  textLineHeight: {
+    tight: 1.2,
+    normal: 1.4,
+    relaxed: 1.6,
+  },
 };
 
 export const BorderRadius = {
