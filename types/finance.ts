@@ -80,6 +80,7 @@ export interface WeeklyOverview {
     };
   };
   upcomingExpenses: Transaction[];
+  pastExpenses: Transaction[];
   currentPayPeriod?: string;
 }
 

@@ -18,6 +18,7 @@ interface TransactionItemProps {
   showActions?: boolean;
   onEdit?: (transaction: Transaction) => void;
   enableSwipeActions?: boolean;
+  isPastExpense?: boolean;
 }
 
 export default function TransactionItem({ 
@@ -25,7 +26,8 @@ export default function TransactionItem({
   isLast = false, 
   showActions = false,
   onEdit,
-  enableSwipeActions = false
+  enableSwipeActions = false,
+  isPastExpense = false
 }: TransactionItemProps) {
   const { deleteTransaction } = useFinance();
   const { theme } = useSettings();

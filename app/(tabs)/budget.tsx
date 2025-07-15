@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
   breakdownTitle: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm, // Reduced from md (12px) to sm (8px)
     letterSpacing: -0.1,
     lineHeight: 20,
   },

@@ -21,7 +21,7 @@ export default function OverviewScreen() {
   const colors = useThemeColors(theme);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
-  const { weekIncome, remainingBalance, utilization, contributions, upcomingExpenses, currentPayPeriod } = weeklyOverview;
+  const { weekIncome, remainingBalance, utilization, contributions, upcomingExpenses, pastExpenses, currentPayPeriod } = weeklyOverview;
   
   // Get current month and year
   const today = new Date();
@@ -30,6 +30,7 @@ export default function OverviewScreen() {
   
   const hasContributions = Object.keys(contributions).length > 0;
   const hasUpcomingExpenses = upcomingExpenses.length > 0;
+  const hasPastExpenses = pastExpenses.length > 0;
   
   const handleEditTransaction = (transaction: Transaction) => {
     setEditTransaction(transaction);
@@ -133,6 +134,24 @@ export default function OverviewScreen() {
             />
           )}
         </Card>
+        
+        {hasPastExpenses && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Past Expenses</Text>
+            <Card variant=\"default\">
+              {pastExpenses.map((expense, index) => (
+                <TransactionItem 
+                  key={expense.id} 
+                  transaction={expense}
+                  isLast={index === pastExpenses.length - 1}
+                  onEdit={handleEditTransaction}
+                  enableSwipeActions={true}
+                  isPastExpense={true}
+                />
+              ))}
+            </Card>
+          </>
+        )}
       </ScrollView>
       
       <AddTransactionModal 

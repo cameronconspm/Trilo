@@ -55,6 +55,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     utilization: 0,
     contributions: {},
     upcomingExpenses: [],
+    pastExpenses: [],
     currentPayPeriod: undefined,
   });
   const [monthlyInsights, setMonthlyInsights] = useState<MonthlyInsights>({
@@ -335,9 +336,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     // Calculate past expenses in this period
-    const pastExpenses = resolvedExpenses
+    const pastExpenseTransactions = resolvedExpenses
       .filter(t => t.resolvedDate <= today)
-      .reduce((sum, t) => sum + t.amount, 0);
+      .map(t => ({ ...t, date: t.resolvedDate.toISOString() })) // Update the date to resolved date
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by most recent first
+    
+    const pastExpenses = pastExpenseTransactions.reduce((sum, t) => sum + t.amount, 0);
 
     // Calculate remaining balance
     const totalUpcomingExpenses = upcomingExpenses.reduce((sum, t) => sum + t.amount, 0);
@@ -364,6 +368,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       utilization,
       contributions,
       upcomingExpenses,
+      pastExpenses: pastExpenseTransactions,
       currentPayPeriod: currentPayPeriod?.displayText,
     });
   };
