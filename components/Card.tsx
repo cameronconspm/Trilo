@@ -44,14 +44,14 @@ export default function Card({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.cardPadding,
-    marginVertical: Spacing.sm,
-    ...Shadow.light,
+    borderRadius: BorderRadius.lg, // Standard 12px border radius
+    padding: Spacing.cardPadding, // Standard 16px padding inside
+    marginBottom: Spacing.cardMargin, // Standard 16px margin between cards
+    ...Shadow.card, // Standard card shadow
   },
   elevated: {
     ...Shadow.medium,
-    borderRadius: BorderRadius.xxl,
+    borderRadius: BorderRadius.lg,
   },
   subtle: {
     ...Shadow.light,

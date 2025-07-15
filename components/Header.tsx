@@ -50,21 +50,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     paddingHorizontal: Spacing.screenHorizontal,
-    paddingBottom: Spacing.xl,
-    paddingTop: Spacing.md,
+    paddingBottom: Spacing.cardMargin, // 16px after safe area
+    paddingTop: Spacing.cardMargin, // 16px margin-top after safe area
   },
   textContainer: {
     flex: 1,
   },
   title: {
-    fontSize: 34,
-    fontWeight: '700',
-    letterSpacing: -0.8,
+    fontSize: 28, // Standard header font size
+    fontWeight: '700', // Bold weight
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 17,
+    fontSize: 14, // Standard subtext size
     marginTop: Spacing.xs,
-    fontWeight: '500',
+    fontWeight: '500', // Medium gray
+    color: '#666', // Will be overridden by theme
   },
   addButton: {
     width: Math.max(52, Spacing.minTouchTarget),

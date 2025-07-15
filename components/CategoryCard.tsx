@@ -35,17 +35,17 @@ export default function CategoryCard({ category, amount, count }: CategoryCardPr
 
 const styles = StyleSheet.create({
   container: {
-    width: '50%',
-    paddingHorizontal: Spacing.xs,
-    marginBottom: Spacing.md,
+    flex: 1,
+    flexBasis: '48%', // 2 columns with gap
+    maxWidth: '48%',
   },
   card: {
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    minHeight: 130,
+    borderRadius: BorderRadius.lg, // Standard 12px border radius
+    padding: Spacing.cardPadding, // Standard 16px padding
+    minHeight: 120, // Equal height with other cards
     justifyContent: 'space-between',
     borderLeftWidth: 4,
-    ...Shadow.medium,
+    ...Shadow.card, // Standard card shadow
   },
   header: {
     flexDirection: 'row',
@@ -60,17 +60,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   categoryName: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14, // Standard subheader font
+    fontWeight: '500', // Medium weight
     flex: 1,
-    lineHeight: 20,
-    letterSpacing: -0.2,
+    lineHeight: 18,
+    letterSpacing: -0.1,
   },
   amount: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 18, // Standard currency display
+    fontWeight: '600', // Medium weight
     marginBottom: Spacing.xs,
-    letterSpacing: -0.4,
+    letterSpacing: -0.2,
   },
   count: {
     fontSize: 13,

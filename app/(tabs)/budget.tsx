@@ -387,8 +387,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.screenHorizontal,
-    paddingTop: 24,
+    paddingHorizontal: Spacing.screenHorizontal, // 16px horizontal padding
+    paddingTop: Spacing.cardMargin, // 16px padding between header and first card
   },
   loadingContainer: {
     flex: 1,
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   summaryCard: {
-    marginBottom: Spacing.lg,
+    minHeight: 120, // Consistent card height
   },
   budgetHeader: {
     marginBottom: Spacing.lg,
@@ -410,8 +410,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   budgetTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22, // Standard header font
+    fontWeight: '600', // Bold
     letterSpacing: -0.3,
   },
   editButton: {
@@ -430,14 +430,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   summaryLabel: {
-    fontSize: 15,
+    fontSize: 14, // Standard subheader font
     marginBottom: Spacing.sm,
-    fontWeight: '600',
+    fontWeight: '500', // Medium gray
   },
   summaryValue: {
-    fontSize: 26,
-    fontWeight: '700',
-    letterSpacing: -0.5,
+    fontSize: 18, // Standard currency display
+    fontWeight: '600', // Medium weight
+    letterSpacing: -0.3,
+    textAlign: 'right', // Right-aligned when in lists
   },
   progressContainer: {
     marginBottom: Spacing.xl,
@@ -449,9 +450,9 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
   },
   remainingLabel: {
-    fontSize: 15,
+    fontSize: 14, // Standard subheader font
     marginBottom: Spacing.sm,
-    fontWeight: '600',
+    fontWeight: '500', // Medium gray
   },
   remainingValue: {
     fontSize: 30,
@@ -471,20 +472,23 @@ const styles = StyleSheet.create({
   breakdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: Spacing.rowMinHeight, // 44px minimum row height
     marginVertical: Spacing.xs,
   },
   breakdownLabel: {
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 16, // Body label font
+    fontWeight: '400', // Regular weight
   },
   breakdownValue: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16, // Body label font
+    fontWeight: '600', // Medium weight
+    textAlign: 'right', // Right-aligned
   },
   quickActions: {
     flexDirection: 'row',
-    marginBottom: Spacing.xl,
-    gap: Spacing.md,
+    marginBottom: Spacing.sectionSpacing, // Equal margin above buttons
+    gap: Spacing.cardMargin, // 16px gap between buttons
   },
   actionButton: {
     flex: 1,
@@ -497,9 +501,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    letterSpacing: -0.4,
+    fontSize: 22, // Standard header font
+    fontWeight: '600', // Bold
+    letterSpacing: -0.3,
   },
   addButton: {
     width: Math.max(40, Spacing.minTouchTarget),

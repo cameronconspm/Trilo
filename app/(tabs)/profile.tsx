@@ -443,28 +443,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.screenHorizontal,
-    paddingTop: 24,
-    gap: Spacing.lg,
+    paddingHorizontal: Spacing.screenHorizontal, // 16px horizontal padding
+    paddingTop: Spacing.cardMargin, // 16px padding between header and first card
+    gap: Spacing.sectionSpacing, // 24px between sections
   },
   card: {
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.lg,
+    padding: Spacing.cardPadding, // Standard 16px padding
+    borderRadius: BorderRadius.lg, // Standard 12px border radius
+    ...Shadow.card, // Standard card shadow
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: Spacing.md,
+    fontSize: 18, // Standard card title font
+    fontWeight: '600', // Bold
+    marginBottom: Spacing.cardMargin, // 16px margin
   },
   rowBetween: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    minHeight: Spacing.rowMinHeight, // 44px minimum row height
     paddingVertical: Spacing.sm,
   },
   itemLabel: {
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 16, // Body label font
+    fontWeight: '400', // Regular weight
   },
   profileHeader: {
     flexDirection: 'row',
@@ -506,8 +508,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   nameText: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 18, // Standard name font
+    fontWeight: '600', // Medium weight
   },
   editIcon: {
     padding: Spacing.sm,
@@ -525,11 +527,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
   },
   timeLabel: {
-    fontSize: 14,
+    fontSize: 14, // Standard subtext
   },
   timeValue: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 14, // Standard subtext
+    fontWeight: '600', // Medium weight
+    textAlign: 'right', // Right-aligned
   },
   versionText: {
     textAlign: 'center',

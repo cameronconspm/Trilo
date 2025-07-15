@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.lg, // Standard 12px corner radius
     ...Shadow.light,
   },
   
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   medium: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    minHeight: 44,
+    minHeight: Spacing.buttonHeight, // Standard 44px height
   },
   large: {
     paddingHorizontal: Spacing.xl,

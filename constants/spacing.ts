@@ -8,34 +8,51 @@ export const Spacing = {
   xl: 32,
   xxl: 48,
   
-  // Screen margins - Updated for better mobile spacing
-  screenHorizontal: 24, // Increased from 20 to 24px for better horizontal padding
-  screenTop: Platform.OS === 'ios' ? 60 : 48, // Improved top spacing for Android
+  // Global UI Standards - Universal padding & spacing
+  screenHorizontal: 16, // Universal 16px horizontal screen padding
+  screenTop: Platform.OS === 'ios' ? 60 : 48,
   screenBottom: Platform.OS === 'ios' ? 120 : 100,
   
+  // Card standards
+  cardPadding: 16, // 16px inside cards
+  cardMargin: 16, // 16px between cards
+  sectionSpacing: 24, // 24px vertical padding between sections
+  
   // Tab navigation spacing
-  tabHorizontal: 20, // 20px padding between icons and screen edges
-  tabVertical: 16, // Vertical padding for tab items
+  tabHorizontal: 20,
+  tabVertical: 16,
   
   // Touch targets
   minTouchTarget: 44, // Minimum 44x44px touch area
+  buttonHeight: 44, // Standard button height
   
   // Component spacing
-  cardPadding: 20,
-  sectionSpacing: 32,
   itemSpacing: 16,
+  rowMinHeight: 44, // Minimum height for list rows
 };
 
 export const BorderRadius = {
   sm: 8,
   md: 12,
-  lg: 16,
+  lg: 16, // Standard card border radius
   xl: 20,
   xxl: 24,
   full: 9999,
 };
 
 export const Shadow = {
+  // Standard card shadow - soft elevation
+  card: Platform.select({
+    ios: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+    },
+    android: {
+      elevation: 3,
+    },
+  }),
   light: Platform.select({
     ios: {
       shadowColor: '#000',

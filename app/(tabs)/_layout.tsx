@@ -22,17 +22,17 @@ export default function TabLayout() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: 90,
-          paddingBottom: 30,
-          paddingTop: 10,
-          paddingHorizontal: 16,
+          height: 72, // Standard navigation bar height
+          paddingBottom: 20,
+          paddingTop: 8,
+          paddingHorizontal: Spacing.tabHorizontal, // Equal padding between icons
           elevation: 0,
           ...Shadow.nav,
         },
         tabBarItemStyle: {
-          paddingVertical: Spacing.sm,
+          paddingVertical: Spacing.tabVertical, // Equal vertical padding
           minHeight: Spacing.minTouchTarget,
-          paddingHorizontal: 12, // Added to create spacing between icons and screen edge
+          flex: 1, // Equal width distribution
         },
         tabBarLabelStyle: {
           fontSize: 12,

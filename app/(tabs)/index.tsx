@@ -153,8 +153,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.screenHorizontal,
-    paddingTop: 24,
+    paddingHorizontal: Spacing.screenHorizontal, // 16px horizontal padding
+    paddingTop: Spacing.cardMargin, // 16px padding between header and first card
   },
   loadingContainer: {
     flex: 1,
@@ -165,23 +165,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   incomeCard: {
-    marginBottom: Spacing.md,
+    minHeight: 120, // Equal height for all cards
   },
   incomeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    minHeight: 120, // Consistent card height
   },
   incomeTextContainer: {
     flex: 1,
   },
   incomeLabel: {
-    fontSize: 14,
+    fontSize: 14, // Standard subheader font
     marginBottom: Spacing.xs,
-    fontWeight: '500',
+    fontWeight: '500', // Medium gray
   },
   incomeValue: {
-    fontSize: 32,
+    fontSize: 32, // Large currency display
     fontWeight: '700',
     marginBottom: Spacing.lg,
     letterSpacing: -0.5,
@@ -192,20 +193,21 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   balanceValue: {
-    fontSize: 24,
+    fontSize: 24, // Medium currency display
     fontWeight: '600',
     letterSpacing: -0.3,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: Spacing.sectionSpacing,
-    marginBottom: Spacing.md,
+    fontSize: 22, // Standard header font
+    fontWeight: '600', // Bold
+    marginTop: Spacing.sectionSpacing, // 24px between sections
+    marginBottom: Spacing.cardMargin, // 16px before cards
     letterSpacing: -0.3,
   },
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -Spacing.xs,
+    gap: Spacing.cardMargin, // 16px gap between cards
+    justifyContent: 'space-between',
   },
 });
