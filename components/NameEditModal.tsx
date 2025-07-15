@@ -10,7 +10,8 @@ import {
   Platform,
 } from 'react-native';
 import { X, Check } from 'lucide-react-native';
-import Colors from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
+import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius } from '@/constants/spacing';
 
 interface NameEditModalProps {
@@ -22,6 +23,8 @@ interface NameEditModalProps {
 
 export default function NameEditModal({ visible, currentName, onSave, onClose }: NameEditModalProps) {
   const [name, setName] = useState(currentName);
+  const { theme } = useSettings();
+  const colors = useThemeColors(theme);
 
   // Reset name when modal becomes visible
   React.useEffect(() => {
@@ -43,6 +46,8 @@ export default function NameEditModal({ visible, currentName, onSave, onClose }:
     onClose();
   };
 
+  const styles = createStyles(colors);
+
   return (
     <Modal
       visible={visible}
@@ -59,7 +64,7 @@ export default function NameEditModal({ visible, currentName, onSave, onClose }:
           <View style={styles.header}>
             <Text style={styles.title}>Edit Name</Text>
             <Pressable style={styles.closeButton} onPress={handleClose}>
-              <X size={24} color={Colors.textSecondary} />
+              <X size={24} color={colors.textSecondary} />
             </Pressable>
           </View>
           
@@ -70,7 +75,7 @@ export default function NameEditModal({ visible, currentName, onSave, onClose }:
               value={name}
               onChangeText={setName}
               placeholder="Enter your full name"
-              placeholderTextColor={Colors.inactive}
+              placeholderTextColor={colors.inactive}
               autoFocus
               returnKeyType="done"
               onSubmitEditing={handleSave}
@@ -86,7 +91,7 @@ export default function NameEditModal({ visible, currentName, onSave, onClose }:
               onPress={handleSave}
               disabled={!name.trim()}
             >
-              <Check size={18} color={Colors.card} />
+              <Check size={18} color={colors.card} />
               <Text style={styles.saveText}>Save</Text>
             </Pressable>
           </View>
@@ -96,100 +101,103 @@ export default function NameEditModal({ visible, currentName, onSave, onClose }:
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modal: {
-    backgroundColor: Colors.card,
-    borderRadius: BorderRadius.xl,
-    width: '90%',
-    maxWidth: 400,
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  closeButton: {
-    padding: Spacing.xs,
-  },
-  content: {
-    padding: Spacing.lg,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: Colors.textSecondary,
-    marginBottom: Spacing.sm,
-  },
-  input: {
-    fontSize: 16,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.background,
-    color: Colors.text,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  actions: {
-    flexDirection: 'row',
-    padding: Spacing.lg,
-    gap: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: Colors.textSecondary,
-  },
-  saveButton: {
-    flex: 1,
-    flexDirection: 'row',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-  },
-  saveButtonDisabled: {
-    backgroundColor: Colors.inactive,
-  },
-  saveText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.card,
-  },
-});
+// Create dynamic styles function
+function createStyles(colors: any) {
+  return StyleSheet.create({
+    overlay: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    backdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    modal: {
+      backgroundColor: colors.card,
+      borderRadius: BorderRadius.xl,
+      width: '90%',
+      maxWidth: 400,
+      overflow: 'hidden',
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: Spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    closeButton: {
+      padding: Spacing.xs,
+    },
+    content: {
+      padding: Spacing.lg,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textSecondary,
+      marginBottom: Spacing.sm,
+    },
+    input: {
+      fontSize: 16,
+      paddingVertical: Spacing.md,
+      paddingHorizontal: Spacing.md,
+      borderRadius: BorderRadius.md,
+      backgroundColor: colors.background,
+      color: colors.text,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    actions: {
+      flexDirection: 'row',
+      padding: Spacing.lg,
+      gap: Spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    cancelButton: {
+      flex: 1,
+      paddingVertical: Spacing.md,
+      paddingHorizontal: Spacing.lg,
+      borderRadius: BorderRadius.md,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cancelText: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    saveButton: {
+      flex: 1,
+      flexDirection: 'row',
+      paddingVertical: Spacing.md,
+      paddingHorizontal: Spacing.lg,
+      borderRadius: BorderRadius.md,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.xs,
+    },
+    saveButtonDisabled: {
+      backgroundColor: colors.inactive,
+    },
+    saveText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.card,
+    },
+  });
+}

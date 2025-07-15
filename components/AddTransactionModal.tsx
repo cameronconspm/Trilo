@@ -428,10 +428,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
       backgroundColor: colors.card,
       ...Shadow.light,
     },
-    incomeTypeButtonActive: {
-      backgroundColor: colors.card,
-      ...Shadow.light,
-    },
+
     typeButtonText: {
       fontSize: 16,
       fontWeight: '600',
@@ -440,9 +437,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
     typeButtonTextActive: {
       color: colors.text,
     },
-    incomeTypeButtonTextActive: {
-      color: colors.text,
-    },
+
     formGroup: {
       marginBottom: Spacing.lg,
     },
@@ -453,9 +448,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
       color: colors.text,
       letterSpacing: -0.2,
     },
-    incomeLabel: {
-      color: colors.income,
-    },
+
     input: {
       backgroundColor: colors.card,
       borderRadius: BorderRadius.lg,
@@ -466,10 +459,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
       color: colors.text,
       ...Shadow.light,
     },
-    incomeInput: {
-      borderColor: colors.income,
-      borderWidth: 2,
-    },
+
     amountContainer: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -480,10 +470,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
       paddingLeft: Spacing.lg,
       ...Shadow.light,
     },
-    incomeAmountContainer: {
-      borderColor: colors.income,
-      borderWidth: 2,
-    },
+
     currencySymbol: {
       fontSize: 20,
       fontWeight: '600',
@@ -506,10 +493,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
       marginBottom: Spacing.lg,
       ...Shadow.light,
     },
-    incomeSwitchContainer: {
-      borderWidth: 2,
-      borderColor: colors.income,
-    },
+
     switchTextContainer: {
       flex: 1,
     },
@@ -519,9 +503,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
       color: colors.text,
       letterSpacing: -0.2,
     },
-    incomeSwitchLabel: {
-      color: colors.income,
-    },
+
     switchSubtitle: {
       fontSize: 15,
       color: colors.textSecondary,
@@ -546,9 +528,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
     submitButton: {
       flex: 2,
     },
-    incomeSubmitButton: {
-      backgroundColor: colors.income,
-    },
+
   });
 
   return (
@@ -603,15 +583,14 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
                 <TouchableOpacity
                   style={[
                     dynamicStyles.typeButton,
-                    transactionType === 'income' && dynamicStyles.typeButtonActive,
-                    transactionType === 'income' && dynamicStyles.incomeTypeButtonActive
+                    transactionType === 'income' && dynamicStyles.typeButtonActive
                   ]}
                   onPress={() => setTransactionType('income')}
                   activeOpacity={0.8}
                 >
                   <Text style={[
                     dynamicStyles.typeButtonText,
-                    transactionType === 'income' && dynamicStyles.incomeTypeButtonTextActive
+                    transactionType === 'income' && dynamicStyles.typeButtonTextActive
                   ]}>
                     Income
                   </Text>
@@ -620,17 +599,11 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
               
               {/* Form Fields */}
               <View style={dynamicStyles.formGroup}>
-                <Text style={[
-                  dynamicStyles.label,
-                  transactionType === 'income' && dynamicStyles.incomeLabel
-                ]}>
+                <Text style={dynamicStyles.label}>
                   {transactionType === 'income' ? 'Income Source' : 'Expense Name'} *
                 </Text>
                 <TextInput
-                  style={[
-                    dynamicStyles.input,
-                    transactionType === 'income' && dynamicStyles.incomeInput
-                  ]}
+                  style={dynamicStyles.input}
                   value={name}
                   onChangeText={setName}
                   placeholder={transactionType === 'income' ? 'e.g., Salary, Freelance' : 'e.g., Groceries, Netflix'}
@@ -642,19 +615,13 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
               </View>
               
               <View style={dynamicStyles.formGroup}>
-                <Text style={[
-                  dynamicStyles.label,
-                  transactionType === 'income' && dynamicStyles.incomeLabel
-                ]}>
+                <Text style={dynamicStyles.label}>
                   Amount *
                 </Text>
-                <View style={[
-                  dynamicStyles.amountContainer,
-                  transactionType === 'income' && dynamicStyles.incomeAmountContainer
-                ]}>
+                <View style={dynamicStyles.amountContainer}>
                   <Text style={[
                     dynamicStyles.currencySymbol,
-                    { color: transactionType === 'income' ? colors.income : colors.text }
+                    { color: colors.text }
                   ]}>
                     $
                   </Text>
@@ -726,15 +693,9 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
               
               {/* Only show recurring toggle for non-given expenses */}
               {category !== 'given_expenses' && (
-                <View style={[
-                  dynamicStyles.switchContainer,
-                  transactionType === 'income' && dynamicStyles.incomeSwitchContainer
-                ]}>
+                <View style={dynamicStyles.switchContainer}>
                   <View style={dynamicStyles.switchTextContainer}>
-                    <Text style={[
-                      dynamicStyles.switchLabel,
-                      transactionType === 'income' && dynamicStyles.incomeSwitchLabel
-                    ]}>
+                    <Text style={dynamicStyles.switchLabel}>
                       {transactionType === 'income' ? 'Recurring Income' : 'Recurring Expense'}
                     </Text>
                     <Text style={dynamicStyles.switchSubtitle}>
@@ -753,7 +714,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
                     onValueChange={setIsRecurring}
                     trackColor={{ 
                       false: colors.border, 
-                      true: transactionType === 'income' ? colors.income : colors.primary 
+                      true: colors.primary 
                     }}
                     thumbColor={colors.card}
                   />
