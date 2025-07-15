@@ -10,6 +10,7 @@ import {
   Image,
   Alert,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -24,7 +25,7 @@ import { useNotifications } from '@/context/NotificationContext';
 import { useAlert } from '@/hooks/useAlert';
 import Colors, { useThemeColors } from '@/constants/colors';
 import { Spacing, BorderRadius } from '@/constants/spacing';
-import { Shield, HelpCircle, RefreshCw, Edit3, Camera } from 'lucide-react-native';
+import { Shield, Mail, RefreshCw, Edit3, Camera } from 'lucide-react-native';
 import NameEditModal from '@/components/NameEditModal';
 
 export default function ProfileScreen() {
@@ -163,6 +164,37 @@ export default function ProfileScreen() {
         },
       ],
     });
+  };
+
+  const handlePrivacyPolicy = async () => {
+    const url = 'https://www.thetriloapp.com/privacy-policy';
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Unable to open privacy policy link');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Unable to open privacy policy link');
+    }
+  };
+
+  const handleContactSupport = async () => {
+    const email = 'support@thetriloapp.com';
+    const subject = 'Support Request';
+    const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}`;
+    
+    try {
+      const supported = await Linking.canOpenURL(mailtoUrl);
+      if (supported) {
+        await Linking.openURL(mailtoUrl);
+      } else {
+        Alert.alert('Email Not Available', 'Please send an email to support@thetriloapp.com');
+      }
+    } catch (error) {
+      Alert.alert('Email Not Available', 'Please send an email to support@thetriloapp.com');
+    }
   };
 
   // Set status bar style based on theme
@@ -304,8 +336,8 @@ export default function ProfileScreen() {
           {/* Help & Support */}
           <Card style={[styles.card, { backgroundColor: colors.card }]}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>Support</Text>
-            <SettingsItem title="Help & Tutorials" icon={<HelpCircle size={18} color={colors.primary} />} onPress={() => {}} />
-            <SettingsItem title="Contact Support" onPress={() => {}} isLast />
+            <SettingsItem title="Privacy Policy" icon={<Shield size={18} color={colors.primary} />} onPress={handlePrivacyPolicy} />
+            <SettingsItem title="Contact Support" icon={<Mail size={18} color={colors.primary} />} onPress={handleContactSupport} isLast />
           </Card>
 
           <Text style={[styles.versionText, { color: colors.inactive }]}>Version 1.0.0 — Data stored locally</Text>
