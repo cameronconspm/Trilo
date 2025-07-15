@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
-import Slider from '@react-native-community/slider';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Plus, Edit3, Target, Trash2 } from 'lucide-react-native';
@@ -624,7 +624,7 @@ export default function BudgetScreen() {
               ) : (
                 <Card>
                   <EmptyState 
-                    icon="dollar"
+                    icon="plus"
                     title="No savings goals"
                     subtitle="Create your first savings goal to start building your future"
                   />
@@ -695,20 +695,28 @@ export default function BudgetScreen() {
                     Time to Save: {newGoalTimeToSave} month{newGoalTimeToSave !== 1 ? 's' : ''}
                   </Text>
                   <View style={styles.sliderContainer}>
-                    <Slider
-                      style={styles.slider}
-                      minimumValue={1}
-                      maximumValue={12}
-                      step={1}
-                      value={newGoalTimeToSave}
-                      onValueChange={setNewGoalTimeToSave}
-                      minimumTrackTintColor={colors.primary}
-                      maximumTrackTintColor={colors.cardSecondary}
-                      thumbTintColor={colors.primary}
-                    />
-                    <View style={styles.sliderLabels}>
-                      <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>1 month</Text>
-                      <Text style={[styles.sliderLabel, { color: colors.textSecondary }]}>12 months</Text>
+                    <View style={styles.sliderButtons}>
+                      {[1, 3, 6, 9, 12].map((months) => (
+                        <TouchableOpacity
+                          key={months}
+                          style={[
+                            styles.sliderButton,
+                            { 
+                              backgroundColor: newGoalTimeToSave === months ? colors.primary : colors.cardSecondary,
+                              borderColor: colors.border
+                            }
+                          ]}
+                          onPress={() => setNewGoalTimeToSave(months)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[
+                            styles.sliderButtonText,
+                            { color: newGoalTimeToSave === months ? colors.background : colors.text }
+                          ]}>
+                            {months}m
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
                   </View>
                   {newGoalAmount && !isNaN(parseFloat(newGoalAmount)) && (
@@ -1026,19 +1034,24 @@ const styles = StyleSheet.create({
   sliderContainer: {
     marginTop: Spacing.xs,
   },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  sliderLabels: {
+  sliderButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: -Spacing.xs,
+    gap: Spacing.xs,
   },
-  sliderLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    lineHeight: 16,
+  sliderButton: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sliderButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 18,
   },
   monthlyPreview: {
     fontSize: 14,
