@@ -624,7 +624,7 @@ export default function BudgetScreen() {
               ) : (
                 <Card>
                   <EmptyState 
-                    icon="target"
+                    icon="dollar"
                     title="No savings goals"
                     subtitle="Create your first savings goal to start building your future"
                   />
