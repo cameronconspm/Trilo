@@ -36,13 +36,13 @@ export default function CategoryCard({ category, amount, count }: CategoryCardPr
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    flexBasis: '48%', // 2 columns with gap
-    maxWidth: '48%',
+    flexBasis: '31%', // 3 columns with gap
+    maxWidth: '31%',
   },
   card: {
     borderRadius: BorderRadius.lg, // Standard 12px border radius
-    padding: Spacing.cardPadding, // Standard 16px padding
-    minHeight: 120, // Equal height with other cards
+    padding: 12, // Reduced padding for smaller cards
+    minHeight: 100, // Reduced height for 3-column layout
     justifyContent: 'space-between',
     borderLeftWidth: 4,
     ...Shadow.card, // Standard card shadow
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: Spacing.md,
+    marginBottom: 8, // Reduced margin for smaller cards
   },
   colorDot: {
     width: 10,
@@ -60,20 +60,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   categoryName: {
-    fontSize: 14, // Standard subheader font
+    fontSize: 12, // Smaller font for 3-column layout
     fontWeight: '500', // Medium weight
     flex: 1,
-    lineHeight: 18,
+    lineHeight: 16,
     letterSpacing: -0.1,
   },
   amount: {
-    fontSize: 18, // Standard currency display
+    fontSize: 16, // Smaller currency display for 3-column layout
     fontWeight: '600', // Medium weight
-    marginBottom: Spacing.xs,
+    marginBottom: 4, // Reduced margin
     letterSpacing: -0.2,
   },
   count: {
-    fontSize: 13,
+    fontSize: 11, // Smaller count text
     fontWeight: '500',
   },
 });

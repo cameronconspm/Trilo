@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.cardMargin, // 16px gap between cards
+    gap: 12, // Reduced gap for 3-column layout
     justifyContent: 'space-between',
   },
 });
