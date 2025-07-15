@@ -88,7 +88,7 @@ export default function TransactionItem({
     }
   };
 
-  const renderRightActions = (progress: Animated.AnimatedAddition, dragX: Animated.AnimatedAddition) => {
+  const renderRightActions = (progress: Animated.AnimatedAddition<number>, dragX: Animated.AnimatedAddition<number>) => {
     const scale = progress.interpolate({
       inputRange: [0, 1],
       outputRange: [0, 1],
@@ -151,7 +151,7 @@ export default function TransactionItem({
           {showActions && (
             <TouchableOpacity
               onPress={handleDelete}
-              style={styles.deleteButton}
+              style={styles.deleteButtonInline}
               activeOpacity={0.7}
             >
               <Trash2 size={16} color={colors.error} strokeWidth={2} />
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 16,
   },
-  deleteButton: {
+  deleteButtonInline: {
     marginLeft: Spacing.sm,
     padding: Spacing.xs,
   },
