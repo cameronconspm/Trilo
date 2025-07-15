@@ -10,6 +10,10 @@ export interface NotificationSettings {
   reminderDaysBefore: number;
   weeklyInsightDay: string; // 'monday', 'tuesday', etc.
   weeklyInsightTime: string; // 'HH:MM'
+  weeklyPlannerReminder: boolean;
+  paydayReminder: boolean;
+  weeklyDigestSummary: boolean;
+  milestoneNotifications: boolean;
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
@@ -19,6 +23,10 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   reminderDaysBefore: 1,
   weeklyInsightDay: 'sunday',
   weeklyInsightTime: '18:00',
+  weeklyPlannerReminder: true,
+  paydayReminder: true,
+  weeklyDigestSummary: true,
+  milestoneNotifications: true,
 };
 
 const STORAGE_KEY = 'notification_settings';
@@ -94,6 +102,14 @@ class NotificationService {
 
     if (this.settings.insightAlerts) {
       await this.scheduleWeeklyInsights();
+    }
+
+    if (this.settings.weeklyPlannerReminder) {
+      await this.scheduleWeeklyPlannerReminder();
+    }
+
+    if (this.settings.weeklyDigestSummary) {
+      await this.scheduleWeeklyDigest();
     }
   }
 
@@ -179,6 +195,79 @@ class NotificationService {
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour % 12 || 12;
     return `${displayHour}:${minutes} ${ampm}`;
+  }
+
+  async scheduleWeeklyPlannerReminder() {
+    if (Platform.OS === 'web') return;
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'weekly_planner_reminder',
+      content: {
+        title: 'Plan Your Week',
+        body: 'New week, new plan. Let\'s map out your money.',
+        data: { type: 'weekly_planner' },
+      },
+      trigger: {
+        type: 'calendar',
+        weekday: 2, // Monday
+        hour: 9,
+        minute: 0,
+        repeats: true,
+      } as Notifications.CalendarTriggerInput,
+    });
+  }
+
+  async schedulePaydayReminder(payday: number) {
+    if (Platform.OS === 'web') return;
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'payday_reminder',
+      content: {
+        title: 'It\'s Payday',
+        body: 'Your paycheck just hit! Want to assign your funds now?',
+        data: { type: 'payday' },
+      },
+      trigger: {
+        type: 'calendar',
+        day: payday,
+        hour: 7,
+        minute: 0,
+        repeats: true,
+      } as Notifications.CalendarTriggerInput,
+    });
+  }
+
+  async scheduleWeeklyDigest() {
+    if (Platform.OS === 'web') return;
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'weekly_digest',
+      content: {
+        title: 'Weekly Wrap-Up',
+        body: 'See how you spent, saved, and what\'s ahead next week.',
+        data: { type: 'weekly_digest' },
+      },
+      trigger: {
+        type: 'calendar',
+        weekday: 1, // Sunday
+        hour: 19,
+        minute: 0,
+        repeats: true,
+      } as Notifications.CalendarTriggerInput,
+    });
+  }
+
+  async scheduleMilestoneNotification(title: string, body: string) {
+    if (Platform.OS === 'web' || !this.settings.milestoneNotifications) return;
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data: { type: 'milestone' },
+      },
+      trigger: null, // Immediate notification
+    });
   }
 
   formatDay(day: string): string {

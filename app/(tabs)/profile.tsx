@@ -221,6 +221,47 @@ export default function ProfileScreen() {
           {/* Notifications */}
           <Card style={[styles.card, { backgroundColor: colors.card }]}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>Notifications</Text>
+            
+            <View style={styles.rowBetween}>
+              <Text style={[styles.itemLabel, { color: colors.text }]}>Weekly Planner Reminder</Text>
+              <Switch
+                value={notificationSettings.weeklyPlannerReminder}
+                onValueChange={(value) => updateNotificationSettings({ weeklyPlannerReminder: value })}
+                trackColor={{ false: colors.inactive, true: colors.primary }}
+                thumbColor={colors.card}
+              />
+            </View>
+
+            <View style={styles.rowBetween}>
+              <Text style={[styles.itemLabel, { color: colors.text }]}>Payday Reminder</Text>
+              <Switch
+                value={notificationSettings.paydayReminder}
+                onValueChange={(value) => updateNotificationSettings({ paydayReminder: value })}
+                trackColor={{ false: colors.inactive, true: colors.primary }}
+                thumbColor={colors.card}
+              />
+            </View>
+
+            <View style={styles.rowBetween}>
+              <Text style={[styles.itemLabel, { color: colors.text }]}>Weekly Digest Summary</Text>
+              <Switch
+                value={notificationSettings.weeklyDigestSummary}
+                onValueChange={(value) => updateNotificationSettings({ weeklyDigestSummary: value })}
+                trackColor={{ false: colors.inactive, true: colors.primary }}
+                thumbColor={colors.card}
+              />
+            </View>
+
+            <View style={styles.rowBetween}>
+              <Text style={[styles.itemLabel, { color: colors.text }]}>Milestone Celebrations</Text>
+              <Switch
+                value={notificationSettings.milestoneNotifications}
+                onValueChange={(value) => updateNotificationSettings({ milestoneNotifications: value })}
+                trackColor={{ false: colors.inactive, true: colors.primary }}
+                thumbColor={colors.card}
+              />
+            </View>
+
             <View style={styles.rowBetween}>
               <Text style={[styles.itemLabel, { color: colors.text }]}>Expense Reminders</Text>
               <Switch

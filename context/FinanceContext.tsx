@@ -4,6 +4,17 @@ import { Transaction, WeeklyOverview, MonthlyInsights, Budget, CategoryType } fr
 import categories from '@/constants/categories';
 import { getPayDatesInRange, getWeeklyIncomeAmount, formatPaySchedule } from '@/utils/payScheduleUtils';
 import { getCurrentPayPeriod } from '@/utils/payPeriodUtils';
+import NotificationService from '@/services/NotificationService';
+
+interface Milestone {
+  id: string;
+  title: string;
+  description: string;
+  achieved: boolean;
+  achievedDate?: string;
+  targetValue?: number;
+  currentValue?: number;
+}
 
 interface FinanceContextType {
   transactions: Transaction[];
@@ -13,6 +24,7 @@ interface FinanceContextType {
   weeklyOverview: WeeklyOverview;
   monthlyInsights: MonthlyInsights;
   budget: Budget;
+  milestones: Milestone[];
   isLoading: boolean;
   clearAllData: () => Promise<void>;
   exportData: () => Promise<string>;
@@ -26,6 +38,8 @@ const STORAGE_KEYS = {
   BUDGET_GOALS: 'finance_budget_goals_v2',
   LAST_BACKUP: 'finance_last_backup_v2',
   APP_VERSION: 'finance_app_version',
+  MILESTONES: 'finance_milestones_v2',
+  PLANNING_STREAK: 'finance_planning_streak_v2',
 } as const;
 
 const CURRENT_APP_VERSION = '2.0.0';

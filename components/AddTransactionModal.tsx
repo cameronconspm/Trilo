@@ -289,6 +289,32 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
     }
   };
   
+  const handleReset = () => {
+    const hasData = name.trim() || amount.trim();
+    
+    // Reset all fields
+    setName('');
+    setAmount('');
+    setCategory(transactionType === 'income' ? 'income' : 'one_time_expense');
+    setSelectedDay(new Date().getDate());
+    setLastPaidDate(new Date());
+    setPayCadence('every_2_weeks');
+    setMonthlyDays([]);
+    setCustomDays([]);
+    setGivenExpenseFrequency('every_week');
+    setGivenExpenseStartDate(new Date());
+    setIsRecurring(transactionType === 'income');
+    
+    if (hasData) {
+      showAlert({
+        title: 'Fields Cleared',
+        message: 'All fields have been cleared',
+        type: 'success',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
+    }
+  };
+
   const handleClose = () => {
     if (name.trim() || amount.trim()) {
       showAlert({
@@ -403,9 +429,8 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
       ...Shadow.light,
     },
     incomeTypeButtonActive: {
-      backgroundColor: colors.income,
-      borderWidth: 1,
-      borderColor: colors.income,
+      backgroundColor: colors.card,
+      ...Shadow.light,
     },
     typeButtonText: {
       fontSize: 16,
@@ -416,7 +441,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
       color: colors.text,
     },
     incomeTypeButtonTextActive: {
-      color: colors.card,
+      color: colors.text,
     },
     formGroup: {
       marginBottom: Spacing.lg,
@@ -509,8 +534,11 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
       padding: Spacing.lg,
       borderTopWidth: 1,
       borderTopColor: colors.border,
-      gap: Spacing.md,
+      gap: Spacing.sm,
       backgroundColor: colors.background,
+    },
+    resetButton: {
+      flex: 1,
     },
     cancelButton: {
       flex: 1,
@@ -538,7 +566,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
           >
             {/* Header */}
             <View style={dynamicStyles.header}>
-              <Text style={dynamicStyles.title}>{editTransaction ? 'Edit Transaction' : 'Add Transaction'}</Text>
+              <Text style={dynamicStyles.title}>{editTransaction ? 'Edit Transaction' : 'Add Expense / Income'}</Text>
               <TouchableOpacity 
                 onPress={handleClose}
                 style={dynamicStyles.closeButton}
@@ -735,6 +763,13 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
             
             {/* Footer */}
             <View style={dynamicStyles.footer}>
+              <Button
+                title="Reset"
+                onPress={handleReset}
+                variant="ghost"
+                size="large"
+                style={dynamicStyles.resetButton}
+              />
               <Button
                 title="Cancel"
                 onPress={handleClose}
