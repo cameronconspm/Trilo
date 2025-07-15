@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     fontSize: 16, // Balanced currency display
     fontWeight: '600', // Medium weight
     letterSpacing: -0.2,
-    textAlign: 'right', // Right-aligned when in lists
+    textAlign: 'left', // Left-aligned to match labels
     lineHeight: 20,
   },
   progressContainer: {

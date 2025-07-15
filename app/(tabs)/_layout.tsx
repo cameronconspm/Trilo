@@ -22,8 +22,8 @@ export default function TabLayout() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: 72, // Standard navigation bar height
-          paddingBottom: 20,
+          height: 84, // Increased height for more spacing
+          paddingBottom: 32, // Increased bottom padding
           paddingTop: 8,
           paddingHorizontal: Spacing.tabHorizontal, // Equal padding between icons
           elevation: 0,
