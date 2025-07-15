@@ -19,7 +19,6 @@ import Header from '@/components/Header';
 import Card from '@/components/Card';
 import SettingsItem from '@/components/SettingsItem';
 import AlertModal from '@/components/AlertModal';
-import TimePicker from '@/components/TimePicker';
 import { useSettings } from '@/context/SettingsContext';
 import { useNotifications } from '@/context/NotificationContext';
 import { useAlert } from '@/hooks/useAlert';
@@ -49,7 +48,6 @@ export default function ProfileScreen() {
   } = useNotifications();
 
   const { alertState, showAlert, hideAlert } = useAlert();
-  const [showTimePicker, setShowTimePicker] = useState<'reminder' | 'insight' | null>(null);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showWeekStartModal, setShowWeekStartModal] = useState(false);
   const [showNameEditModal, setShowNameEditModal] = useState(false);
@@ -57,13 +55,7 @@ export default function ProfileScreen() {
   // Get theme-aware colors
   const colors = useThemeColors(theme);
 
-  const formatTime = (time: string): string => {
-    const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
-  };
+
 
   const handleAvatarPress = async () => {
     if (Platform.OS === 'web') {
@@ -263,6 +255,7 @@ export default function ProfileScreen() {
                 thumbColor={colors.card}
               />
             </View>
+            <Text style={[styles.notificationDescription, { color: colors.textSecondary }]}>Get reminded to plan your week every Monday morning</Text>
 
             <View style={styles.rowBetween}>
               <Text style={[styles.itemLabel, { color: colors.text }]}>Payday Reminder</Text>
@@ -273,6 +266,7 @@ export default function ProfileScreen() {
                 thumbColor={colors.card}
               />
             </View>
+            <Text style={[styles.notificationDescription, { color: colors.textSecondary }]}>Get notified when your paycheck arrives based on your pay schedule</Text>
 
             <View style={styles.rowBetween}>
               <Text style={[styles.itemLabel, { color: colors.text }]}>Weekly Digest Summary</Text>
@@ -283,6 +277,7 @@ export default function ProfileScreen() {
                 thumbColor={colors.card}
               />
             </View>
+            <Text style={[styles.notificationDescription, { color: colors.textSecondary }]}>Receive a weekly spending summary every Sunday evening</Text>
 
             <View style={styles.rowBetween}>
               <Text style={[styles.itemLabel, { color: colors.text }]}>Milestone Celebrations</Text>
@@ -293,6 +288,7 @@ export default function ProfileScreen() {
                 thumbColor={colors.card}
               />
             </View>
+            <Text style={[styles.notificationDescription, { color: colors.textSecondary }]}>Celebrate when you reach savings goals and spending milestones</Text>
 
             <View style={styles.rowBetween}>
               <Text style={[styles.itemLabel, { color: colors.text }]}>Expense Reminders</Text>
@@ -303,12 +299,7 @@ export default function ProfileScreen() {
                 thumbColor={colors.card}
               />
             </View>
-            {notificationSettings.expenseReminders && (
-              <Pressable style={[styles.timeRow, { borderColor: colors.border }]} onPress={() => setShowTimePicker('reminder')}>
-                <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>Reminder Time</Text>
-                <Text style={[styles.timeValue, { color: colors.primary }]}>{formatTime(notificationSettings.reminderTime)}</Text>
-              </Pressable>
-            )}
+            <Text style={[styles.notificationDescription, { color: colors.textSecondary }]}>Get reminded about upcoming expenses automatically</Text>
 
             <View style={styles.rowBetween}>
               <Text style={[styles.itemLabel, { color: colors.text }]}>Weekly Insights</Text>
@@ -319,12 +310,7 @@ export default function ProfileScreen() {
                 thumbColor={colors.card}
               />
             </View>
-            {notificationSettings.insightAlerts && (
-              <Pressable style={[styles.timeRow, { borderColor: colors.border }]} onPress={() => setShowTimePicker('insight')}>
-                <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>Insight Time</Text>
-                <Text style={[styles.timeValue, { color: colors.primary }]}>{formatTime(notificationSettings.weeklyInsightTime)}</Text>
-              </Pressable>
-            )}
+            <Text style={[styles.notificationDescription, { color: colors.textSecondary }]}>Receive weekly spending insights on Sunday evenings</Text>
           </Card>
 
           {/* Utilities */}
@@ -344,17 +330,7 @@ export default function ProfileScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      {showTimePicker && (
-        <TimePicker
-          value={showTimePicker === 'reminder' ? notificationSettings.reminderTime : notificationSettings.weeklyInsightTime}
-          onChange={(time) => {
-            const setting = showTimePicker === 'reminder' ? 'reminderTime' : 'weeklyInsightTime';
-            updateNotificationSettings({ [setting]: time });
-            setShowTimePicker(null);
-          }}
-          onClose={() => setShowTimePicker(null)}
-        />
-      )}
+
 
       <AlertModal {...alertState} onClose={hideAlert} />
       
@@ -525,24 +501,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  timeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    borderTopWidth: 1,
-  },
-  timeLabel: {
-    fontSize: 14, // Standard subtext
-    lineHeight: 18,
-    flexShrink: 1,
-  },
-  timeValue: {
-    fontSize: 14, // Standard subtext
-    fontWeight: '600', // Medium weight
-    textAlign: 'right', // Right-aligned
-    lineHeight: 18,
-    flexShrink: 0,
+  notificationDescription: {
+    fontSize: 13,
+    lineHeight: 17,
+    marginTop: -Spacing.sm,
+    marginBottom: Spacing.md,
+    paddingLeft: 0,
   },
   versionText: {
     textAlign: 'center',

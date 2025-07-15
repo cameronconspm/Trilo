@@ -23,11 +23,21 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, []);
 
   useEffect(() => {
-    // Update expense reminders when transactions change
-    if (settings.expenseReminders && hasPermission) {
-      NotificationService.scheduleExpenseReminders(transactions);
+    // Only update behavior-based notifications when settings change or significant transaction changes occur
+    // Avoid triggering on every small transaction addition
+    if (hasPermission && !isLoading && transactions.length > 0) {
+      const timeoutId = setTimeout(() => {
+        if (settings.expenseReminders) {
+          NotificationService.scheduleExpenseReminders(transactions);
+        }
+        if (settings.paydayReminder) {
+          NotificationService.schedulePaydayReminder(transactions);
+        }
+      }, 2000); // Debounce for 2 seconds to avoid excessive scheduling
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, [transactions, settings.expenseReminders, hasPermission]);
+  }, [settings.expenseReminders, settings.paydayReminder, hasPermission, isLoading]);
 
   const initializeNotifications = async () => {
     try {
@@ -40,6 +50,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       
       if (permission) {
         await NotificationService.scheduleAllNotifications();
+        // Schedule behavior-based notifications if we have transaction data
+        if (transactions.length > 0) {
+          if (loadedSettings.expenseReminders) {
+            await NotificationService.scheduleExpenseReminders(transactions);
+          }
+          if (loadedSettings.paydayReminder) {
+            await NotificationService.schedulePaydayReminder(transactions);
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to initialize notifications:', error);

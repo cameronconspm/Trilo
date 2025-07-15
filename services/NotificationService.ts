@@ -6,10 +6,6 @@ import { Transaction } from '@/types/finance';
 export interface NotificationSettings {
   expenseReminders: boolean;
   insightAlerts: boolean;
-  reminderTime: string; // 'HH:MM'
-  reminderDaysBefore: number;
-  weeklyInsightDay: string; // 'monday', 'tuesday', etc.
-  weeklyInsightTime: string; // 'HH:MM'
   weeklyPlannerReminder: boolean;
   paydayReminder: boolean;
   weeklyDigestSummary: boolean;
@@ -19,10 +15,6 @@ export interface NotificationSettings {
 const DEFAULT_SETTINGS: NotificationSettings = {
   expenseReminders: true,
   insightAlerts: true,
-  reminderTime: '09:00',
-  reminderDaysBefore: 1,
-  weeklyInsightDay: 'sunday',
-  weeklyInsightTime: '18:00',
   weeklyPlannerReminder: true,
   paydayReminder: true,
   weeklyDigestSummary: true,
@@ -118,8 +110,8 @@ class NotificationService {
   async scheduleExpenseReminders(transactions: Transaction[]) {
     if (Platform.OS === 'web' || !this.settings.expenseReminders) return;
 
+    // Cancel existing expense reminders
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-
     for (const notification of scheduled) {
       if (notification.identifier.startsWith('expense_reminder_')) {
         await Notifications.cancelScheduledNotificationAsync(notification.identifier);
@@ -127,54 +119,39 @@ class NotificationService {
     }
 
     const now = new Date();
-    const [reminderHour, reminderMinute] = this.settings.reminderTime.split(':').map(Number);
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0); // 9 AM tomorrow
 
+    // Find expenses due in the next 3 days
     const upcomingExpenses = transactions.filter((t) => {
       if (t.type !== 'expense') return false;
       const dueDate = new Date(t.date);
-      const reminderDate = new Date(dueDate);
-      reminderDate.setDate(dueDate.getDate() - this.settings.reminderDaysBefore);
-      reminderDate.setHours(reminderHour, reminderMinute, 0, 0);
-      return reminderDate > now && dueDate > now;
+      const threeDaysFromNow = new Date(now);
+      threeDaysFromNow.setDate(now.getDate() + 3);
+      return dueDate >= now && dueDate <= threeDaysFromNow;
     });
 
-    for (const expense of upcomingExpenses) {
-      const dueDate = new Date(expense.date);
-      const reminderDate = new Date(dueDate);
-      reminderDate.setDate(dueDate.getDate() - this.settings.reminderDaysBefore);
-      reminderDate.setHours(reminderHour, reminderMinute, 0, 0);
-
-      if (reminderDate <= now) continue;
-
+    if (upcomingExpenses.length > 0) {
       await Notifications.scheduleNotificationAsync({
-        identifier: `expense_reminder_${expense.id}`,
+        identifier: 'expense_reminder_batch',
         content: {
-          title: 'Upcoming Expense',
-          body: `${expense.name} (${expense.category}) - $${expense.amount.toFixed(2)} due soon`,
-          data: { type: 'expense_reminder', transactionId: expense.id },
+          title: 'Upcoming Expenses',
+          body: `You have ${upcomingExpenses.length} expense${upcomingExpenses.length > 1 ? 's' : ''} coming up in the next few days`,
+          data: { type: 'expense_reminder', count: upcomingExpenses.length },
         },
         trigger: {
-          date: reminderDate,
+          date: tomorrow,
         } as Notifications.DateTriggerInput,
       });
     }
   }
 
   async scheduleWeeklyInsights() {
-    const dayMap = {
-      sunday: 1,
-      monday: 2,
-      tuesday: 3,
-      wednesday: 4,
-      thursday: 5,
-      friday: 6,
-      saturday: 7,
-    };
-
-    const targetDay = dayMap[this.settings.weeklyInsightDay as keyof typeof dayMap];
-    const [hour, minute] = this.settings.weeklyInsightTime.split(':').map(Number);
+    if (Platform.OS === 'web') return;
 
     await Notifications.scheduleNotificationAsync({
+      identifier: 'weekly_insights',
       content: {
         title: 'Weekly Financial Insights',
         body: 'Check out your spending patterns and budget progress for this week!',
@@ -182,21 +159,15 @@ class NotificationService {
       },
       trigger: {
         type: 'calendar',
-        weekday: targetDay,
-        hour,
-        minute,
+        weekday: 1, // Sunday
+        hour: 19, // 7 PM
+        minute: 0,
         repeats: true,
       } as Notifications.CalendarTriggerInput,
     });
   }
 
-  formatTime(time: string): string {
-    const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
-  }
+
 
   async scheduleWeeklyPlannerReminder() {
     if (Platform.OS === 'web') return;
@@ -218,24 +189,69 @@ class NotificationService {
     });
   }
 
-  async schedulePaydayReminder(payday: number) {
-    if (Platform.OS === 'web') return;
+  async schedulePaydayReminder(transactions: Transaction[]) {
+    if (Platform.OS === 'web' || !this.settings.paydayReminder) return;
 
-    await Notifications.scheduleNotificationAsync({
-      identifier: 'payday_reminder',
-      content: {
-        title: 'It\'s Payday',
-        body: 'Your paycheck just hit! Want to assign your funds now?',
-        data: { type: 'payday' },
-      },
-      trigger: {
-        type: 'calendar',
-        day: payday,
-        hour: 7,
-        minute: 0,
-        repeats: true,
-      } as Notifications.CalendarTriggerInput,
+    // Cancel existing payday reminders
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    for (const notification of scheduled) {
+      if (notification.identifier.startsWith('payday_reminder_')) {
+        await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+      }
+    }
+
+    // Find income transactions with pay schedules
+    const incomeTransactions = transactions.filter(t => 
+      t.type === 'income' && t.paySchedule && t.isRecurring
+    );
+
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+    incomeTransactions.forEach(async (income, index) => {
+      if (income.paySchedule) {
+        // Calculate next payday based on pay schedule
+        const nextPayday = this.getNextPayday(income.paySchedule, now);
+        if (nextPayday && nextPayday <= nextMonth) {
+          // Schedule notification for 8 AM on payday
+          const notificationTime = new Date(nextPayday);
+          notificationTime.setHours(8, 0, 0, 0);
+
+          await Notifications.scheduleNotificationAsync({
+            identifier: `payday_reminder_${income.id}`,
+            content: {
+              title: 'It\'s Payday!',
+              body: `Your ${income.name} paycheck is here! Time to plan your money.`,
+              data: { type: 'payday', incomeId: income.id },
+            },
+            trigger: {
+              date: notificationTime,
+            } as Notifications.DateTriggerInput,
+          });
+        }
+      }
     });
+  }
+
+  private getNextPayday(paySchedule: any, fromDate: Date): Date | null {
+    // This is a simplified implementation - you might want to use your existing pay schedule utilities
+    const today = new Date(fromDate);
+    today.setHours(0, 0, 0, 0);
+    
+    if (paySchedule.frequency === 'weekly') {
+      const nextWeek = new Date(today);
+      nextWeek.setDate(today.getDate() + 7);
+      return nextWeek;
+    } else if (paySchedule.frequency === 'biweekly') {
+      const nextPayday = new Date(today);
+      nextPayday.setDate(today.getDate() + 14);
+      return nextPayday;
+    } else if (paySchedule.frequency === 'monthly') {
+      const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, paySchedule.dayOfMonth || 1);
+      return nextMonth;
+    }
+    
+    return null;
   }
 
   async scheduleWeeklyDigest() {
@@ -251,29 +267,54 @@ class NotificationService {
       trigger: {
         type: 'calendar',
         weekday: 1, // Sunday
-        hour: 19,
+        hour: 18, // 6 PM
         minute: 0,
         repeats: true,
       } as Notifications.CalendarTriggerInput,
     });
   }
 
-  async scheduleMilestoneNotification(title: string, body: string) {
+  async scheduleMilestoneNotification(title: string, body: string, delay: number = 0) {
     if (Platform.OS === 'web' || !this.settings.milestoneNotifications) return;
 
+    // Only send milestone notifications for significant achievements
+    // Add a small delay to avoid spam notifications
+    const triggerDate = delay > 0 ? new Date(Date.now() + delay) : null;
+
     await Notifications.scheduleNotificationAsync({
+      identifier: `milestone_${Date.now()}`,
       content: {
         title,
         body,
         data: { type: 'milestone' },
       },
-      trigger: null, // Immediate notification
+      trigger: triggerDate ? { date: triggerDate } as Notifications.DateTriggerInput : null,
     });
   }
 
-  formatDay(day: string): string {
-    return day.charAt(0).toUpperCase() + day.slice(1);
+  // Method to check if a milestone notification should be sent
+  shouldSendMilestoneNotification(milestoneType: string, value: number): boolean {
+    // Only send notifications for significant milestones
+    const significantMilestones = {
+      savings: [100, 500, 1000, 2500, 5000, 10000], // Dollar amounts
+      transactions: [10, 25, 50, 100], // Number of transactions
+      budgetGoals: [0.5, 0.75, 1.0], // Percentage of goal reached
+    };
+
+    if (milestoneType === 'savings') {
+      return significantMilestones.savings.includes(Math.floor(value));
+    } else if (milestoneType === 'transactions') {
+      return significantMilestones.transactions.includes(value);
+    } else if (milestoneType === 'budgetGoals') {
+      return significantMilestones.budgetGoals.some(threshold => 
+        Math.abs(value - threshold) < 0.01
+      );
+    }
+
+    return false;
   }
+
+
 }
 
 export default new NotificationService();
