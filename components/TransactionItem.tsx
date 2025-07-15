@@ -88,17 +88,24 @@ export default function TransactionItem({
     }
   };
 
-  const renderRightActions = () => {
+  const renderRightActions = (progress: Animated.AnimatedAddition, dragX: Animated.AnimatedAddition) => {
+    const scale = progress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 1],
+      extrapolate: 'clamp',
+    });
+
     return (
-      <View style={[styles.rightActions, { backgroundColor: colors.error }]}>
-        <TouchableOpacity
-          style={[styles.deleteAction, { backgroundColor: colors.error }]}
-          onPress={handleDelete}
-          activeOpacity={0.7}
-        >
-          <Trash2 size={20} color={colors.surface} strokeWidth={2} />
-          <Text style={[styles.actionText, { color: colors.surface }]}>Delete</Text>
-        </TouchableOpacity>
+      <View style={styles.rightActions}>
+        <Animated.View style={[styles.deleteAction, { transform: [{ scale }] }]}>
+          <TouchableOpacity
+            style={[styles.deleteButton, { backgroundColor: colors.error }]}
+            onPress={handleDelete}
+            activeOpacity={0.8}
+          >
+            <Trash2 size={18} color={colors.surface} strokeWidth={2.5} />
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     );
   };
@@ -160,10 +167,14 @@ export default function TransactionItem({
       {enableSwipeActions ? (
         <Swipeable 
           renderRightActions={renderRightActions}
-          rightThreshold={40}
-          friction={2}
+          rightThreshold={30}
+          friction={1.5}
+          overshootRight={false}
+          containerStyle={styles.swipeContainer}
         >
-          {content}
+          <View style={[styles.contentContainer, { backgroundColor: colors.card }]}>
+            {content}
+          </View>
         </Swipeable>
       ) : (
         content
@@ -258,24 +269,36 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.sm,
     padding: Spacing.xs,
   },
+  swipeContainer: {
+    overflow: 'hidden',
+  },
+  contentContainer: {
+    flex: 1,
+  },
   rightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: Spacing.sm,
-    justifyContent: 'center',
-    flex: 1,
+    justifyContent: 'flex-end',
+    width: 70,
+    paddingRight: Spacing.md,
   },
   deleteAction: {
     justifyContent: 'center',
     alignItems: 'center',
-    width: 80,
-    height: '100%',
-    paddingHorizontal: Spacing.md,
-    borderRadius: 0,
   },
-  actionText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 4,
+  deleteButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });

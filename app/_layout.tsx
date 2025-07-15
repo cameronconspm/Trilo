@@ -3,12 +3,13 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { Platform, Appearance } from "react-native";
+import { Platform, Appearance, StatusBar } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { FinanceProvider } from "@/context/FinanceContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { NotificationProvider } from "@/context/NotificationContext";
+import { useSettings } from "@/context/SettingsContext";
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",
@@ -71,6 +72,7 @@ function RootLayoutNav() {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SettingsProvider>
+          <StatusBarManager />
           <FinanceProvider>
             <NotificationProvider>
               <Stack screenOptions={{ headerShown: false }}>
@@ -81,5 +83,37 @@ function RootLayoutNav() {
         </SettingsProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>
+  );
+}
+
+function StatusBarManager() {
+  const { theme } = useSettings();
+  
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      StatusBar.setBarStyle(
+        theme === 'dark' ? 'light-content' : 'dark-content',
+        true
+      );
+      
+      if (Platform.OS === 'android') {
+        StatusBar.setBackgroundColor(
+          theme === 'dark' ? '#000000' : '#ffffff',
+          true
+        );
+      }
+    }
+  }, [theme]);
+
+  if (Platform.OS === 'web') {
+    return null;
+  }
+
+  return (
+    <StatusBar
+      barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+      backgroundColor={theme === 'dark' ? '#000000' : '#ffffff'}
+      translucent={false}
+    />
   );
 }
