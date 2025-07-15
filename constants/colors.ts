@@ -26,8 +26,8 @@ const LightColors = {
   subscription: "#FFA94D",     // Orange - Subscriptions
   bill: "#4E91F9",             // Blue - Bills & Utilities
   savings: "#27AE60",          // Green - Savings
-  oneTimeExpense: "#95A5A6",   // Gray-blue - One-Time Expense
-  givenExpenses: "#F39C12",    // Orange - Given Expenses
+  oneTimeExpense: "#5D6D7E",   // Gray-blue - One-Time Expenses
+  givenExpenses: "#5D6D7E",    // Gray-blue - Given Expenses
   
   // Shadow colors
   shadowColor: "rgba(0, 0, 0, 0.12)",
@@ -61,8 +61,8 @@ const DarkColors = {
   subscription: "#FF9F0A",     // Brighter orange for dark mode
   bill: "#64D2FF",             // Brighter blue for dark mode
   savings: "#27AE60",          // Green for dark mode
-  oneTimeExpense: "#8E8E93",   // Gray for dark mode
-  givenExpenses: "#F39C12",    // Orange - Given Expenses
+  oneTimeExpense: "#5D6D7E",   // Gray for dark mode
+  givenExpenses: "#5D6D7E",    // Gray - Given Expenses
   
   // Shadow colors
   shadowColor: "rgba(0, 0, 0, 0.3)",

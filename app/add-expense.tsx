@@ -171,7 +171,7 @@ export default function AddExpenseScreen() {
               <Text style={styles.switchSubtitle}>
                 {isRecurring 
                   ? 'This expense repeats monthly (subscriptions, bills)' 
-                  : 'One-time expense (purchases, dining out)'
+                  : 'One-Time Expenses (purchases, dining out)'
                 }
               </Text>
             </View>

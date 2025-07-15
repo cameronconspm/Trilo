@@ -29,7 +29,7 @@ const categories: Category[] = [
   },
   {
     id: 'one_time_expense',
-    name: 'One-Time Expense',
+    name: 'One-Time Expenses',
     color: Colors.oneTimeExpense,
   },
   {

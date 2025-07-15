@@ -172,7 +172,7 @@ export default function BudgetScreen() {
                 <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.given.toFixed(2)}</Text>
               </View>
               <View style={styles.breakdownRow}>
-                <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>One-time expenses</Text>
+                <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>One-Time Expenses</Text>
                 <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.oneTime.toFixed(2)}</Text>
               </View>
               <View style={styles.breakdownRow}>
