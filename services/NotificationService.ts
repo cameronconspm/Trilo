@@ -62,10 +62,14 @@ class NotificationService {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
         this.settings = { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+      } else {
+        // If no settings found, reset to defaults
+        this.settings = DEFAULT_SETTINGS;
       }
       return this.settings;
     } catch (error) {
       console.error('Failed to load notification settings:', error);
+      this.settings = DEFAULT_SETTINGS;
       return DEFAULT_SETTINGS;
     }
   }
@@ -87,6 +91,23 @@ class NotificationService {
   async cancelAllNotifications() {
     if (Platform.OS === 'web') return;
     await Notifications.cancelAllScheduledNotificationsAsync();
+  }
+
+  async resetAllData() {
+    if (Platform.OS === 'web') return;
+    
+    // Cancel all notifications
+    await this.cancelAllNotifications();
+    
+    // Reset settings to defaults
+    this.settings = DEFAULT_SETTINGS;
+    
+    // Clear stored settings
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.error('Failed to clear notification settings:', error);
+    }
   }
 
   async scheduleAllNotifications() {

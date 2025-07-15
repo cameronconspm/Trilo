@@ -22,6 +22,25 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     initializeNotifications();
   }, []);
 
+  // Check for external data clearing (like reset data)
+  useEffect(() => {
+    const checkForDataReset = async () => {
+      try {
+        const storedSettings = await NotificationService.loadSettings();
+        // If settings were externally cleared, update our state
+        if (JSON.stringify(storedSettings) !== JSON.stringify(settings)) {
+          setSettings(storedSettings);
+        }
+      } catch (error) {
+        console.error('NotificationContext: Error checking for data reset:', error);
+      }
+    };
+
+    // Check every 2 seconds when app is active
+    const interval = setInterval(checkForDataReset, 2000);
+    return () => clearInterval(interval);
+  }, [settings]);
+
   useEffect(() => {
     // Only update behavior-based notifications when settings change or significant transaction changes occur
     // Avoid triggering on every small transaction addition

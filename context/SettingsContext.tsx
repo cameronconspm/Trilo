@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NotificationService from '@/services/NotificationService';
 
 type ThemeType = 'system' | 'light' | 'dark';
 type WeekStartDay = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
@@ -288,17 +289,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const resetData = async () => {
     try {
-      console.log('SettingsContext: Resetting all settings data...');
+      console.log('SettingsContext: Resetting all app data...');
       
-      // Clear all settings and reset to defaults
-      await AsyncStorage.multiRemove([
-        STORAGE_KEYS.USER_PREFERENCES,
-        STORAGE_KEYS.SETTINGS_VERSION,
-        // Also clean up any legacy keys
-        STORAGE_KEYS.THEME,
-        STORAGE_KEYS.WEEK_START_DAY,
-        STORAGE_KEYS.BANK_CONNECTED,
-      ]);
+      // Clear ALL app data - settings, financial data, notifications, etc.
+      const allKeys = await AsyncStorage.getAllKeys();
+      console.log('SettingsContext: Found', allKeys.length, 'storage keys to clear');
+      
+      // Reset notifications first
+      await NotificationService.resetAllData();
+      
+      // Remove all stored data
+      await AsyncStorage.multiRemove(allKeys);
       
       // Reset state to defaults
       setThemeState(DEFAULT_PREFERENCES.theme);
@@ -311,10 +312,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       await AsyncStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(DEFAULT_PREFERENCES));
       await AsyncStorage.setItem(STORAGE_KEYS.SETTINGS_VERSION, CURRENT_SETTINGS_VERSION);
       
-      console.log('SettingsContext: Settings reset successfully');
+      console.log('SettingsContext: All app data reset successfully');
     } catch (error) {
-      console.error('SettingsContext: Error resetting settings:', error);
-      throw new Error('Failed to reset settings');
+      console.error('SettingsContext: Error resetting all data:', error);
+      throw new Error('Failed to reset all data');
     }
   };
 

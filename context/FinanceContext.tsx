@@ -29,6 +29,7 @@ interface FinanceContextType {
   clearAllData: () => Promise<void>;
   exportData: () => Promise<string>;
   importData: (data: string) => Promise<void>;
+  reloadData: () => Promise<void>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -80,6 +81,29 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     loadAllData();
   }, []);
+
+  // Check for external data clearing (like reset data)
+  useEffect(() => {
+    const checkForDataReset = async () => {
+      try {
+        const storedTransactions = await AsyncStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+        const storedVersion = await AsyncStorage.getItem(STORAGE_KEYS.APP_VERSION);
+        
+        // If both are missing and we have transactions in state, data was externally cleared
+        if (!storedTransactions && !storedVersion && transactions.length > 0) {
+          console.log('FinanceContext: External data reset detected, clearing state');
+          setTransactions([]);
+          setMilestones([]);
+        }
+      } catch (error) {
+        console.error('FinanceContext: Error checking for data reset:', error);
+      }
+    };
+
+    // Check every 2 seconds when app is active
+    const interval = setInterval(checkForDataReset, 2000);
+    return () => clearInterval(interval);
+  }, [transactions.length]);
 
   // Calculate insights whenever transactions change - real-time sync
   useEffect(() => {
@@ -595,14 +619,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         STORAGE_KEYS.TRANSACTIONS,
         STORAGE_KEYS.BUDGET_GOALS,
         STORAGE_KEYS.LAST_BACKUP,
+        STORAGE_KEYS.MILESTONES,
+        STORAGE_KEYS.PLANNING_STREAK,
         'finance_auto_backup',
       ]);
       setTransactions([]);
+      setMilestones([]);
       console.log('FinanceContext: All data cleared successfully');
     } catch (error) {
       console.error('FinanceContext: Error clearing financial data:', error);
       throw new Error('Failed to clear data');
     }
+  };
+
+  const reloadData = async () => {
+    await loadAllData();
   };
 
   const exportData = async (): Promise<string> => {
@@ -672,6 +703,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         clearAllData,
         exportData,
         importData,
+        reloadData,
       }}
     >
       {children}

@@ -21,6 +21,7 @@ import SettingsItem from '@/components/SettingsItem';
 import AlertModal from '@/components/AlertModal';
 import { useSettings } from '@/context/SettingsContext';
 import { useNotifications } from '@/context/NotificationContext';
+import { useFinance } from '@/context/FinanceContext';
 import { useAlert } from '@/hooks/useAlert';
 import Colors, { useThemeColors } from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
@@ -46,6 +47,8 @@ export default function ProfileScreen() {
     hasPermission,
     requestPermission,
   } = useNotifications();
+
+  const { clearAllData: clearFinanceData, reloadData: reloadFinanceData } = useFinance();
 
   const { alertState, showAlert, hideAlert } = useAlert();
   const [showThemeModal, setShowThemeModal] = useState(false);
@@ -143,15 +146,49 @@ export default function ProfileScreen() {
   const handleResetData = () => {
     showAlert({
       title: 'Reset All Data',
-      message: 'This will delete all transactions and preferences.',
+      message: 'This will permanently delete all transactions, preferences, and settings. This action cannot be undone.',
       type: 'warning',
       actions: [
         { text: 'Cancel', style: 'cancel', onPress: () => {} },
         {
-          text: 'Confirm',
+          text: 'Delete Everything',
           style: 'destructive',
           onPress: async () => {
-            await resetData();
+            try {
+              // Clear financial data first
+              await clearFinanceData();
+              
+              // Then clear all settings and other data
+              await resetData();
+              
+              // Reload financial data to reset state
+              await reloadFinanceData();
+              
+              showAlert({
+                title: 'Data Reset Complete',
+                message: 'All data has been successfully deleted. The app has been reset to default settings.',
+                type: 'success',
+                actions: [
+                  { 
+                    text: 'OK', 
+                    onPress: () => {
+                      // Force app to reload by reloading the page (web) or restarting (mobile)
+                      if (Platform.OS === 'web') {
+                        window.location.reload();
+                      }
+                    }
+                  }
+                ],
+              });
+            } catch (error) {
+              console.error('Reset data error:', error);
+              showAlert({
+                title: 'Reset Failed',
+                message: 'There was an error resetting your data. Please try again.',
+                type: 'error',
+                actions: [{ text: 'OK' }],
+              });
+            }
           },
         },
       ],
