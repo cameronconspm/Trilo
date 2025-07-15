@@ -42,6 +42,8 @@ class NotificationService {
         shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
       }),
     });
 
@@ -152,7 +154,6 @@ class NotificationService {
           data: { type: 'expense_reminder', transactionId: expense.id },
         },
         trigger: {
-          type: 'datetime',
           date: reminderDate,
         } as Notifications.DateTriggerInput,
       });

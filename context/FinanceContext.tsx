@@ -46,6 +46,7 @@ const CURRENT_APP_VERSION = '2.0.0';
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [weeklyOverview, setWeeklyOverview] = useState<WeeklyOverview>({
     weekIncome: 0,
@@ -666,6 +667,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         weeklyOverview,
         monthlyInsights,
         budget,
+        milestones,
         isLoading,
         clearAllData,
         exportData,
