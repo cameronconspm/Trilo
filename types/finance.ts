@@ -84,6 +84,16 @@ export interface WeeklyOverview {
   currentPayPeriod?: string;
 }
 
+export interface SavingsContribution {
+  id: string;
+  goalId: string;
+  amount: number;
+  date: string; // ISO string
+  fundingSource: 'budget' | 'extra_income' | 'unused_funds';
+  isRecurring: boolean;
+  payPeriodDay?: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday';
+}
+
 export interface SavingsGoal {
   id: string;
   name: string;
@@ -92,6 +102,7 @@ export interface SavingsGoal {
   timeToSave: number; // months (1-12)
   createdDate: string; // ISO string
   targetDate?: string; // ISO string
+  contributions?: SavingsContribution[];
 }
 
 export interface MonthlyInsights {

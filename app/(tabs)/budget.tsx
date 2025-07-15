@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Switch } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Plus, Edit3, Target, Trash2 } from 'lucide-react-native';
+import { Plus, Edit3, Target, Trash2, ChevronDown, DollarSign, Calendar, Repeat } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useThemeColors } from '@/constants/colors';
@@ -17,10 +18,10 @@ import EmptyState from '@/components/EmptyState';
 import AddTransactionModal from '@/components/AddTransactionModal';
 import AlertModal from '@/components/AlertModal';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
-import { Transaction, SavingsGoal } from '@/types/finance';
+import { Transaction, SavingsGoal, SavingsContribution } from '@/types/finance';
 
 export default function BudgetScreen() {
-  const { budget, transactions, isLoading } = useFinance();
+  const { budget, transactions, isLoading, addTransaction } = useFinance();
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
   const { alertState, showAlert, hideAlert } = useAlert();
@@ -29,10 +30,53 @@ export default function BudgetScreen() {
   const [activeTab, setActiveTab] = useState<'budget' | 'savings'>('budget');
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [showAddGoalModal, setShowAddGoalModal] = useState(false);
+
+  // Load savings goals from storage
+  useEffect(() => {
+    loadSavingsGoals();
+  }, []);
+
+  // Save savings goals when they change
+  useEffect(() => {
+    if (savingsGoals.length >= 0) {
+      saveSavingsGoals();
+    }
+  }, [savingsGoals]);
+
+  const loadSavingsGoals = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('savings_goals_v1');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setSavingsGoals(parsed);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading savings goals:', error);
+    }
+  };
+
+  const saveSavingsGoals = async () => {
+    try {
+      await AsyncStorage.setItem('savings_goals_v1', JSON.stringify(savingsGoals));
+    } catch (error) {
+      console.error('Error saving savings goals:', error);
+    }
+  };
   const [editGoal, setEditGoal] = useState<SavingsGoal | undefined>(undefined);
   const [newGoalName, setNewGoalName] = useState('');
   const [newGoalAmount, setNewGoalAmount] = useState('');
   const [newGoalTimeToSave, setNewGoalTimeToSave] = useState(6);
+  
+  // Add to Savings Modal State
+  const [showAddToSavingsModal, setShowAddToSavingsModal] = useState(false);
+  const [selectedGoalForSavings, setSelectedGoalForSavings] = useState<SavingsGoal | null>(null);
+  const [savingsAmount, setSavingsAmount] = useState('');
+  const [savingsDate, setSavingsDate] = useState(new Date());
+  const [fundingSource, setFundingSource] = useState<'budget' | 'extra_income' | 'unused_funds'>('budget');
+  const [repeatEveryPayPeriod, setRepeatEveryPayPeriod] = useState(false);
+  const [payPeriodDay, setPayPeriodDay] = useState<'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday'>('friday');
   
   // Get current month transactions
   const today = new Date();
@@ -173,12 +217,16 @@ export default function BudgetScreen() {
   };
 
   const handleAddToSavings = (goalId: string) => {
-    showAlert({
-      title: 'Add to Savings',
-      message: 'This would open a modal to add money to this specific savings goal.',
-      type: 'info',
-      actions: [{ text: 'OK', onPress: () => {} }],
-    });
+    const goal = savingsGoals.find(g => g.id === goalId);
+    if (goal) {
+      setSelectedGoalForSavings(goal);
+      setSavingsAmount('');
+      setSavingsDate(new Date());
+      setFundingSource('budget');
+      setRepeatEveryPayPeriod(false);
+      setPayPeriodDay('friday');
+      setShowAddToSavingsModal(true);
+    }
   };
 
   const handleCloseGoalModal = () => {
@@ -187,6 +235,95 @@ export default function BudgetScreen() {
     setNewGoalName('');
     setNewGoalAmount('');
     setNewGoalTimeToSave(6);
+  };
+
+  const handleCloseSavingsModal = () => {
+    setShowAddToSavingsModal(false);
+    setSelectedGoalForSavings(null);
+    setSavingsAmount('');
+    setSavingsDate(new Date());
+    setFundingSource('budget');
+    setRepeatEveryPayPeriod(false);
+    setPayPeriodDay('friday');
+  };
+
+  const handleSavingsContribution = async () => {
+    if (!selectedGoalForSavings || !savingsAmount.trim()) {
+      showAlert({
+        title: 'Missing Information',
+        message: 'Please enter an amount to save.',
+        type: 'error',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
+      return;
+    }
+
+    const amount = parseFloat(savingsAmount);
+    if (isNaN(amount) || amount <= 0) {
+      showAlert({
+        title: 'Invalid Amount',
+        message: 'Please enter a valid amount.',
+        type: 'error',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
+      return;
+    }
+
+    try {
+      // Update the savings goal
+      setSavingsGoals(prev => prev.map(goal => 
+        goal.id === selectedGoalForSavings.id 
+          ? { ...goal, currentAmount: goal.currentAmount + amount }
+          : goal
+      ));
+
+      // Add a savings transaction
+      await addTransaction({
+        name: `Savings: ${selectedGoalForSavings.name}`,
+        amount,
+        date: savingsDate.toISOString(),
+        category: 'savings',
+        type: 'expense',
+        isRecurring: repeatEveryPayPeriod,
+      });
+
+      handleCloseSavingsModal();
+      
+      showAlert({
+        title: 'Savings Added',
+        message: `Successfully added ${amount.toFixed(2)} to ${selectedGoalForSavings.name}!`,
+        type: 'success',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
+    } catch (error) {
+      showAlert({
+        title: 'Error',
+        message: 'Failed to add savings contribution. Please try again.',
+        type: 'error',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
+    }
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const getFundingSourceLabel = (source: typeof fundingSource) => {
+    switch (source) {
+      case 'budget': return 'From Budget';
+      case 'extra_income': return 'From Extra Income';
+      case 'unused_funds': return 'From Unused Funds';
+      default: return 'From Budget';
+    }
+  };
+
+  const getPayPeriodDayLabel = (day: typeof payPeriodDay) => {
+    return day.charAt(0).toUpperCase() + day.slice(1);
   };
 
   // Calculate savings summary
@@ -739,6 +876,168 @@ export default function BudgetScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* Add to Savings Modal */}
+        <Modal
+          visible={showAddToSavingsModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={handleCloseSavingsModal}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContainer, { backgroundColor: colors.card }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  Add to Savings
+                </Text>
+                <TouchableOpacity onPress={handleCloseSavingsModal} activeOpacity={0.7}>
+                  <Text style={[styles.modalClose, { color: colors.primary }]}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+              
+              {selectedGoalForSavings && (
+                <View style={styles.modalContent}>
+                  <View style={styles.goalInfoContainer}>
+                    <Text style={[styles.goalInfoTitle, { color: colors.text }]}>
+                      {selectedGoalForSavings.name}
+                    </Text>
+                    <Text style={[styles.goalInfoSubtitle, { color: colors.textSecondary }]}>
+                      ${selectedGoalForSavings.currentAmount.toFixed(2)} of ${selectedGoalForSavings.targetAmount.toFixed(2)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Amount to Save *</Text>
+                    <View style={[styles.amountInputContainer, { backgroundColor: colors.cardSecondary, borderColor: colors.border }]}>
+                      <View style={styles.amountIconContainer}>
+                        <DollarSign size={18} color={colors.textSecondary} strokeWidth={2} />
+                      </View>
+                      <TextInput
+                        style={[styles.amountInput, { color: colors.text }]}
+                        value={savingsAmount}
+                        onChangeText={setSavingsAmount}
+                        placeholder="0.00"
+                        placeholderTextColor={colors.inactive}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                  </View>
+                  
+                  <View style={styles.inputGroup}>
+                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Date of Contribution</Text>
+                    <TouchableOpacity
+                      style={[styles.picker, { backgroundColor: colors.cardSecondary, borderColor: colors.border }]}
+                      onPress={() => {
+                        // For simplicity, we'll just use today's date
+                        // In a full implementation, you'd open a date picker
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <View style={styles.pickerContent}>
+                        <View style={styles.pickerIconContainer}>
+                          <Calendar size={18} color={colors.textSecondary} strokeWidth={2} />
+                        </View>
+                        <Text style={[styles.pickerText, { color: colors.text }]}>
+                          {formatDate(savingsDate)}
+                        </Text>
+                      </View>
+                      <ChevronDown size={20} color={colors.inactive} />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  <View style={styles.inputGroup}>
+                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Funding Source</Text>
+                    <View style={styles.fundingSourceContainer}>
+                      {(['budget', 'extra_income', 'unused_funds'] as const).map((source) => (
+                        <TouchableOpacity
+                          key={source}
+                          style={[
+                            styles.fundingSourceButton,
+                            { 
+                              backgroundColor: fundingSource === source ? colors.primary : colors.cardSecondary,
+                              borderColor: colors.border
+                            }
+                          ]}
+                          onPress={() => setFundingSource(source)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[
+                            styles.fundingSourceText,
+                            { color: fundingSource === source ? colors.background : colors.text }
+                          ]}>
+                            {getFundingSourceLabel(source)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  
+                  <View style={styles.inputGroup}>
+                    <View style={styles.switchContainer}>
+                      <View style={styles.switchLabelContainer}>
+                        <Repeat size={18} color={colors.textSecondary} strokeWidth={2} />
+                        <Text style={[styles.switchLabel, { color: colors.text }]}>
+                          Repeat Every Pay Period
+                        </Text>
+                      </View>
+                      <Switch
+                        value={repeatEveryPayPeriod}
+                        onValueChange={setRepeatEveryPayPeriod}
+                        trackColor={{ false: colors.cardSecondary, true: colors.primary }}
+                        thumbColor={colors.background}
+                      />
+                    </View>
+                    
+                    {repeatEveryPayPeriod && (
+                      <View style={styles.payPeriodContainer}>
+                        <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Day of Pay Period</Text>
+                        <View style={styles.payPeriodDaysContainer}>
+                          {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const).map((day) => (
+                            <TouchableOpacity
+                              key={day}
+                              style={[
+                                styles.payPeriodDayButton,
+                                { 
+                                  backgroundColor: payPeriodDay === day ? colors.primary : colors.cardSecondary,
+                                  borderColor: colors.border
+                                }
+                              ]}
+                              onPress={() => setPayPeriodDay(day)}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={[
+                                styles.payPeriodDayText,
+                                { color: payPeriodDay === day ? colors.background : colors.text }
+                              ]}>
+                                {getPayPeriodDayLabel(day)}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                        
+                        {savingsAmount && !isNaN(parseFloat(savingsAmount)) && (
+                          <Text style={[styles.payPeriodPreview, { color: colors.primary }]}>
+                            Per Period: ${(parseFloat(savingsAmount)).toFixed(2)}
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
+              
+              <View style={styles.modalActions}>
+                <Button
+                  title="Add to Savings"
+                  onPress={handleSavingsContribution}
+                  variant="primary"
+                  size="medium"
+                  style={styles.modalActionButton}
+                />
+              </View>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
       
       <AlertModal
@@ -1065,5 +1364,124 @@ const styles = StyleSheet.create({
   },
   modalActionButton: {
     flex: 1,
+  },
+  goalInfoContainer: {
+    marginBottom: Spacing.lg,
+    padding: Spacing.md,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: BorderRadius.md,
+  },
+  goalInfoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 20,
+    marginBottom: Spacing.xs,
+  },
+  goalInfoSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  amountInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  amountIconContainer: {
+    marginRight: Spacing.sm,
+  },
+  amountInput: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  picker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  pickerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  pickerIconContainer: {
+    marginRight: Spacing.sm,
+  },
+  pickerText: {
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  fundingSourceContainer: {
+    gap: Spacing.xs,
+  },
+  fundingSourceButton: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fundingSourceText: {
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+  },
+  switchLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  switchLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 20,
+    marginLeft: Spacing.sm,
+  },
+  payPeriodContainer: {
+    marginTop: Spacing.sm,
+  },
+  payPeriodDaysContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+    marginTop: Spacing.xs,
+  },
+  payPeriodDayButton: {
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payPeriodDayText: {
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 16,
+  },
+  payPeriodPreview: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    lineHeight: 18,
   },
 });
