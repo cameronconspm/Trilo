@@ -186,7 +186,7 @@ export default function ProfileScreen() {
                 title: 'Reset Failed',
                 message: 'There was an error resetting your data. Please try again.',
                 type: 'error',
-                actions: [{ text: 'OK' }],
+                actions: [{ text: 'OK', onPress: () => {} }],
               });
             }
           },
