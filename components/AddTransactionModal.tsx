@@ -710,16 +710,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
                 </View>
               )}
               
-              {/* Show frequency picker for given expenses when recurring is enabled */}
-              {category === 'given_expenses' && isRecurring && (
-                <View style={dynamicStyles.formGroup}>
-                  <GivenExpenseFrequencyPicker
-                    selectedFrequency={givenExpenseFrequency}
-                    onFrequencySelect={setGivenExpenseFrequency}
-                    label="Frequency *"
-                  />
-                </View>
-              )}
+
               
               {/* Show recurring toggle for income */}
               {transactionType === 'income' && (
