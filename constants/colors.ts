@@ -25,7 +25,7 @@ const LightColors = {
   debt: "#E74C3C",             // Red - Debt  
   subscription: "#FFA94D",     // Orange - Subscriptions
   bill: "#4E91F9",             // Blue - Bills & Utilities
-  savings: "#9B59B6",          // Purple - Savings
+  savings: "#27AE60",          // Green - Savings
   oneTimeExpense: "#95A5A6",   // Gray-blue - One-Time Expense
   givenExpenses: "#F39C12",    // Orange - Given Expenses
   
@@ -60,7 +60,7 @@ const DarkColors = {
   debt: "#FF453A",             // Brighter red for dark mode
   subscription: "#FF9F0A",     // Brighter orange for dark mode
   bill: "#64D2FF",             // Brighter blue for dark mode
-  savings: "#BF5AF2",          // Brighter purple for dark mode
+  savings: "#27AE60",          // Green for dark mode
   oneTimeExpense: "#8E8E93",   // Gray for dark mode
   givenExpenses: "#F39C12",    // Orange - Given Expenses
   
