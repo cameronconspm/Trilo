@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Plus, TrendingUp, DollarSign } from 'lucide-react-native';
+import { Plus, TrendingUp, DollarSign, Clock } from 'lucide-react-native';
 import { useThemeColors } from '@/constants/colors';
 import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius } from '@/constants/spacing';
 
 interface EmptyStateProps {
-  icon?: 'plus' | 'trending' | 'dollar';
+  icon?: 'plus' | 'trending' | 'dollar' | 'clock';
   title: string;
   subtitle: string;
 }
@@ -27,6 +27,8 @@ export default function EmptyState({
         return TrendingUp;
       case 'dollar':
         return DollarSign;
+      case 'clock':
+        return Clock;
       default:
         return Plus;
     }
