@@ -22,8 +22,8 @@ export default function TabLayout() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: 84, // Increased height for more spacing
-          paddingBottom: 32, // Increased bottom padding
+          height: 92, // Further increased height for more spacing
+          paddingBottom: 40, // Increased bottom padding for more space from edge
           paddingTop: 8,
           paddingHorizontal: Spacing.tabHorizontal, // Equal padding between icons
           elevation: 0,

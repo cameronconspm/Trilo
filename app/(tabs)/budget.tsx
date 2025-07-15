@@ -131,14 +131,14 @@ export default function BudgetScreen() {
               </View>
             </View>
             
-            <View style={styles.summaryRow}>
-              <View style={styles.summaryItem}>
+            <View style={styles.summaryGrid}>
+              <View style={styles.summaryGridItem}>
                 <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Monthly Income</Text>
                 <Text style={[styles.summaryValue, { color: colors.text }]}>
                   ${budget.income > 0 ? budget.income.toFixed(2) : '0.00'}
                 </Text>
               </View>
-              <View style={styles.summaryItem}>
+              <View style={styles.summaryGridItem}>
                 <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total Expenses</Text>
                 <Text style={[styles.summaryValue, { color: colors.text }]}>
                   ${totalExpenses.toFixed(2)}
@@ -155,33 +155,37 @@ export default function BudgetScreen() {
               />
             </View>
             
-            <View style={styles.remainingContainer}>
-              <Text style={[styles.remainingLabel, { color: colors.textSecondary }]}>Remaining Budget</Text>
-              <Text style={[
-                styles.remainingValue,
-                { color: remainingIncome < 0 ? colors.error : colors.success }
-              ]}>
-                ${remainingIncome.toFixed(2)}
-              </Text>
+            <View style={styles.remainingBudgetSection}>
+              <View style={styles.remainingBudgetRow}>
+                <Text style={[styles.remainingLabel, { color: colors.textSecondary }]}>Remaining Budget</Text>
+                <Text style={[
+                  styles.remainingValue,
+                  { color: remainingIncome < 0 ? colors.error : colors.success }
+                ]}>
+                  ${remainingIncome.toFixed(2)}
+                </Text>
+              </View>
             </View>
             
-            <View style={styles.breakdownContainer}>
+            <View style={styles.breakdownSection}>
               <Text style={[styles.breakdownTitle, { color: colors.text }]}>Expense Breakdown</Text>
-              <View style={styles.breakdownRow}>
-                <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Given expenses</Text>
-                <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.given.toFixed(2)}</Text>
-              </View>
-              <View style={styles.breakdownRow}>
-                <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>One-Time Expenses</Text>
-                <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.oneTime.toFixed(2)}</Text>
-              </View>
-              <View style={styles.breakdownRow}>
-                <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Recurring expenses</Text>
-                <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.recurring.toFixed(2)}</Text>
-              </View>
-              <View style={styles.breakdownRow}>
-                <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Savings</Text>
-                <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.savings.toFixed(2)}</Text>
+              <View style={styles.breakdownList}>
+                <View style={styles.breakdownRow}>
+                  <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Given expenses</Text>
+                  <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.given.toFixed(2)}</Text>
+                </View>
+                <View style={styles.breakdownRow}>
+                  <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>One-Time Expenses</Text>
+                  <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.oneTime.toFixed(2)}</Text>
+                </View>
+                <View style={styles.breakdownRow}>
+                  <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Recurring expenses</Text>
+                  <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.recurring.toFixed(2)}</Text>
+                </View>
+                <View style={styles.breakdownRow}>
+                  <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Savings</Text>
+                  <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.savings.toFixed(2)}</Text>
+                </View>
               </View>
             </View>
           </Card>
@@ -399,7 +403,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   summaryCard: {
-    minHeight: 120, // Consistent card height
+    borderRadius: BorderRadius.xl, // Increased border radius for modern look
   },
   budgetHeader: {
     marginBottom: Spacing.lg,
@@ -410,8 +414,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   budgetTitle: {
-    fontSize: 20, // Balanced header font
-    fontWeight: '600', // Bold
+    fontSize: 20,
+    fontWeight: '600',
     letterSpacing: -0.2,
     lineHeight: 24,
   },
@@ -422,76 +426,81 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  summaryRow: {
+  summaryGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg, // Reduced from xl to lg for tighter spacing
+    gap: Spacing.md, // Add gap between grid items
   },
-  summaryItem: {
+  summaryGridItem: {
     flex: 1,
+    alignItems: 'flex-start', // Ensure left alignment
   },
   summaryLabel: {
-    fontSize: 14, // Standard subheader font
-    marginBottom: Spacing.sm,
-    fontWeight: '500', // Medium gray
+    fontSize: 14,
+    marginBottom: Spacing.xs, // Reduced from sm to xs for tighter spacing
+    fontWeight: '500',
     lineHeight: 18,
   },
   summaryValue: {
-    fontSize: 16, // Balanced currency display
-    fontWeight: '600', // Medium weight
+    fontSize: 18, // Slightly increased for better hierarchy
+    fontWeight: '600',
     letterSpacing: -0.2,
-    textAlign: 'left', // Left-aligned to match labels
-    lineHeight: 20,
+    lineHeight: 22,
   },
   progressContainer: {
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg, // Reduced from xl to lg
   },
-  remainingContainer: {
+  remainingBudgetSection: {
+    marginBottom: Spacing.xl, // Increased spacing before breakdown section
+    paddingVertical: Spacing.sm,
+  },
+  remainingBudgetRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    borderRadius: BorderRadius.lg,
   },
   remainingLabel: {
-    fontSize: 14, // Standard subheader font
-    marginBottom: Spacing.sm,
-    fontWeight: '500', // Medium gray
-    lineHeight: 18,
+    fontSize: 15, // Slightly increased for consistency
+    fontWeight: '500',
+    lineHeight: 20,
   },
   remainingValue: {
-    fontSize: 24, // Balanced large display
+    fontSize: 20, // Reduced from 24 for better balance
     fontWeight: '700',
-    letterSpacing: -0.3,
-    lineHeight: 28,
+    letterSpacing: -0.2,
+    lineHeight: 24,
   },
-  breakdownContainer: {
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
+  breakdownSection: {
+    paddingTop: Spacing.md, // Add top padding for separation
   },
   breakdownTitle: {
-    fontSize: 16,
+    fontSize: 18, // Increased to match section titles
     fontWeight: '600',
-    marginBottom: Spacing.sm, // Reduced from md (12px) to sm (8px)
+    marginBottom: Spacing.md, // Increased spacing after title
     letterSpacing: -0.1,
-    lineHeight: 20,
+    lineHeight: 22,
+  },
+  breakdownList: {
+    gap: Spacing.xs, // Add consistent gap between breakdown items
   },
   breakdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: Spacing.rowMinHeight, // 44px minimum row height
-    marginVertical: Spacing.xs,
+    minHeight: 36, // Reduced from 44px for tighter layout
+    paddingVertical: Spacing.xs,
   },
   breakdownLabel: {
-    fontSize: 15, // Balanced body label font
-    fontWeight: '400', // Regular weight
+    fontSize: 15,
+    fontWeight: '400',
     lineHeight: 20,
     flexShrink: 1,
   },
   breakdownValue: {
-    fontSize: 15, // Balanced body label font
-    fontWeight: '600', // Medium weight
-    textAlign: 'right', // Right-aligned
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'right',
     lineHeight: 20,
     flexShrink: 0,
   },
