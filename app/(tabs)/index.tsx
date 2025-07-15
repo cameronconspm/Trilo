@@ -135,23 +135,27 @@ export default function OverviewScreen() {
           )}
         </Card>
         
-        {hasPastExpenses && (
-          <>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Past Expenses</Text>
-            <Card variant="default">
-              {pastExpenses.map((expense, index) => (
-                <TransactionItem 
-                  key={expense.id} 
-                  transaction={expense}
-                  isLast={index === pastExpenses.length - 1}
-                  onEdit={handleEditTransaction}
-                  enableSwipeActions={true}
-                  isPastExpense={true}
-                />
-              ))}
-            </Card>
-          </>
-        )}
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Past Expenses</Text>
+        <Card variant="default">
+          {hasPastExpenses ? (
+            pastExpenses.map((expense, index) => (
+              <TransactionItem 
+                key={expense.id} 
+                transaction={expense}
+                isLast={index === pastExpenses.length - 1}
+                onEdit={handleEditTransaction}
+                enableSwipeActions={true}
+                isPastExpense={true}
+              />
+            ))
+          ) : (
+            <EmptyState 
+              icon="clock"
+              title="No past expenses"
+              subtitle="Past expenses from this pay period will appear here"
+            />
+          )}
+        </Card>
       </ScrollView>
       
       <AddTransactionModal 
