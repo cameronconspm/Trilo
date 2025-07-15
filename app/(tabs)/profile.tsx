@@ -24,7 +24,7 @@ import { useSettings } from '@/context/SettingsContext';
 import { useNotifications } from '@/context/NotificationContext';
 import { useAlert } from '@/hooks/useAlert';
 import Colors, { useThemeColors } from '@/constants/colors';
-import { Spacing, BorderRadius } from '@/constants/spacing';
+import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 import { Shield, Mail, RefreshCw, Edit3, Camera } from 'lucide-react-native';
 import NameEditModal from '@/components/NameEditModal';
 
