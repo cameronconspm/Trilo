@@ -62,7 +62,6 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
   
   // For given expenses
   const [givenExpenseFrequency, setGivenExpenseFrequency] = useState<GivenExpenseFrequency>('every_week');
-  const [givenExpenseStartDate, setGivenExpenseStartDate] = useState(new Date());
   
   const [isLoading, setIsLoading] = useState(false);
   
@@ -84,7 +83,8 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
           setCustomDays(editTransaction.paySchedule.customDays || []);
         } else if (editTransaction.category === 'given_expenses' && editTransaction.givenExpenseSchedule) {
           setGivenExpenseFrequency(editTransaction.givenExpenseSchedule.frequency);
-          setGivenExpenseStartDate(new Date(editTransaction.givenExpenseSchedule.startDate));
+          const startDate = new Date(editTransaction.givenExpenseSchedule.startDate);
+          setSelectedDay(startDate.getDate());
         } else {
           const transactionDate = new Date(editTransaction.date);
           setSelectedDay(transactionDate.getDate());
@@ -99,7 +99,6 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
         setMonthlyDays([]);
         setCustomDays([]);
         setGivenExpenseFrequency('every_week');
-        setGivenExpenseStartDate(new Date());
       }
       setIsLoading(false);
     }
@@ -198,11 +197,18 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
         // Handle given expenses with frequency schedule
         givenExpenseSchedule = {
           frequency: givenExpenseFrequency,
-          startDate: givenExpenseStartDate.toISOString(),
+          startDate: new Date(today.getFullYear(), today.getMonth(), selectedDay).toISOString(),
         };
         
-        // Use the start date as the transaction date
-        transactionDate = givenExpenseStartDate.toISOString();
+        // Use day of month for given expenses - resolve to appropriate date
+        let expenseDate = new Date(today.getFullYear(), today.getMonth(), selectedDay);
+        
+        // If the date is in the past for this month, use next month
+        if (expenseDate < today) {
+          expenseDate = new Date(today.getFullYear(), today.getMonth() + 1, selectedDay);
+        }
+        
+        transactionDate = expenseDate.toISOString();
       } else {
         // Use day of month for regular expenses - resolve to appropriate date
         const today = new Date();
@@ -302,7 +308,6 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
     setMonthlyDays([]);
     setCustomDays([]);
     setGivenExpenseFrequency('every_week');
-    setGivenExpenseStartDate(new Date());
     setIsRecurring(transactionType === 'income');
     
     if (hasData) {
@@ -665,22 +670,6 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
                   
                   {renderPayScheduleInputs()}
                 </View>
-              ) : category === 'given_expenses' ? (
-                <View style={dynamicStyles.formGroup}>
-                  <GivenExpenseFrequencyPicker
-                    selectedFrequency={givenExpenseFrequency}
-                    onFrequencySelect={setGivenExpenseFrequency}
-                    label="Apply to *"
-                  />
-                  
-                  <DatePicker
-                    selectedDate={givenExpenseStartDate}
-                    onDateSelect={setGivenExpenseStartDate}
-                    label="Start Date"
-                    minimumDate={new Date()}
-                    variant="default"
-                  />
-                </View>
               ) : (
                 <View style={dynamicStyles.formGroup}>
                   <Text style={dynamicStyles.label}>Day of Month *</Text>
@@ -691,22 +680,57 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
                 </View>
               )}
               
-              {/* Only show recurring toggle for non-given expenses */}
-              {category !== 'given_expenses' && (
+              {/* Recurring toggle - show for all expense types */}
+              {transactionType === 'expense' && (
                 <View style={dynamicStyles.switchContainer}>
                   <View style={dynamicStyles.switchTextContainer}>
                     <Text style={dynamicStyles.switchLabel}>
-                      {transactionType === 'income' ? 'Recurring Income' : 'Recurring Expense'}
+                      Recurring Expense
                     </Text>
                     <Text style={dynamicStyles.switchSubtitle}>
-                      {transactionType === 'income' 
-                        ? (isRecurring 
-                            ? 'This income repeats based on your pay schedule' 
-                            : 'One-time income (bonus, gift, freelance project)')
+                      {category === 'given_expenses'
+                        ? 'Given expenses are always recurring'
                         : (isRecurring 
                             ? 'This expense repeats monthly (subscriptions, bills)' 
                             : 'One-time expense (purchases, dining out)')
                       }
+                    </Text>
+                  </View>
+                  <Switch
+                    value={isRecurring}
+                    onValueChange={category === 'given_expenses' ? undefined : setIsRecurring}
+                    trackColor={{ 
+                      false: colors.border, 
+                      true: colors.primary 
+                    }}
+                    thumbColor={colors.card}
+                    disabled={category === 'given_expenses'}
+                  />
+                </View>
+              )}
+              
+              {/* Show frequency picker for given expenses when recurring is enabled */}
+              {category === 'given_expenses' && isRecurring && (
+                <View style={dynamicStyles.formGroup}>
+                  <GivenExpenseFrequencyPicker
+                    selectedFrequency={givenExpenseFrequency}
+                    onFrequencySelect={setGivenExpenseFrequency}
+                    label="Frequency *"
+                  />
+                </View>
+              )}
+              
+              {/* Show recurring toggle for income */}
+              {transactionType === 'income' && (
+                <View style={dynamicStyles.switchContainer}>
+                  <View style={dynamicStyles.switchTextContainer}>
+                    <Text style={dynamicStyles.switchLabel}>
+                      Recurring Income
+                    </Text>
+                    <Text style={dynamicStyles.switchSubtitle}>
+                      {isRecurring 
+                        ? 'This income repeats based on your pay schedule' 
+                        : 'One-time income (bonus, gift, freelance project)'}
                     </Text>
                   </View>
                   <Switch
