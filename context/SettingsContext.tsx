@@ -202,7 +202,19 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('SettingsContext: Setting theme to', newTheme);
       setThemeState(newTheme);
-      await saveAllPreferences();
+      // Save immediately to ensure persistence
+      const preferences: UserPreferences = {
+        theme: newTheme,
+        weekStartDay,
+        isBankConnected,
+        notificationsEnabled: true,
+        budgetAlerts: true,
+        version: CURRENT_SETTINGS_VERSION,
+        nickname,
+        avatarUri,
+      };
+      await AsyncStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(preferences));
+      console.log('SettingsContext: Theme saved successfully');
     } catch (error) {
       console.error('SettingsContext: Error saving theme:', error);
       // Revert on error

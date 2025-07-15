@@ -1,4 +1,4 @@
-import { useColorScheme } from 'react-native';
+import { useColorScheme, Appearance } from 'react-native';
 
 const LightColors = {
   primary: "#007AFF",
@@ -75,7 +75,7 @@ export function useThemeColors(themePreference: 'system' | 'light' | 'dark') {
   const systemColorScheme = useColorScheme();
   
   const effectiveTheme = themePreference === 'system' 
-    ? (systemColorScheme || 'light')
+    ? (systemColorScheme || Appearance.getColorScheme() || 'light')
     : themePreference;
     
   return effectiveTheme === 'dark' ? DarkColors : LightColors;

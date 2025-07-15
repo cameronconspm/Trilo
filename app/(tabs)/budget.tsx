@@ -189,7 +189,7 @@ export default function BudgetScreen() {
           {/* Quick Actions */}
           <View style={styles.quickActions}>
             <Button
-              title="Add Transaction"
+              title="Add Expense"
               onPress={() => setShowAddModal(true)}
               variant="primary"
               size="medium"

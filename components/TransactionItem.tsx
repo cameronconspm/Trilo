@@ -92,7 +92,7 @@ export default function TransactionItem({
     return (
       <View style={styles.rightActions}>
         <TouchableOpacity
-          style={styles.deleteAction}
+          style={[styles.deleteAction, { backgroundColor: colors.error }]}
           onPress={handleDelete}
           activeOpacity={0.7}
         >
@@ -158,7 +158,11 @@ export default function TransactionItem({
   return (
     <>
       {enableSwipeActions ? (
-        <Swipeable renderRightActions={renderRightActions}>
+        <Swipeable 
+          renderRightActions={renderRightActions}
+          rightThreshold={40}
+          friction={2}
+        >
           {content}
         </Swipeable>
       ) : (
@@ -253,13 +257,17 @@ const styles = StyleSheet.create({
   rightActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingLeft: Spacing.sm,
   },
   deleteAction: {
     justifyContent: 'center',
     alignItems: 'center',
     width: 80,
-    height: '100%',
+    height: '90%',
     paddingHorizontal: Spacing.md,
+    borderRadius: 16,
+    marginVertical: Spacing.xs,
+    marginRight: Spacing.xs,
   },
   actionText: {
     fontSize: 12,

@@ -66,9 +66,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     loadAllData();
   }, []);
 
-  // Calculate insights whenever transactions change
+  // Calculate insights whenever transactions change - real-time sync
   useEffect(() => {
     if (!isLoading) {
+      // Immediate calculation for real-time updates
       calculateWeeklyOverview();
       calculateMonthlyInsights();
       calculateBudget();
@@ -76,6 +77,20 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       autoBackup();
     }
   }, [transactions, isLoading]);
+
+  // Additional effect to ensure immediate UI updates when transactions are modified
+  useEffect(() => {
+    if (!isLoading && transactions.length >= 0) {
+      // Force recalculation on any transaction array change
+      const timeoutId = setTimeout(() => {
+        calculateWeeklyOverview();
+        calculateMonthlyInsights();
+        calculateBudget();
+      }, 0);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [transactions.length, isLoading]);
 
   const loadAllData = async () => {
     try {
@@ -504,12 +519,18 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       };
 
       const updatedTransactions = [...transactions, newTransaction];
+      
+      // Update state immediately for real-time sync
       setTransactions(updatedTransactions);
+      
+      // Save to storage
       await saveTransactions(updatedTransactions);
       
       console.log('FinanceContext: Transaction added successfully');
     } catch (error) {
       console.error('FinanceContext: Error adding transaction:', error);
+      // Revert state on error
+      setTransactions(transactions);
       throw error;
     }
   };
@@ -519,11 +540,17 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       const updatedTransactions = transactions.map(t => 
         t.id === id ? { ...t, ...updates } : t
       );
+      
+      // Update state immediately for real-time sync
       setTransactions(updatedTransactions);
+      
+      // Save to storage
       await saveTransactions(updatedTransactions);
       console.log('FinanceContext: Transaction updated successfully');
     } catch (error) {
       console.error('FinanceContext: Error updating transaction:', error);
+      // Revert state on error
+      setTransactions(transactions);
       throw error;
     }
   };
@@ -531,11 +558,17 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const deleteTransaction = async (id: string) => {
     try {
       const updatedTransactions = transactions.filter(t => t.id !== id);
+      
+      // Update state immediately for real-time sync
       setTransactions(updatedTransactions);
+      
+      // Save to storage
       await saveTransactions(updatedTransactions);
       console.log('FinanceContext: Transaction deleted successfully');
     } catch (error) {
       console.error('FinanceContext: Error deleting transaction:', error);
+      // Revert state on error
+      setTransactions(transactions);
       throw error;
     }
   };
