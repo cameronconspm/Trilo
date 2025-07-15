@@ -90,7 +90,7 @@ export default function TransactionItem({
 
   const renderRightActions = () => {
     return (
-      <View style={styles.rightActions}>
+      <View style={[styles.rightActions, { backgroundColor: colors.error }]}>
         <TouchableOpacity
           style={[styles.deleteAction, { backgroundColor: colors.error }]}
           onPress={handleDelete}
@@ -262,16 +262,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingLeft: Spacing.sm,
+    justifyContent: 'center',
+    flex: 1,
   },
   deleteAction: {
     justifyContent: 'center',
     alignItems: 'center',
     width: 80,
-    height: '90%',
+    height: '100%',
     paddingHorizontal: Spacing.md,
-    borderRadius: 16,
-    marginVertical: Spacing.xs,
-    marginRight: Spacing.xs,
+    borderRadius: 0,
   },
   actionText: {
     fontSize: 12,

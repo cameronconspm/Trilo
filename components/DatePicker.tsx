@@ -145,7 +145,7 @@ export default function DatePicker({
       >
         <View style={styles.selectedOption}>
           <View style={styles.iconContainer}>
-            <Calendar size={18} color={variant === 'income' ? colors.income : colors.textSecondary} strokeWidth={2} />
+            <Calendar size={18} color={colors.textSecondary} strokeWidth={2} />
           </View>
           <View style={styles.dateContainer}>
             <Text style={styles.selectedText}>{formatShortDate(selectedDate)}</Text>
@@ -222,7 +222,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>, variant: 'defau
     fontSize: 17,
     fontWeight: '600',
     marginBottom: Spacing.md,
-    color: variant === 'income' ? colors.income : colors.text,
+    color: colors.text,
     letterSpacing: -0.2,
   },
   picker: {
@@ -232,8 +232,8 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>, variant: 'defau
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: variant === 'income' ? 2 : 1,
-    borderColor: variant === 'income' ? colors.income : colors.border,
+    borderWidth: 1,
+    borderColor: colors.border,
     ...Shadow.light,
   },
   selectedOption: {
@@ -355,7 +355,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>, variant: 'defau
     marginVertical: 1,
   },
   selectedDay: {
-    backgroundColor: variant === 'income' ? colors.income : colors.primary,
+    backgroundColor: colors.primary,
   },
   disabledDay: {
     opacity: 0.3,
@@ -363,7 +363,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>, variant: 'defau
   todayDay: {
     backgroundColor: colors.cardSecondary,
     borderWidth: 1,
-    borderColor: variant === 'income' ? colors.income : colors.primary,
+    borderColor: colors.primary,
   },
   dayText: {
     fontSize: 16,
@@ -378,7 +378,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>, variant: 'defau
     color: colors.inactive,
   },
   todayDayText: {
-    color: variant === 'income' ? colors.income : colors.primary,
+    color: colors.primary,
     fontWeight: '600',
   },
 });

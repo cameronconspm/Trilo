@@ -65,7 +65,7 @@ export default function PayCadencePicker({ selectedCadence, onCadenceSelect }: P
     label: {
       fontSize: 17,
       fontWeight: '600',
-      color: colors.income,
+      color: colors.text,
       letterSpacing: -0.2,
       flex: 1,
     },
@@ -78,7 +78,7 @@ export default function PayCadencePicker({ selectedCadence, onCadenceSelect }: P
       padding: Spacing.md,
       marginBottom: Spacing.md,
       borderLeftWidth: 4,
-      borderLeftColor: colors.income,
+      borderLeftColor: colors.border,
     },
     helpText: {
       fontSize: 14,
@@ -93,8 +93,8 @@ export default function PayCadencePicker({ selectedCadence, onCadenceSelect }: P
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      borderWidth: 2,
-      borderColor: colors.income,
+      borderWidth: 1,
+      borderColor: colors.border,
       ...Shadow.light,
     },
     selectedOption: {
@@ -158,7 +158,7 @@ export default function PayCadencePicker({ selectedCadence, onCadenceSelect }: P
     selectedOptionStyle: {
       backgroundColor: colors.cardSecondary,
       borderLeftWidth: 4,
-      borderLeftColor: colors.income,
+      borderLeftColor: colors.primary,
     },
     optionContent: {
       flex: 1,
@@ -170,7 +170,7 @@ export default function PayCadencePicker({ selectedCadence, onCadenceSelect }: P
       marginBottom: 2,
     },
     selectedOptionText: {
-      color: colors.income,
+      color: colors.primary,
       fontWeight: '600',
     },
     optionDescription: {
@@ -179,7 +179,7 @@ export default function PayCadencePicker({ selectedCadence, onCadenceSelect }: P
       fontWeight: '500',
     },
     selectedOptionDescription: {
-      color: colors.income,
+      color: colors.primary,
       opacity: 0.8,
     },
   });
@@ -262,7 +262,7 @@ export default function PayCadencePicker({ selectedCadence, onCadenceSelect }: P
                     </Text>
                   </View>
                   {selectedCadence === option.key && (
-                    <Check size={20} color={colors.income} strokeWidth={2.5} />
+                    <Check size={20} color={colors.primary} strokeWidth={2.5} />
                   )}
                 </TouchableOpacity>
               ))}

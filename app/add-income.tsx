@@ -175,7 +175,7 @@ export default function AddIncomeScreen() {
             <Switch
               value={isRecurring}
               onValueChange={setIsRecurring}
-              trackColor={{ false: Colors.border, true: Colors.success }}
+              trackColor={{ false: Colors.border, true: Colors.primary }}
               thumbColor={Colors.card}
             />
           </View>
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: BorderRadius.lg,
     borderLeftWidth: 4,
-    borderLeftColor: Colors.success,
+    borderLeftColor: Colors.border,
     ...Shadow.light,
   },
   incomeTypeTitle: {
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   currencySymbol: {
     fontSize: 20,
     fontWeight: '600',
-    color: Colors.success,
+    color: Colors.text,
     marginRight: Spacing.sm,
   },
   amountInput: {
