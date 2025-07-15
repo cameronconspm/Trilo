@@ -84,6 +84,16 @@ export interface WeeklyOverview {
   currentPayPeriod?: string;
 }
 
+export interface SavingsGoal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  timeToSave: number; // months (1-12)
+  createdDate: string; // ISO string
+  targetDate?: string; // ISO string
+}
+
 export interface MonthlyInsights {
   totalSpent: number;
   totalSaved: number;
