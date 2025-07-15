@@ -195,6 +195,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
         transactionDate = lastPaidDate.toISOString();
       } else if (category === 'given_expenses') {
         // Handle given expenses with frequency schedule
+        const today = new Date();
         givenExpenseSchedule = {
           frequency: givenExpenseFrequency,
           startDate: new Date(today.getFullYear(), today.getMonth(), selectedDay).toISOString(),
@@ -769,10 +770,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
                 size="large"
                 loading={isLoading}
                 disabled={!name.trim() || !amount || parseFloat(amount) <= 0}
-                style={[
-                  dynamicStyles.submitButton,
-                  transactionType === 'income' && dynamicStyles.incomeSubmitButton
-                ]}
+                style={dynamicStyles.submitButton}
               />
             </View>
           </KeyboardAvoidingView>
