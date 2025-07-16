@@ -112,10 +112,8 @@ export default function BudgetScreen() {
     t.category === 'given_expenses'
   );
   
-  const savingsTransactions = transactions.filter(t => 
-    t.type === 'expense' && 
-    t.category === 'savings'
-  );
+  // Remove savings transactions from budget view since they're now in savings contribution history
+  const savingsTransactions: Transaction[] = [];
   
   const oneTimeExpenses = transactions.filter(t => 
     t.type === 'expense' && 
@@ -379,7 +377,7 @@ export default function BudgetScreen() {
   };
 
   const handleUpdateContribution = () => {
-    if (!editingContribution || !selectedGoalForDetails || !editContributionAmount.trim()) {
+    if (!editingContribution || !editContributionAmount.trim()) {
       showAlert({
         title: 'Missing Information',
         message: 'Please enter a valid amount.',
@@ -405,7 +403,7 @@ export default function BudgetScreen() {
 
     // Update the contribution and goal
     setSavingsGoals(prev => prev.map(goal => {
-      if (goal.id === selectedGoalForDetails.id) {
+      if (goal.id === editingContribution.goalId) {
         const updatedContributions = (goal.contributions || []).map(contrib => 
           contrib.id === editingContribution.id 
             ? { ...contrib, amount: newAmount, date: editContributionDate.toISOString() }
@@ -420,20 +418,22 @@ export default function BudgetScreen() {
       return goal;
     }));
 
-    // Update selected goal for details modal
-    setSelectedGoalForDetails(prev => {
-      if (!prev) return prev;
-      const updatedContributions = (prev.contributions || []).map(contrib => 
-        contrib.id === editingContribution.id 
-          ? { ...contrib, amount: newAmount, date: editContributionDate.toISOString() }
-          : contrib
-      );
-      return {
-        ...prev,
-        currentAmount: Math.max(0, prev.currentAmount + amountDifference),
-        contributions: updatedContributions,
-      };
-    });
+    // Update selected goal for details modal if it exists
+    if (selectedGoalForDetails && selectedGoalForDetails.id === editingContribution.goalId) {
+      setSelectedGoalForDetails(prev => {
+        if (!prev) return prev;
+        const updatedContributions = (prev.contributions || []).map(contrib => 
+          contrib.id === editingContribution.id 
+            ? { ...contrib, amount: newAmount, date: editContributionDate.toISOString() }
+            : contrib
+        );
+        return {
+          ...prev,
+          currentAmount: Math.max(0, prev.currentAmount + amountDifference),
+          contributions: updatedContributions,
+        };
+      });
+    }
 
     handleCloseEditContributionModal();
     
@@ -446,10 +446,20 @@ export default function BudgetScreen() {
   };
 
   const handleDeleteContribution = (contributionId: string) => {
-    if (!selectedGoalForDetails) return;
+    // Find the contribution across all goals
+    let contribution: SavingsContribution | undefined;
+    let goalId: string | undefined;
+    
+    for (const goal of savingsGoals) {
+      const found = goal.contributions?.find(c => c.id === contributionId);
+      if (found) {
+        contribution = found;
+        goalId = goal.id;
+        break;
+      }
+    }
 
-    const contribution = selectedGoalForDetails.contributions?.find(c => c.id === contributionId);
-    if (!contribution) return;
+    if (!contribution || !goalId) return;
 
     showAlert({
       title: 'Delete Contribution',
@@ -462,27 +472,29 @@ export default function BudgetScreen() {
           onPress: () => {
             // Update the goal by removing the contribution
             setSavingsGoals(prev => prev.map(goal => {
-              if (goal.id === selectedGoalForDetails.id) {
+              if (goal.id === goalId) {
                 const updatedContributions = (goal.contributions || []).filter(c => c.id !== contributionId);
                 return {
                   ...goal,
-                  currentAmount: Math.max(0, goal.currentAmount - contribution.amount),
+                  currentAmount: Math.max(0, goal.currentAmount - contribution!.amount),
                   contributions: updatedContributions,
                 };
               }
               return goal;
             }));
 
-            // Update selected goal for details modal
-            setSelectedGoalForDetails(prev => {
-              if (!prev) return prev;
-              const updatedContributions = (prev.contributions || []).filter(c => c.id !== contributionId);
-              return {
-                ...prev,
-                currentAmount: Math.max(0, prev.currentAmount - contribution.amount),
-                contributions: updatedContributions,
-              };
-            });
+            // Update selected goal for details modal if it exists
+            if (selectedGoalForDetails && selectedGoalForDetails.id === goalId) {
+              setSelectedGoalForDetails(prev => {
+                if (!prev) return prev;
+                const updatedContributions = (prev.contributions || []).filter(c => c.id !== contributionId);
+                return {
+                  ...prev,
+                  currentAmount: Math.max(0, prev.currentAmount - contribution!.amount),
+                  contributions: updatedContributions,
+                };
+              });
+            }
 
             showAlert({
               title: 'Contribution Deleted',
@@ -965,6 +977,83 @@ export default function BudgetScreen() {
                   />
                 </Card>
               )}
+
+              {/* Savings Contribution History Section */}
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Savings Contribution History</Text>
+              </View>
+              <Card>
+                {savingsGoals.some(goal => goal.contributions && goal.contributions.length > 0) ? (
+                  savingsGoals
+                    .filter(goal => goal.contributions && goal.contributions.length > 0)
+                    .flatMap(goal => 
+                      goal.contributions!.map(contribution => ({
+                        ...contribution,
+                        goalName: goal.name
+                      }))
+                    )
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .map((contribution, index, allContributions) => (
+                      <View key={contribution.id} style={[
+                        styles.contributionItemRow,
+                        index < allContributions.length - 1 && [
+                          styles.contributionItemBorder,
+                          { borderBottomColor: colors.border }
+                        ]
+                      ]}>
+                        <View style={styles.contributionItemContent}>
+                          <View style={styles.contributionItemLeft}>
+                            <Text style={[styles.contributionAmount, { color: colors.text }]}>
+                              ${contribution.amount.toFixed(2)}
+                            </Text>
+                            <Text style={[styles.contributionGoalName, { color: colors.primary }]}>
+                              {contribution.goalName}
+                            </Text>
+                            <Text style={[styles.contributionDate, { color: colors.textSecondary }]}>
+                              {new Date(contribution.date).toLocaleDateString()}
+                            </Text>
+                            <Text style={[styles.contributionSource, { color: colors.textSecondary }]}>
+                              {getFundingSourceDisplayName(contribution.fundingSource)}
+                            </Text>
+                          </View>
+                          <View style={styles.contributionItemActions}>
+                            <TouchableOpacity 
+                              onPress={() => {
+                                const goal = savingsGoals.find(g => g.id === contribution.goalId);
+                                if (goal) {
+                                  setSelectedGoalForDetails(goal);
+                                  handleEditContribution(contribution);
+                                }
+                              }}
+                              style={[styles.contributionActionButton, { backgroundColor: colors.cardSecondary }]}
+                              activeOpacity={0.7}
+                            >
+                              <Edit3 size={16} color={colors.primary} strokeWidth={2} />
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                              onPress={() => {
+                                const goal = savingsGoals.find(g => g.id === contribution.goalId);
+                                if (goal) {
+                                  setSelectedGoalForDetails(goal);
+                                  handleDeleteContribution(contribution.id);
+                                }
+                              }}
+                              style={[styles.contributionActionButton, { backgroundColor: colors.cardSecondary }]}
+                              activeOpacity={0.7}
+                            >
+                              <Trash2 size={16} color={colors.error} strokeWidth={2} />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </View>
+                    ))
+                ) : (
+                  <EmptyState 
+                    icon="plus"
+                    title="No contributions yet"
+                    subtitle="Add your first contribution to get started!"
+                  />
+                )}
             </>
           )}
         </ScrollView>
@@ -1273,59 +1362,6 @@ export default function BudgetScreen() {
                           </Text>
                         </TouchableOpacity>
                       </View>
-                      
-                      <Text style={[styles.sectionTitle, { color: colors.text }]}>Savings Contribution History</Text>
-                      <Card variant="default">
-                        {selectedGoalForDetails.contributions && selectedGoalForDetails.contributions.length > 0 ? (
-                          selectedGoalForDetails.contributions
-                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                            .map((contribution, index) => (
-                              <View key={contribution.id} style={[
-                                styles.contributionItemRow,
-                                index < selectedGoalForDetails.contributions!.length - 1 && [
-                                  styles.contributionItemBorder,
-                                  { borderBottomColor: colors.border }
-                                ]
-                              ]}>
-                                <View style={styles.contributionItemContent}>
-                                  <View style={styles.contributionItemLeft}>
-                                    <Text style={[styles.contributionAmount, { color: colors.text }]}>
-                                      ${contribution.amount.toFixed(2)}
-                                    </Text>
-                                    <Text style={[styles.contributionDate, { color: colors.textSecondary }]}>
-                                      {new Date(contribution.date).toLocaleDateString()}
-                                    </Text>
-                                    <Text style={[styles.contributionSource, { color: colors.textSecondary }]}>
-                                      {getFundingSourceDisplayName(contribution.fundingSource)}
-                                    </Text>
-                                  </View>
-                                  <View style={styles.contributionItemActions}>
-                                    <TouchableOpacity 
-                                      onPress={() => handleEditContribution(contribution)}
-                                      style={[styles.contributionActionButton, { backgroundColor: colors.cardSecondary }]}
-                                      activeOpacity={0.7}
-                                    >
-                                      <Edit3 size={16} color={colors.primary} strokeWidth={2} />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity 
-                                      onPress={() => handleDeleteContribution(contribution.id)}
-                                      style={[styles.contributionActionButton, { backgroundColor: colors.cardSecondary }]}
-                                      activeOpacity={0.7}
-                                    >
-                                      <Trash2 size={16} color={colors.error} strokeWidth={2} />
-                                    </TouchableOpacity>
-                                  </View>
-                                </View>
-                              </View>
-                            ))
-                        ) : (
-                          <EmptyState 
-                            icon="plus"
-                            title="No contributions yet"
-                            subtitle="Add your first contribution to get started!"
-                          />
-                        )}
-                      </Card>
                     </View>
                   </View>
                 </ScrollView>
@@ -1884,6 +1920,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '400',
     lineHeight: 16,
+  },
+  contributionGoalName: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 18,
+    marginBottom: 2,
   },
   contributionItemActions: {
     flexDirection: 'row',
