@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Plus, Edit3, Target, Trash2, ChevronDown, DollarSign, Calendar, Repeat } from 'lucide-react-native';
+import { Plus, Edit3, Target, Trash2, ChevronDown, DollarSign, Repeat } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useThemeColors } from '@/constants/colors';
@@ -17,6 +17,7 @@ import TransactionItem from '@/components/TransactionItem';
 import EmptyState from '@/components/EmptyState';
 import AddTransactionModal from '@/components/AddTransactionModal';
 import AlertModal from '@/components/AlertModal';
+import DatePicker from '@/components/DatePicker';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 import { Transaction, SavingsGoal, SavingsContribution } from '@/types/finance';
 
@@ -305,13 +306,7 @@ export default function BudgetScreen() {
     }
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
+
 
   const getFundingSourceLabel = (source: typeof fundingSource) => {
     switch (source) {
@@ -923,27 +918,13 @@ export default function BudgetScreen() {
                     </View>
                   </View>
                   
-                  <View style={styles.inputGroup}>
-                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Date of Contribution</Text>
-                    <TouchableOpacity
-                      style={[styles.picker, { backgroundColor: colors.cardSecondary, borderColor: colors.border }]}
-                      onPress={() => {
-                        // For simplicity, we'll just use today's date
-                        // In a full implementation, you'd open a date picker
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <View style={styles.pickerContent}>
-                        <View style={styles.pickerIconContainer}>
-                          <Calendar size={18} color={colors.textSecondary} strokeWidth={2} />
-                        </View>
-                        <Text style={[styles.pickerText, { color: colors.text }]}>
-                          {formatDate(savingsDate)}
-                        </Text>
-                      </View>
-                      <ChevronDown size={20} color={colors.inactive} />
-                    </TouchableOpacity>
-                  </View>
+                  <DatePicker
+                    selectedDate={savingsDate}
+                    onDateSelect={setSavingsDate}
+                    label="Date of Contribution"
+                    maximumDate={new Date()}
+                    variant="default"
+                  />
                   
                   <View style={styles.inputGroup}>
                     <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Funding Source</Text>
@@ -1399,28 +1380,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '500',
   },
-  picker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  pickerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  pickerIconContainer: {
-    marginRight: Spacing.sm,
-  },
-  pickerText: {
-    fontSize: 16,
-    fontWeight: '500',
-    lineHeight: 20,
-  },
+
   fundingSourceContainer: {
     gap: Spacing.xs,
   },
