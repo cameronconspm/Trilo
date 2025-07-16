@@ -1283,7 +1283,7 @@ export default function BudgetScreen() {
                               <View key={contribution.id} style={[
                                 styles.contributionItem,
                                 { backgroundColor: colors.cardSecondary, borderColor: colors.border },
-                                index < selectedGoalForDetails.contributions!.length - 1 && styles.contributionItemMargin
+                                ...(index < selectedGoalForDetails.contributions!.length - 1 ? [styles.contributionItemMargin] : [])
                               ]}>
                                 <View style={styles.contributionItemContent}>
                                   <View style={styles.contributionItemLeft}>
