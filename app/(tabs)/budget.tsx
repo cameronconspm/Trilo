@@ -922,7 +922,8 @@ export default function BudgetScreen() {
                     selectedDate={savingsDate}
                     onDateSelect={setSavingsDate}
                     label="Date of Contribution"
-                    maximumDate={new Date()}
+                    minimumDate={new Date(new Date().getFullYear(), new Date().getMonth(), 1)}
+                    maximumDate={new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)}
                     variant="default"
                   />
                   
