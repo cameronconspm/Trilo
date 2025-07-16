@@ -1054,6 +1054,7 @@ export default function BudgetScreen() {
                     subtitle="Add your first contribution to get started!"
                   />
                 )}
+              </Card>
             </>
           )}
         </ScrollView>
