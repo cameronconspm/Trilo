@@ -1260,7 +1260,6 @@ export default function BudgetScreen() {
 
                     <View style={styles.contributionsSection}>
                       <View style={styles.contributionsSectionHeader}>
-                        <Text style={[styles.contributionsSectionTitle, { color: colors.text }]}>Contribution History</Text>
                         <TouchableOpacity
                           onPress={() => {
                             handleCloseGoalDetailsModal();
@@ -1275,15 +1274,18 @@ export default function BudgetScreen() {
                         </TouchableOpacity>
                       </View>
                       
-                      {selectedGoalForDetails.contributions && selectedGoalForDetails.contributions.length > 0 ? (
-                        <View style={styles.contributionsList}>
-                          {selectedGoalForDetails.contributions
+                      <Text style={[styles.sectionTitle, { color: colors.text }]}>Savings Contribution History</Text>
+                      <Card variant="default">
+                        {selectedGoalForDetails.contributions && selectedGoalForDetails.contributions.length > 0 ? (
+                          selectedGoalForDetails.contributions
                             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                             .map((contribution, index) => (
                               <View key={contribution.id} style={[
-                                styles.contributionItem,
-                                { backgroundColor: colors.cardSecondary, borderColor: colors.border },
-                                ...(index < selectedGoalForDetails.contributions!.length - 1 ? [styles.contributionItemMargin] : [])
+                                styles.contributionItemRow,
+                                index < selectedGoalForDetails.contributions!.length - 1 && [
+                                  styles.contributionItemBorder,
+                                  { borderBottomColor: colors.border }
+                                ]
                               ]}>
                                 <View style={styles.contributionItemContent}>
                                   <View style={styles.contributionItemLeft}>
@@ -1300,14 +1302,14 @@ export default function BudgetScreen() {
                                   <View style={styles.contributionItemActions}>
                                     <TouchableOpacity 
                                       onPress={() => handleEditContribution(contribution)}
-                                      style={[styles.contributionActionButton, { backgroundColor: colors.card }]}
+                                      style={[styles.contributionActionButton, { backgroundColor: colors.cardSecondary }]}
                                       activeOpacity={0.7}
                                     >
                                       <Edit3 size={16} color={colors.primary} strokeWidth={2} />
                                     </TouchableOpacity>
                                     <TouchableOpacity 
                                       onPress={() => handleDeleteContribution(contribution.id)}
-                                      style={[styles.contributionActionButton, { backgroundColor: colors.card }]}
+                                      style={[styles.contributionActionButton, { backgroundColor: colors.cardSecondary }]}
                                       activeOpacity={0.7}
                                     >
                                       <Trash2 size={16} color={colors.error} strokeWidth={2} />
@@ -1315,15 +1317,15 @@ export default function BudgetScreen() {
                                   </View>
                                 </View>
                               </View>
-                            ))}
-                        </View>
-                      ) : (
-                        <View style={styles.emptyContributions}>
-                          <Text style={[styles.emptyContributionsText, { color: colors.textSecondary }]}>
-                            No contributions yet. Add your first contribution to get started!
-                          </Text>
-                        </View>
-                      )}
+                            ))
+                        ) : (
+                          <EmptyState 
+                            icon="plus"
+                            title="No contributions yet"
+                            subtitle="Add your first contribution to get started!"
+                          />
+                        )}
+                      </Card>
                     </View>
                   </View>
                 </ScrollView>
@@ -1839,25 +1841,24 @@ const styles = StyleSheet.create({
   },
   contributionsSectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
-  contributionsSectionTitle: {
-    fontSize: 16,
+  sectionTitle: {
+    fontSize: 20,
     fontWeight: '600',
-    lineHeight: 20,
+    marginTop: Spacing.sectionSpacing,
+    marginBottom: Spacing.lg,
+    letterSpacing: -0.2,
+    lineHeight: 24,
   },
-  contributionsList: {
-    gap: Spacing.xs,
+  contributionItemRow: {
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
   },
-  contributionItem: {
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    padding: Spacing.md,
-  },
-  contributionItemMargin: {
-    marginBottom: Spacing.xs,
+  contributionItemBorder: {
+    borderBottomWidth: 1,
   },
   contributionItemContent: {
     flexDirection: 'row',
@@ -1889,24 +1890,13 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   contributionActionButton: {
-    width: 32,
-    height: 32,
-    borderRadius: BorderRadius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadow.light,
-  },
-  emptyContributions: {
-    padding: Spacing.xl,
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyContributionsText: {
-    fontSize: 15,
-    fontWeight: '500',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
+
   addToSavingsButton: {
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.sm,
