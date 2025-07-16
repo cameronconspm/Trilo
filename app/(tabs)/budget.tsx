@@ -1280,42 +1280,42 @@ export default function BudgetScreen() {
                           {selectedGoalForDetails.contributions
                             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                             .map((contribution, index) => (
-                            <View key={contribution.id} style={[
-                              styles.contributionItem,
-                              { backgroundColor: colors.cardSecondary, borderColor: colors.border },
-                              index < selectedGoalForDetails.contributions!.length - 1 && styles.contributionItemMargin
-                            ]}>
-                              <View style={styles.contributionItemContent}>
-                                <View style={styles.contributionItemLeft}>
-                                  <Text style={[styles.contributionAmount, { color: colors.text }]}>
-                                    ${contribution.amount.toFixed(2)}
-                                  </Text>
-                                  <Text style={[styles.contributionDate, { color: colors.textSecondary }]}>
-                                    {new Date(contribution.date).toLocaleDateString()}
-                                  </Text>
-                                  <Text style={[styles.contributionSource, { color: colors.textSecondary }]}>
-                                    {getFundingSourceDisplayName(contribution.fundingSource)}
-                                  </Text>
-                                </View>
-                                <View style={styles.contributionItemActions}>
-                                  <TouchableOpacity 
-                                    onPress={() => handleEditContribution(contribution)}
-                                    style={[styles.contributionActionButton, { backgroundColor: colors.card }]}
-                                    activeOpacity={0.7}
-                                  >
-                                    <Edit3 size={16} color={colors.primary} strokeWidth={2} />
-                                  </TouchableOpacity>
-                                  <TouchableOpacity 
-                                    onPress={() => handleDeleteContribution(contribution.id)}
-                                    style={[styles.contributionActionButton, { backgroundColor: colors.card }]}
-                                    activeOpacity={0.7}
-                                  >
-                                    <Trash2 size={16} color={colors.error} strokeWidth={2} />
-                                  </TouchableOpacity>
+                              <View key={contribution.id} style={[
+                                styles.contributionItem,
+                                { backgroundColor: colors.cardSecondary, borderColor: colors.border },
+                                index < selectedGoalForDetails.contributions!.length - 1 && styles.contributionItemMargin
+                              ]}>
+                                <View style={styles.contributionItemContent}>
+                                  <View style={styles.contributionItemLeft}>
+                                    <Text style={[styles.contributionAmount, { color: colors.text }]}>
+                                      ${contribution.amount.toFixed(2)}
+                                    </Text>
+                                    <Text style={[styles.contributionDate, { color: colors.textSecondary }]}>
+                                      {new Date(contribution.date).toLocaleDateString()}
+                                    </Text>
+                                    <Text style={[styles.contributionSource, { color: colors.textSecondary }]}>
+                                      {getFundingSourceDisplayName(contribution.fundingSource)}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.contributionItemActions}>
+                                    <TouchableOpacity 
+                                      onPress={() => handleEditContribution(contribution)}
+                                      style={[styles.contributionActionButton, { backgroundColor: colors.card }]}
+                                      activeOpacity={0.7}
+                                    >
+                                      <Edit3 size={16} color={colors.primary} strokeWidth={2} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity 
+                                      onPress={() => handleDeleteContribution(contribution.id)}
+                                      style={[styles.contributionActionButton, { backgroundColor: colors.card }]}
+                                      activeOpacity={0.7}
+                                    >
+                                      <Trash2 size={16} color={colors.error} strokeWidth={2} />
+                                    </TouchableOpacity>
+                                  </View>
                                 </View>
                               </View>
-                            </View>
-                          ))}
+                            ))}
                         </View>
                       ) : (
                         <View style={styles.emptyContributions}>
