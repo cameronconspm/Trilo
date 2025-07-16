@@ -980,7 +980,7 @@ export default function BudgetScreen() {
 
               {/* Savings Contribution History Section */}
               <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Savings Contribution History</Text>
+                <Text style={[styles.contributionSectionTitle, { color: colors.text }]}>Savings Contribution History</Text>
               </View>
               <Card>
                 {savingsGoals.some(goal => goal.contributions && goal.contributions.length > 0) ? (
@@ -1882,7 +1882,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
-  sectionTitle: {
+  contributionSectionTitle: {
     fontSize: 20,
     fontWeight: '600',
     marginTop: Spacing.sectionSpacing,
