@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useThemeColors } from '@/constants/colors';
 import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
@@ -10,25 +10,36 @@ interface CategoryCardProps {
   category: CategoryType;
   amount: number;
   count?: number;
+  onPress?: () => void;
 }
 
-export default function CategoryCard({ category, amount, count }: CategoryCardProps) {
+export default function CategoryCard({ category, amount, count, onPress }: CategoryCardProps) {
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
   const categoryInfo = categories.find(c => c.id === category) || categories[0];
   
+  const CardContent = (
+    <View style={[styles.card, { backgroundColor: colors.card, borderLeftColor: categoryInfo.color }]}>
+      <View style={styles.header}>
+        <View style={[styles.colorDot, { backgroundColor: categoryInfo.color }]} />
+        <Text style={[styles.categoryName, { color: colors.text }]} numberOfLines={2}>{categoryInfo.name}</Text>
+      </View>
+      <Text style={[styles.amount, { color: colors.text }]}>${amount.toFixed(2)}</Text>
+      {count !== undefined && (
+        <Text style={[styles.count, { color: colors.textSecondary }]}>{count} {count === 1 ? 'item' : 'items'}</Text>
+      )}
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <View style={[styles.card, { backgroundColor: colors.card, borderLeftColor: categoryInfo.color }]}>
-        <View style={styles.header}>
-          <View style={[styles.colorDot, { backgroundColor: categoryInfo.color }]} />
-          <Text style={[styles.categoryName, { color: colors.text }]} numberOfLines={2}>{categoryInfo.name}</Text>
-        </View>
-        <Text style={[styles.amount, { color: colors.text }]}>${amount.toFixed(2)}</Text>
-        {count !== undefined && (
-          <Text style={[styles.count, { color: colors.textSecondary }]}>{count} {count === 1 ? 'item' : 'items'}</Text>
-        )}
-      </View>
+      {onPress ? (
+        <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+          {CardContent}
+        </TouchableOpacity>
+      ) : (
+        CardContent
+      )}
     </View>
   );
 }

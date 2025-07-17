@@ -13,7 +13,7 @@ import TransactionItem from '@/components/TransactionItem';
 import EmptyState from '@/components/EmptyState';
 import AddTransactionModal from '@/components/AddTransactionModal';
 import { Spacing } from '@/constants/spacing';
-import { Transaction } from '@/types/finance';
+import { Transaction, CategoryType } from '@/types/finance';
 
 export default function OverviewScreen() {
   const { weeklyOverview, isLoading } = useFinance();
@@ -21,6 +21,7 @@ export default function OverviewScreen() {
   const colors = useThemeColors(theme);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
+  const [preselectedCategory, setPreselectedCategory] = useState<CategoryType | undefined>(undefined);
   const { weekIncome, remainingBalance, utilization, contributions, upcomingExpenses, pastExpenses, currentPayPeriod } = weeklyOverview;
   
   // Get current month and year
@@ -40,6 +41,12 @@ export default function OverviewScreen() {
   const handleCloseModal = () => {
     setShowAddModal(false);
     setEditTransaction(undefined);
+    setPreselectedCategory(undefined);
+  };
+
+  const handleCategoryCardPress = (category: CategoryType) => {
+    setPreselectedCategory(category);
+    setShowAddModal(true);
   };
   
   if (isLoading) {
@@ -109,6 +116,7 @@ export default function OverviewScreen() {
                 category={categoryId} 
                 amount={data.total}
                 count={data.count}
+                onPress={() => handleCategoryCardPress(categoryId)}
               />
             );
           })}
@@ -162,6 +170,7 @@ export default function OverviewScreen() {
         visible={showAddModal}
         onClose={handleCloseModal}
         editTransaction={editTransaction}
+        preselectedCategory={preselectedCategory}
       />
     </SafeAreaView>
     </>

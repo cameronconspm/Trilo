@@ -35,11 +35,12 @@ interface AddTransactionModalProps {
   visible: boolean;
   onClose: () => void;
   editTransaction?: Transaction;
+  preselectedCategory?: CategoryType;
 }
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-export default function AddTransactionModal({ visible, onClose, editTransaction }: AddTransactionModalProps) {
+export default function AddTransactionModal({ visible, onClose, editTransaction, preselectedCategory }: AddTransactionModalProps) {
   const { addTransaction, updateTransaction } = useFinance();
   const { alertState, showAlert, hideAlert } = useAlert();
   const { theme } = useSettings();
@@ -99,10 +100,16 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
         setMonthlyDays([]);
         setCustomDays([]);
         setGivenExpenseFrequency('every_week');
+        
+        // Set preselected category if provided
+        if (preselectedCategory) {
+          setCategory(preselectedCategory);
+          setTransactionType('expense'); // Category cards are for expenses
+        }
       }
       setIsLoading(false);
     }
-  }, [visible, editTransaction]);
+  }, [visible, editTransaction, preselectedCategory]);
   
   useEffect(() => {
     if (transactionType === 'income') {
