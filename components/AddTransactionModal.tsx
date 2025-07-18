@@ -534,12 +534,24 @@ export default function AddTransactionModal({ visible, onClose, editTransaction,
                 </View>
                 <Switch
                   value={entry.isRecurring}
-                  onValueChange={(value) => entry.category !== 'given_expenses' && updateEntry(entry.id, { isRecurring: value })}
+                  onValueChange={(value) => {
+                    if (entry.category !== 'given_expenses') {
+                      updateEntry(entry.id, { isRecurring: value });
+                    }
+                  }}
                   trackColor={{ false: colors.border, true: colors.primary }}
                   thumbColor={colors.card}
                   disabled={entry.category === 'given_expenses'}
                 />
               </View>
+            )}
+            
+            {/* Given Expense Frequency Picker */}
+            {transactionType === 'expense' && entry.category === 'given_expenses' && (
+              <GivenExpenseFrequencyPicker
+                selectedFrequency={entry.givenExpenseFrequency}
+                onFrequencySelect={(frequency) => updateEntry(entry.id, { givenExpenseFrequency: frequency })}
+              />
             )}
             
             {/* Recurring Toggle for Income */}
@@ -887,138 +899,21 @@ export default function AddTransactionModal({ visible, onClose, editTransaction,
                 </TouchableOpacity>
               </View>
               
-              {/* Form Fields */}
-              <View style={dynamicStyles.formGroup}>
-                <Text style={dynamicStyles.label}>
-                  {transactionType === 'income' ? 'Income Source' : 'Expense Name'} *
-                </Text>
-                <TextInput
-                  style={dynamicStyles.input}
-                  value={name}
-                  onChangeText={setName}
-                  placeholder={transactionType === 'income' ? 'e.g., Salary, Freelance' : 'e.g., Groceries, Netflix'}
-                  placeholderTextColor={colors.inactive}
-                  returnKeyType="next"
-                  autoCapitalize="words"
-                  maxLength={50}
-                />
-              </View>
+              {/* Render all entries */}
+              {entries.map((entry, index) => renderEntryForm(entry, index))}
               
-              <View style={dynamicStyles.formGroup}>
-                <Text style={dynamicStyles.label}>
-                  Amount *
-                </Text>
-                <View style={dynamicStyles.amountContainer}>
-                  <Text style={[
-                    dynamicStyles.currencySymbol,
-                    { color: colors.text }
-                  ]}>
-                    $
+              {/* Add Entry Button - Only show if not editing and less than 10 entries */}
+              {!editTransaction && entries.length < 10 && (
+                <TouchableOpacity
+                  style={dynamicStyles.addEntryButton}
+                  onPress={addNewEntry}
+                  activeOpacity={0.7}
+                >
+                  <Plus size={20} color={colors.textSecondary} />
+                  <Text style={dynamicStyles.addEntryText}>
+                    Add Another {transactionType === 'income' ? 'Income' : 'Expense'}
                   </Text>
-                  <TextInput
-                    style={dynamicStyles.amountInput}
-                    value={amount}
-                    onChangeText={(text) => setAmount(formatAmount(text))}
-                    placeholder="0.00"
-                    placeholderTextColor={colors.inactive}
-                    keyboardType="decimal-pad"
-                    returnKeyType="done"
-                    maxLength={10}
-                  />
-                </View>
-              </View>
-              
-              {transactionType === 'expense' && (
-                <CategoryPicker
-                  selectedCategory={category}
-                  onCategorySelect={setCategory}
-                  excludeCategories={['income']}
-                  label="Category *"
-                />
-              )}
-              
-              {/* Date/Schedule Selection */}
-              {transactionType === 'income' ? (
-                <View style={dynamicStyles.formGroup}>
-                  <DatePicker
-                    selectedDate={lastPaidDate}
-                    onDateSelect={setLastPaidDate}
-                    label="Most Recent Pay Date"
-                    maximumDate={new Date()}
-                    variant="income"
-                  />
-                  
-                  <PayCadencePicker
-                    selectedCadence={payCadence}
-                    onCadenceSelect={setPayCadence}
-                  />
-                  
-                  {renderPayScheduleInputs()}
-                </View>
-              ) : (
-                <View style={dynamicStyles.formGroup}>
-                  <Text style={dynamicStyles.label}>Day of Month *</Text>
-                  <DayPicker
-                    selectedDay={selectedDay}
-                    onDaySelect={setSelectedDay}
-                  />
-                </View>
-              )}
-              
-              {/* Recurring toggle - show for all expense types */}
-              {transactionType === 'expense' && (
-                <View style={dynamicStyles.switchContainer}>
-                  <View style={dynamicStyles.switchTextContainer}>
-                    <Text style={dynamicStyles.switchLabel}>
-                      Recurring Expense
-                    </Text>
-                    <Text style={dynamicStyles.switchSubtitle}>
-                      {category === 'given_expenses'
-                        ? 'Given expenses are always recurring'
-                        : (isRecurring 
-                            ? 'This expense repeats monthly (subscriptions, bills)' 
-                            : 'One-time expense (purchases, dining out)')
-                      }
-                    </Text>
-                  </View>
-                  <Switch
-                    value={isRecurring}
-                    onValueChange={category === 'given_expenses' ? undefined : setIsRecurring}
-                    trackColor={{ 
-                      false: colors.border, 
-                      true: colors.primary 
-                    }}
-                    thumbColor={colors.card}
-                    disabled={category === 'given_expenses'}
-                  />
-                </View>
-              )}
-              
-
-              
-              {/* Show recurring toggle for income */}
-              {transactionType === 'income' && (
-                <View style={dynamicStyles.switchContainer}>
-                  <View style={dynamicStyles.switchTextContainer}>
-                    <Text style={dynamicStyles.switchLabel}>
-                      Recurring Income
-                    </Text>
-                    <Text style={dynamicStyles.switchSubtitle}>
-                      {isRecurring 
-                        ? 'This income repeats based on your pay schedule' 
-                        : 'One-time income (bonus, gift, freelance project)'}
-                    </Text>
-                  </View>
-                  <Switch
-                    value={isRecurring}
-                    onValueChange={setIsRecurring}
-                    trackColor={{ 
-                      false: colors.border, 
-                      true: colors.primary 
-                    }}
-                    thumbColor={colors.card}
-                  />
-                </View>
+                </TouchableOpacity>
               )}
             </ScrollView>
             
@@ -1039,12 +934,15 @@ export default function AddTransactionModal({ visible, onClose, editTransaction,
                 style={dynamicStyles.cancelButton}
               />
               <Button
-                title={`Save ${transactionType === 'income' ? 'Income' : 'Expense'}`}
+                title={editTransaction 
+                  ? `Update ${transactionType === 'income' ? 'Income' : 'Expense'}`
+                  : `Save All ${entries.length > 1 ? `(${entries.length})` : ''}`
+                }
                 onPress={handleSubmit}
                 variant="primary"
                 size="large"
                 loading={isLoading}
-                disabled={!name.trim() || !amount || parseFloat(amount) <= 0}
+                disabled={entries.every(entry => !entry.name.trim() || !entry.amount.trim())}
                 style={dynamicStyles.submitButton}
               />
             </View>
