@@ -84,6 +84,8 @@ function RootLayoutNav() {
                     <Stack.Screen name="discovery" options={{ headerShown: false }} />
                     <Stack.Screen name="signup" options={{ headerShown: false }} />
                     <Stack.Screen name="login" options={{ headerShown: false }} />
+                    <Stack.Screen name="verify-email" options={{ headerShown: false }} />
+                    <Stack.Screen name="verify" options={{ headerShown: false }} />
                   </Stack>
                 </NotificationProvider>
               </FinanceProvider>

@@ -29,18 +29,18 @@ export default function VerifyEmailScreen() {
         return;
       }
 
-      let verified = session?.user?.email_confirmed_at != null;
+      let isVerified = session?.user?.email_confirmed_at != null;
       
-      if (!verified) {
+      if (!isVerified) {
         // Try to refresh the session to get latest user data
         const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
         
         if (!refreshError && refreshedSession?.user?.email_confirmed_at) {
-          verified = true;
+          isVerified = true;
         }
       }
 
-      if (verified) {
+      if (isVerified) {
         // Email is verified, navigate to overview
         Alert.alert(
           'Email Verified!',

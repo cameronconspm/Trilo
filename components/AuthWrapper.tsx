@@ -19,12 +19,13 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === '(tabs)';
+    const inVerificationFlow = segments[0] === 'verify-email' || segments[0] === 'verify';
 
     if (!isAuthenticated && inAuthGroup) {
       // User is not authenticated but trying to access protected routes
       router.replace('/discovery');
-    } else if (isAuthenticated && !inAuthGroup) {
-      // User is authenticated but on auth screens
+    } else if (isAuthenticated && !inAuthGroup && !inVerificationFlow) {
+      // User is authenticated but on auth screens (excluding verification flow)
       router.replace('/(tabs)');
     }
   }, [isAuthenticated, isLoading, segments]);

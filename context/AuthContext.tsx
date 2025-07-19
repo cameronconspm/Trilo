@@ -64,11 +64,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const signUp = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
+      // Get the appropriate redirect URL
+      const getRedirectUrl = () => {
+        if (typeof window !== 'undefined') {
+          return `${window.location.origin}/verify`;
+        }
+        return 'exp://localhost:8081/--/verify';
+      };
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: undefined, // Prevent auto-redirect, we'll handle verification manually
+          emailRedirectTo: getRedirectUrl(),
         }
       });
 
@@ -85,13 +93,20 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const signIn = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
         return { error: error.message };
+      }
+
+      // Check if email is verified
+      if (data.user && !data.user.email_confirmed_at) {
+        // Sign out the user since email is not verified
+        await supabase.auth.signOut();
+        return { error: 'Please verify your email before signing in. Check your inbox for a verification link.' };
       }
 
       return {};
