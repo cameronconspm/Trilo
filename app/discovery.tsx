@@ -1,16 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { TrendingUp } from 'lucide-react-native';
 import Button from '@/components/Button';
-import { useThemeColors } from '@/constants/colors';
-import { useSettings } from '@/context/SettingsContext';
-import { Spacing, BorderRadius } from '@/constants/spacing';
+import { Spacing } from '@/constants/spacing';
 
 export default function DiscoveryScreen() {
-  const { theme } = useSettings();
-  const colors = useThemeColors(theme);
-
   const handleGetStarted = () => {
     router.push('/signup');
   };
@@ -20,36 +17,44 @@ export default function DiscoveryScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.content}>
-        <View style={styles.logoSection}>
-          <View style={[styles.logoContainer, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.logoText, { color: colors.card }]}>T</Text>
+    <LinearGradient
+      colors={['#4E91F9', '#87CEEB']}
+      style={styles.container}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.content}>
+          <View style={styles.logoSection}>
+            <TrendingUp size={120} color="white" strokeWidth={2.5} />
+            <Text style={styles.mainTitle}>Budgeting</Text>
+            <Text style={styles.mainTitle}>made simple.</Text>
+            <Text style={styles.tagline}>
+              Plan around your payday,{'\n'}not the calendar.
+            </Text>
           </View>
-          <Text style={[styles.appName, { color: colors.text }]}>Trilo</Text>
-          <Text style={[styles.tagline, { color: colors.textSecondary }]}>
-            Weekly budgeting built around your payday
-          </Text>
-        </View>
 
-        <View style={styles.buttonSection}>
-          <Button
-            title="Get Started"
-            onPress={handleGetStarted}
-            variant="primary"
-            size="large"
-            style={styles.button}
-          />
-          <Button
-            title="Log In"
-            onPress={handleLogin}
-            variant="outline"
-            size="large"
-            style={styles.button}
-          />
+          <View style={styles.buttonSection}>
+            <Button
+              title="Get Started"
+              onPress={handleGetStarted}
+              variant="primary"
+              size="large"
+              style={[styles.button, styles.getStartedButton]}
+              textStyle={styles.getStartedButtonText}
+            />
+            <Button
+              title="Log In"
+              onPress={handleLogin}
+              variant="outline"
+              size="large"
+              style={[styles.button, styles.loginButton]}
+              textStyle={styles.loginButtonText}
+            />
+          </View>
         </View>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
@@ -57,45 +62,61 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  safeArea: {
+    flex: 1,
+  },
   content: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.xxl,
   },
   logoSection: {
-    alignItems: 'center',
-    marginBottom: Spacing.xxl * 2,
-  },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.lg,
+    paddingTop: Spacing.xxl,
   },
-  logoText: {
-    fontSize: 36,
+  mainTitle: {
+    fontSize: 48,
     fontWeight: '700',
-  },
-  appName: {
-    fontSize: 32,
-    fontWeight: '700',
-    marginBottom: Spacing.md,
-    letterSpacing: -0.5,
+    color: 'white',
+    textAlign: 'center',
+    lineHeight: 56,
+    letterSpacing: -1,
   },
   tagline: {
-    fontSize: 16,
+    fontSize: 18,
+    color: 'white',
     textAlign: 'center',
-    lineHeight: 22,
-    maxWidth: 280,
+    lineHeight: 26,
+    marginTop: Spacing.xl,
+    opacity: 0.9,
   },
   buttonSection: {
     width: '100%',
     gap: Spacing.md,
+    paddingBottom: Spacing.lg,
   },
   button: {
     width: '100%',
+  },
+  getStartedButton: {
+    backgroundColor: 'white',
+    borderWidth: 0,
+  },
+  getStartedButtonText: {
+    color: '#4E91F9',
+    fontWeight: '600',
+  },
+  loginButton: {
+    borderColor: 'white',
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+  },
+  loginButtonText: {
+    color: 'white',
+    fontWeight: '600',
   },
 });
