@@ -603,13 +603,6 @@ export default function BudgetScreen() {
                 <View style={styles.budgetHeader}>
                   <View style={styles.budgetTitleContainer}>
                     <Text style={[styles.budgetTitle, { color: colors.text }]}>Monthly Budget</Text>
-                    <TouchableOpacity 
-                      onPress={handleSetBudgetGoal}
-                      style={[styles.editButton, { backgroundColor: colors.cardSecondary }]}
-                      activeOpacity={0.7}
-                    >
-                      <Edit3 size={16} color={colors.primary} strokeWidth={2} />
-                    </TouchableOpacity>
                   </View>
                 </View>
                 
@@ -682,8 +675,8 @@ export default function BudgetScreen() {
                   style={styles.actionButton}
                 />
                 <Button
-                  title="Set Goals"
-                  onPress={handleSetBudgetGoal}
+                  title="Add Income"
+                  onPress={() => setShowAddModal(true)}
                   variant="ghost"
                   size="medium"
                   style={styles.actionButton}
