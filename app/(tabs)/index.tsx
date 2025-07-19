@@ -303,22 +303,15 @@ export default function OverviewScreen() {
         ) : (
           <>
             {/* Spending Overview Card */}
-            <Card variant="elevated" style={styles.spendingOverviewCard}>
-              <View style={styles.budgetHeader}>
-                <Text style={[styles.budgetTitle, { color: colors.text }]}>Spending Overview</Text>
-              </View>
-              
-              <View style={styles.spendingOverviewContainer}>
-                <View style={styles.spendingOverviewLeft}>
-                  <View style={styles.spendingOverviewItem}>
-                    <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total Spent</Text>
-                    <Text style={[styles.summaryValue, { color: colors.text }]}>
-                      ${Object.values(spendingByCategory).reduce((sum, amount) => sum + amount, 0).toFixed(2)}
-                    </Text>
-                  </View>
-
+            <Card variant="elevated" style={styles.incomeCard}>
+              <View style={styles.incomeContainer}>
+                <View style={styles.incomeTextContainer}>
+                  <Text style={[styles.incomeLabel, { color: colors.textSecondary }]}>Total Spent</Text>
+                  <Text style={[styles.incomeValue, { color: colors.text }]}>
+                    ${Object.values(spendingByCategory).reduce((sum, amount) => sum + amount, 0).toFixed(2)}
+                  </Text>
                 </View>
-                <View style={styles.spendingOverviewRight}>
+                <View style={styles.spendingChartContainer}>
                   {Object.values(spendingByCategory).some(amount => amount > 0) ? (
                     <View style={[styles.pieChartPlaceholder, { backgroundColor: colors.primary }]}>
                       <Text style={[styles.pieChartText, { color: colors.background }]}>
@@ -515,10 +508,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     lineHeight: 20,
   },
-  spendingOverviewCard: {
-    borderRadius: BorderRadius.xl,
-    marginBottom: Spacing.md,
-  },
   budgetHeader: {
     marginBottom: Spacing.lg,
   },
@@ -540,22 +529,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     lineHeight: 22,
   },
-  spendingOverviewContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    minHeight: 120,
-  },
-  spendingOverviewLeft: {
-    flex: 1,
-    paddingRight: Spacing.md,
-  },
-  spendingOverviewRight: {
+  spendingChartContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  spendingOverviewItem: {
-    marginBottom: Spacing.md,
   },
 
   pieChartPlaceholder: {
