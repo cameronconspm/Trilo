@@ -18,10 +18,10 @@ export default function DiscoveryScreen() {
 
   return (
     <LinearGradient
-      colors={['#4E91F9', '#87CEEB']}
+      colors={['#E8F2FF', '#B8D8FF', '#87CEEB']}
       style={styles.container}
       start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
+      end={{ x: 0, y: 1 }}
     >
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
