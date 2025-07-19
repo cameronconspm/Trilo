@@ -44,7 +44,7 @@ interface UserPreferences {
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'system',
+  theme: 'light',
   weekStartDay: 'thursday',
   isBankConnected: false,
   notificationsEnabled: true,
@@ -168,7 +168,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           STORAGE_KEYS.BANK_CONNECTED,
         ]);
       } else {
-        console.log('SettingsContext: No legacy settings found, using defaults');
+        console.log('SettingsContext: No legacy settings found, using defaults with light theme');
         await saveAllPreferences();
       }
     } catch (error) {
