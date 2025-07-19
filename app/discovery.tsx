@@ -7,20 +7,25 @@ import Button from '@/components/Button';
 import { Spacing } from '@/constants/spacing';
 
 export default function DiscoveryScreen() {
-  const handleGetStarted = () => router.push('/signup');
-  const handleLogin = () => router.push('/login');
+  const handleGetStarted = () => {
+    router.push('/signup');
+  };
+
+  const handleLogin = () => {
+    router.push('/login');
+  };
 
   return (
     <LinearGradient
-      colors={['#B3D4FF', '#4E91F9']}
-      start={{ x: 0.5, y: 0 }}
-      end={{ x: 0.5, y: 1 }}
+      colors={['#DDF1FF', '#4E91F9']}
+      start={{ x: 0.3, y: 0 }}
+      end={{ x: 1, y: 1 }}
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
           <View style={styles.logoSection}>
-            <Image
+            <Image 
               source={{ uri: 'https://r2-pub.rork.com/attachments/wpscb1bi1jo8d4adsnrqp' }}
               style={styles.arrowImage}
               resizeMode="contain"
@@ -38,7 +43,7 @@ export default function DiscoveryScreen() {
               onPress={handleGetStarted}
               variant="primary"
               size="large"
-              style={styles.getStartedButton}
+              style={[styles.button, styles.getStartedButton]}
               textStyle={styles.getStartedButtonText}
             />
             <Button
@@ -46,7 +51,7 @@ export default function DiscoveryScreen() {
               onPress={handleLogin}
               variant="outline"
               size="large"
-              style={styles.loginButton}
+              style={[styles.button, styles.loginButton]}
               textStyle={styles.loginButtonText}
             />
           </View>
@@ -104,8 +109,10 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     paddingBottom: Spacing.lg,
   },
-  getStartedButton: {
+  button: {
     width: '100%',
+  },
+  getStartedButton: {
     backgroundColor: 'white',
     borderWidth: 0,
   },
@@ -114,9 +121,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   loginButton: {
-    width: '100%',
-    backgroundColor: 'transparent',
     borderColor: 'white',
+    backgroundColor: 'transparent',
     borderWidth: 2,
   },
   loginButtonText: {
