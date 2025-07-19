@@ -22,10 +22,11 @@ import AlertModal from '@/components/AlertModal';
 import { useSettings } from '@/context/SettingsContext';
 import { useNotifications } from '@/context/NotificationContext';
 import { useFinance } from '@/context/FinanceContext';
+import { useAuth } from '@/context/AuthContext';
 import { useAlert } from '@/hooks/useAlert';
 import Colors, { useThemeColors } from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
-import { Shield, Mail, RefreshCw, Edit3, Camera } from 'lucide-react-native';
+import { Shield, Mail, RefreshCw, Edit3, Camera, LogOut } from 'lucide-react-native';
 import NameEditModal from '@/components/NameEditModal';
 
 export default function ProfileScreen() {

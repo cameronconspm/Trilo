@@ -9,10 +9,12 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { FinanceProvider } from "@/context/FinanceContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { NotificationProvider } from "@/context/NotificationContext";
+import { AuthProvider } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
+import AuthWrapper from "@/components/AuthWrapper";
 
 export const unstable_settings = {
-  initialRouteName: "(tabs)",
+  initialRouteName: "discovery",
 };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -73,13 +75,20 @@ function RootLayoutNav() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SettingsProvider>
           <StatusBarManager />
-          <FinanceProvider>
-            <NotificationProvider>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              </Stack>
-            </NotificationProvider>
-          </FinanceProvider>
+          <AuthProvider>
+            <AuthWrapper>
+              <FinanceProvider>
+                <NotificationProvider>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                    <Stack.Screen name="discovery" options={{ headerShown: false }} />
+                    <Stack.Screen name="signup" options={{ headerShown: false }} />
+                    <Stack.Screen name="login" options={{ headerShown: false }} />
+                  </Stack>
+                </NotificationProvider>
+              </FinanceProvider>
+            </AuthWrapper>
+          </AuthProvider>
         </SettingsProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>
