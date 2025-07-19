@@ -302,6 +302,57 @@ export default function OverviewScreen() {
           </>
         ) : (
           <>
+            {/* Spending Overview Card */}
+            <Card variant="elevated" style={styles.spendingOverviewCard}>
+              <View style={styles.budgetHeader}>
+                <Text style={[styles.budgetTitle, { color: colors.text }]}>Spending Overview</Text>
+              </View>
+              
+              <View style={styles.spendingOverviewContainer}>
+                <View style={styles.spendingOverviewLeft}>
+                  <View style={styles.spendingOverviewItem}>
+                    <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total Spent</Text>
+                    <Text style={[styles.summaryValue, { color: colors.text }]}>
+                      ${Object.values(spendingByCategory).reduce((sum, amount) => sum + amount, 0).toFixed(2)}
+                    </Text>
+                  </View>
+                  <View style={styles.spendingOverviewItem}>
+                    <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Most Spent Category</Text>
+                    <View style={styles.mostSpentContainer}>
+                      <View style={[styles.categoryColorDot, { backgroundColor: SPENDING_CATEGORIES.reduce((max, category) => {
+                        return spendingByCategory[category.id] > spendingByCategory[max.id] ? category : max;
+                      }, SPENDING_CATEGORIES[0]).color }]} />
+                      <Text style={[styles.mostSpentCategory, { color: colors.text }]}>
+                        {SPENDING_CATEGORIES.reduce((max, category) => {
+                          return spendingByCategory[category.id] > spendingByCategory[max.id] ? category : max;
+                        }, SPENDING_CATEGORIES[0]).name}
+                      </Text>
+                    </View>
+                    <Text style={[styles.mostSpentAmount, { color: colors.textSecondary }]}>
+                      ${spendingByCategory[SPENDING_CATEGORIES.reduce((max, category) => {
+                        return spendingByCategory[category.id] > spendingByCategory[max.id] ? category : max;
+                      }, SPENDING_CATEGORIES[0]).id]?.toFixed(2) || '0.00'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.spendingOverviewRight}>
+                  {Object.values(spendingByCategory).some(amount => amount > 0) ? (
+                    <View style={[styles.pieChartPlaceholder, { backgroundColor: colors.primary }]}>
+                      <Text style={[styles.pieChartText, { color: colors.background }]}>
+                        Chart
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.emptyPieChart, { backgroundColor: colors.cardSecondary }]}>
+                      <Text style={[styles.emptyPieChartText, { color: colors.textSecondary }]}>
+                        No spending data
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </Card>
+
             {/* Spending Categories Grid */}
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Spending Categories</Text>
             <View style={styles.spendingCategoryGrid}>
@@ -480,5 +531,88 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: -0.2,
     lineHeight: 20,
+  },
+  spendingOverviewCard: {
+    borderRadius: BorderRadius.xl,
+    marginBottom: Spacing.md,
+  },
+  budgetHeader: {
+    marginBottom: Spacing.lg,
+  },
+  budgetTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+    lineHeight: 24,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    marginBottom: Spacing.xs,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+    lineHeight: 22,
+  },
+  spendingOverviewContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 120,
+  },
+  spendingOverviewLeft: {
+    flex: 1,
+    paddingRight: Spacing.md,
+  },
+  spendingOverviewRight: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  spendingOverviewItem: {
+    marginBottom: Spacing.md,
+  },
+  mostSpentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  mostSpentCategory: {
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  mostSpentAmount: {
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  pieChartPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pieChartText: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  emptyPieChart: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyPieChartText: {
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 16,
   },
 });
