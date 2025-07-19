@@ -15,7 +15,11 @@ const getRedirectUrl = () => {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // Configure the redirect URL for email verification
-    redirectTo: getRedirectUrl(),
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
   }
 });
+
+// Export the redirect URL function for use in auth methods
+export { getRedirectUrl };

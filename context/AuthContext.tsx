@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
-import { supabase } from '@/services/supabase';
+import { supabase, getRedirectUrl } from '@/services/supabase';
 
 interface AuthState {
   user: User | null;
@@ -64,14 +64,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const signUp = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
-      // Get the appropriate redirect URL
-      const getRedirectUrl = () => {
-        if (typeof window !== 'undefined') {
-          return `${window.location.origin}/verify`;
-        }
-        return 'exp://localhost:8081/--/verify';
-      };
-
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
