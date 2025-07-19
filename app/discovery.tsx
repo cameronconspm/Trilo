@@ -17,7 +17,7 @@ export default function DiscoveryScreen() {
 
   return (
     <LinearGradient
-      colors={['#a6ccff', '#4E91F9']}
+      colors={['#B3D4FF', '#4E91F9']}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 0, y: 1 }}
@@ -72,35 +72,36 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.xxl,
+    paddingHorizontal: 32,
+    paddingVertical: 40,
   },
   logoSection: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: Spacing.xxl,
+    paddingTop: 60,
   },
   mainTitle: {
-    fontSize: 48,
+    fontSize: 42,
     fontWeight: '700',
     color: 'white',
     textAlign: 'center',
-    lineHeight: 56,
-    letterSpacing: -1,
+    lineHeight: 48,
+    letterSpacing: -0.5,
   },
   arrowImage: {
-    width: 120,
-    height: 120,
-    marginBottom: Spacing.lg,
+    width: 140,
+    height: 140,
+    marginBottom: Spacing.xl,
   },
   tagline: {
-    fontSize: 18,
+    fontSize: 17,
+    fontWeight: '400',
     color: 'white',
     textAlign: 'center',
-    lineHeight: 26,
-    marginTop: Spacing.xl,
-    opacity: 0.9,
+    lineHeight: 24,
+    marginTop: 16,
+    opacity: 0.95,
   },
   buttonSection: {
     width: '100%',
