@@ -17,15 +17,16 @@ export default function DiscoveryScreen() {
 
   return (
     <LinearGradient
-      colors={['#DDF1FF', '#4E91F9']}
-      start={{ x: 0.3, y: 0 }}
-      end={{ x: 1, y: 1 }}
+      colors={['#0D47A1', '#4E91F9', '#ffffff']}
+      locations={[0, 0.65, 1]}
+      start={{ x: 0, y: 1 }}
+      end={{ x: 1, y: 0 }}
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
           <View style={styles.logoSection}>
-            <Image 
+            <Image
               source={{ uri: 'https://r2-pub.rork.com/attachments/wpscb1bi1jo8d4adsnrqp' }}
               style={styles.arrowImage}
               resizeMode="contain"
@@ -76,19 +77,17 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
   },
   logoSection: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
-    paddingTop: 20,
+    justifyContent: 'center',
+    paddingTop: 40,
   },
   arrowImage: {
-    width: 180,
-    height: 180,
-    marginBottom: 20,
+    width: 160,
+    height: 160,
+    marginBottom: 32,
   },
   mainTitle: {
-    fontSize: 44,
+    fontSize: 42,
     fontWeight: '700',
     color: 'white',
     textAlign: 'center',
@@ -96,18 +95,18 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   tagline: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '400',
     color: 'white',
     textAlign: 'center',
     lineHeight: 26,
-    marginTop: 14,
-    opacity: 0.92,
+    marginTop: 20,
+    opacity: 0.95,
   },
   buttonSection: {
     width: '100%',
     gap: Spacing.md,
-    paddingBottom: Spacing.lg,
+    paddingBottom: Spacing.xl,
   },
   button: {
     width: '100%',
