@@ -29,7 +29,7 @@ export default function VerifyEmailScreen() {
         return;
       }
 
-      const verified = session?.user?.email_confirmed_at != null;
+      let verified = session?.user?.email_confirmed_at != null;
       
       if (!verified) {
         // Try to refresh the session to get latest user data
