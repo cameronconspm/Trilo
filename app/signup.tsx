@@ -3,12 +3,12 @@ import { View, Text, StyleSheet, TextInput, Alert, KeyboardAvoidingView, Platfor
 import { router, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '@/components/Button';
-import Colors from '@/constants/colors';
+import Colors, { useThemeColors } from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';
 import { Spacing, BorderRadius } from '@/constants/spacing';
 
 export default function SignUpScreen() {
-  const colors = Colors.light; // Force light theme for onboarding
+  const colors = useThemeColors('light'); // Force light theme for onboarding
   const { signUp } = useAuth();
   
   const [email, setEmail] = useState('');

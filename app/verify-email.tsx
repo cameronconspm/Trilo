@@ -4,13 +4,13 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, CheckCircle, RefreshCw } from 'lucide-react-native';
 import Button from '@/components/Button';
-import Colors from '@/constants/colors';
+import Colors, { useThemeColors } from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';
 import { Spacing, BorderRadius } from '@/constants/spacing';
 import { supabase } from '@/services/supabase';
 
 export default function VerifyEmailScreen() {
-  const colors = Colors.light; // Force light theme for onboarding
+  const colors = useThemeColors('light'); // Force light theme for onboarding
   const { user } = useAuth();
   const { email } = useLocalSearchParams<{ email: string }>();
   
@@ -21,11 +21,23 @@ export default function VerifyEmailScreen() {
     setIsChecking(true);
     
     try {
-      const { verified, error } = await checkEmailVerification();
+      // Check if user's email is verified by refreshing the session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (error) {
-        Alert.alert('Error', error);
+      if (sessionError) {
+        Alert.alert('Error', sessionError.message);
         return;
+      }
+
+      const verified = session?.user?.email_confirmed_at != null;
+      
+      if (!verified) {
+        // Try to refresh the session to get latest user data
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (!refreshError && refreshedSession?.user?.email_confirmed_at) {
+          verified = true;
+        }
       }
 
       if (verified) {
