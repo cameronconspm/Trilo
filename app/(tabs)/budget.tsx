@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Switch } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -18,8 +18,19 @@ import EmptyState from '@/components/EmptyState';
 import AddTransactionModal from '@/components/AddTransactionModal';
 import AlertModal from '@/components/AlertModal';
 import DatePicker from '@/components/DatePicker';
+import PieChart from '@/components/PieChart';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 import { Transaction, SavingsGoal, SavingsContribution } from '@/types/finance';
+
+// Define spending categories for the budget view
+const SPENDING_CATEGORIES = [
+  { id: 'shopping', name: 'Shopping', color: '#FF6B6B' },
+  { id: 'food_drinks', name: 'Food & Drinks', color: '#4ECDC4' },
+  { id: 'services', name: 'Services', color: '#45B7D1' },
+  { id: 'transportation', name: 'Transportation', color: '#96CEB4' },
+  { id: 'entertainment', name: 'Entertainment', color: '#FFEAA7' },
+  { id: 'other', name: 'Other', color: '#DDA0DD' },
+] as const;
 
 export default function BudgetScreen() {
   const { budget, transactions, isLoading, addTransaction } = useFinance();
@@ -129,6 +140,54 @@ export default function BudgetScreen() {
   const totalExpenses = budget.expenses.given + budget.expenses.oneTime + budget.expenses.recurring + budget.expenses.savings;
   const remainingIncome = budget.income - totalExpenses;
   const budgetUtilization = budget.income > 0 ? (totalExpenses / budget.income) * 100 : 0;
+
+  // Calculate spending by category for current month
+  const spendingByCategory = useMemo(() => {
+    const today = new Date();
+    const currentMonthTransactions = transactions.filter(t => {
+      if (t.type !== 'expense') return false;
+      const transactionDate = new Date(t.date);
+      return transactionDate.getMonth() === today.getMonth() && 
+             transactionDate.getFullYear() === today.getFullYear();
+    });
+
+    // Map existing categories to spending categories
+    const categoryMapping: Record<string, string> = {
+      'bill': 'services',
+      'subscription': 'services', 
+      'debt': 'other',
+      'one_time_expense': 'shopping',
+      'given_expenses': 'other',
+      'savings': 'other',
+    };
+
+    const spending: Record<string, number> = {};
+    SPENDING_CATEGORIES.forEach(cat => {
+      spending[cat.id] = 0;
+    });
+
+    currentMonthTransactions.forEach(transaction => {
+      const mappedCategory = categoryMapping[transaction.category] || 'other';
+      spending[mappedCategory] += transaction.amount;
+    });
+
+    return spending;
+  }, [transactions]);
+
+  // Calculate total spent and most spent category
+  const totalSpent = Object.values(spendingByCategory).reduce((sum, amount) => sum + amount, 0);
+  const mostSpentCategory = SPENDING_CATEGORIES.reduce((max, category) => {
+    return spendingByCategory[category.id] > spendingByCategory[max.id] ? category : max;
+  }, SPENDING_CATEGORIES[0]);
+
+  // Prepare pie chart data
+  const pieChartData = SPENDING_CATEGORIES
+    .map(category => ({
+      value: spendingByCategory[category.id],
+      color: category.color,
+      label: category.name,
+    }))
+    .filter(item => item.value > 0);
   
   const handleSetBudgetGoal = () => {
     showAlert({
@@ -661,6 +720,50 @@ export default function BudgetScreen() {
                       <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Savings</Text>
                       <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.savings.toFixed(2)}</Text>
                     </View>
+                  </View>
+                </View>
+              </Card>
+
+              {/* Spending Overview Card */}
+              <Card variant="elevated" style={styles.summaryCard}>
+                <View style={styles.budgetHeader}>
+                  <Text style={[styles.budgetTitle, { color: colors.text }]}>Spending Overview</Text>
+                </View>
+                
+                <View style={styles.spendingOverviewContainer}>
+                  <View style={styles.spendingOverviewLeft}>
+                    <View style={styles.spendingOverviewItem}>
+                      <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total Spent</Text>
+                      <Text style={[styles.summaryValue, { color: colors.text }]}>
+                        ${totalSpent.toFixed(2)}
+                      </Text>
+                    </View>
+                    <View style={styles.spendingOverviewItem}>
+                      <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Most Spent Category</Text>
+                      <View style={styles.mostSpentContainer}>
+                        <View style={[styles.categoryColorDot, { backgroundColor: mostSpentCategory.color }]} />
+                        <Text style={[styles.mostSpentCategory, { color: colors.text }]}>
+                          {mostSpentCategory.name}
+                        </Text>
+                      </View>
+                      <Text style={[styles.mostSpentAmount, { color: colors.textSecondary }]}>
+                        ${spendingByCategory[mostSpentCategory.id]?.toFixed(2) || '0.00'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.spendingOverviewRight}>
+                    {pieChartData.length > 0 ? (
+                      <PieChart 
+                        data={pieChartData}
+                        size={100}
+                      />
+                    ) : (
+                      <View style={[styles.emptyPieChart, { backgroundColor: colors.cardSecondary }]}>
+                        <Text style={[styles.emptyPieChartText, { color: colors.textSecondary }]}>
+                          No spending data
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
               </Card>
@@ -1944,5 +2047,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 18,
+  },
+  spendingOverviewContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 120,
+  },
+  spendingOverviewLeft: {
+    flex: 1,
+    paddingRight: Spacing.md,
+  },
+  spendingOverviewRight: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  spendingOverviewItem: {
+    marginBottom: Spacing.md,
+  },
+  mostSpentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  categoryColorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: Spacing.xs,
+  },
+  mostSpentCategory: {
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  mostSpentAmount: {
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  emptyPieChart: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyPieChartText: {
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 16,
   },
 });
