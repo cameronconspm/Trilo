@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFinance } from '@/context/FinanceContext';
@@ -12,16 +12,27 @@ import CategoryCard from '@/components/CategoryCard';
 import TransactionItem from '@/components/TransactionItem';
 import EmptyState from '@/components/EmptyState';
 import AddTransactionModal from '@/components/AddTransactionModal';
-import { Spacing } from '@/constants/spacing';
+import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 import { Transaction, CategoryType } from '@/types/finance';
 
+// Define spending categories for the transaction view
+const SPENDING_CATEGORIES = [
+  { id: 'shopping', name: 'Shopping', color: '#FF6B6B' },
+  { id: 'food_drinks', name: 'Food & Drinks', color: '#4ECDC4' },
+  { id: 'services', name: 'Services', color: '#45B7D1' },
+  { id: 'transportation', name: 'Transportation', color: '#96CEB4' },
+  { id: 'entertainment', name: 'Entertainment', color: '#FFEAA7' },
+  { id: 'other', name: 'Other', color: '#DDA0DD' },
+] as const;
+
 export default function OverviewScreen() {
-  const { weeklyOverview, isLoading } = useFinance();
+  const { weeklyOverview, transactions, isLoading } = useFinance();
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
   const [preselectedCategory, setPreselectedCategory] = useState<CategoryType | undefined>(undefined);
+  const [activeTab, setActiveTab] = useState<'overview' | 'transactions'>('overview');
   const { weekIncome, remainingBalance, utilization, contributions, upcomingExpenses, pastExpenses, currentPayPeriod } = weeklyOverview;
   
   // Get current month and year
@@ -48,6 +59,48 @@ export default function OverviewScreen() {
     setPreselectedCategory(category);
     setShowAddModal(true);
   };
+
+  // Calculate spending by category for current pay period
+  const spendingByCategory = useMemo(() => {
+    const today = new Date();
+    const currentPayPeriodTransactions = transactions.filter(t => {
+      if (t.type !== 'expense') return false;
+      const transactionDate = new Date(t.date);
+      // For now, use current month as pay period approximation
+      return transactionDate.getMonth() === today.getMonth() && 
+             transactionDate.getFullYear() === today.getFullYear();
+    });
+
+    // Map existing categories to spending categories (simplified mapping)
+    const categoryMapping: Record<string, string> = {
+      'bill': 'services',
+      'subscription': 'services', 
+      'debt': 'other',
+      'one_time_expense': 'shopping',
+      'given_expenses': 'other',
+      'savings': 'other',
+    };
+
+    const spending: Record<string, number> = {};
+    SPENDING_CATEGORIES.forEach(cat => {
+      spending[cat.id] = 0;
+    });
+
+    currentPayPeriodTransactions.forEach(transaction => {
+      const mappedCategory = categoryMapping[transaction.category] || 'other';
+      spending[mappedCategory] += transaction.amount;
+    });
+
+    return spending;
+  }, [transactions]);
+
+  // Get recent transactions (last 10 transactions)
+  const recentTransactions = useMemo(() => {
+    return transactions
+      .filter(t => t.type === 'expense')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 10);
+  }, [transactions]);
   
   if (isLoading) {
     return (
@@ -77,93 +130,176 @@ export default function OverviewScreen() {
         showAddButton
       />
       
+      {/* Tab Switcher */}
+      <View style={[styles.tabSwitcher, { backgroundColor: colors.cardSecondary }]}>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === 'overview' && { backgroundColor: colors.card },
+            activeTab === 'overview' && styles.activeTab
+          ]}
+          onPress={() => setActiveTab('overview')}
+          activeOpacity={0.7}
+        >
+          <Text style={[
+            styles.tabButtonText,
+            { color: activeTab === 'overview' ? colors.text : colors.textSecondary }
+          ]}>
+            Overview
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === 'transactions' && { backgroundColor: colors.card },
+            activeTab === 'transactions' && styles.activeTab
+          ]}
+          onPress={() => setActiveTab('transactions')}
+          activeOpacity={0.7}
+        >
+          <Text style={[
+            styles.tabButtonText,
+            { color: activeTab === 'transactions' ? colors.text : colors.textSecondary }
+          ]}>
+            Transactions
+          </Text>
+        </TouchableOpacity>
+      </View>
+      
       <ScrollView 
         style={styles.scrollView} 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
       >
-        <Card variant="elevated" style={styles.incomeCard}>
-          <View style={styles.incomeContainer}>
-            <View style={styles.incomeTextContainer}>
-              <Text style={[styles.incomeLabel, { color: colors.textSecondary }]}>Pay period income</Text>
-              <Text style={[styles.incomeValue, { color: colors.text }]}>
-                ${weekIncome > 0 ? weekIncome.toFixed(2) : '0.00'}
-              </Text>
-              <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>Remaining balance</Text>
-              <Text style={[
-                styles.balanceValue,
-                { color: colors.text },
-                remainingBalance < 0 && { color: colors.error }
-              ]}>
-                ${remainingBalance.toFixed(2)}
-              </Text>
+        {activeTab === 'overview' ? (
+          <>
+            <Card variant="elevated" style={styles.incomeCard}>
+              <View style={styles.incomeContainer}>
+                <View style={styles.incomeTextContainer}>
+                  <Text style={[styles.incomeLabel, { color: colors.textSecondary }]}>Pay period income</Text>
+                  <Text style={[styles.incomeValue, { color: colors.text }]}>
+                    ${weekIncome > 0 ? weekIncome.toFixed(2) : '0.00'}
+                  </Text>
+                  <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>Remaining balance</Text>
+                  <Text style={[
+                    styles.balanceValue,
+                    { color: colors.text },
+                    remainingBalance < 0 && { color: colors.error }
+                  ]}>
+                    ${remainingBalance.toFixed(2)}
+                  </Text>
+                </View>
+                <CircularProgress 
+                  percentage={utilization} 
+                  size={100} 
+                  color={utilization > 90 ? colors.warning : colors.primary}
+                />
+              </View>
+            </Card>
+            
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Pay Period Contributions</Text>
+            <View style={styles.categoryGrid}>
+              {(['bill', 'subscription', 'debt', 'savings', 'given_expenses', 'one_time_expense'] as const).map((categoryId) => {
+                const data = contributions[categoryId] || { total: 0, count: 0 };
+                return (
+                  <CategoryCard 
+                    key={categoryId}
+                    category={categoryId} 
+                    amount={data.total}
+                    count={data.count}
+                    onPress={() => handleCategoryCardPress(categoryId)}
+                  />
+                );
+              })}
             </View>
-            <CircularProgress 
-              percentage={utilization} 
-              size={100} 
-              color={utilization > 90 ? colors.warning : colors.primary}
-            />
-          </View>
-        </Card>
-        
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Pay Period Contributions</Text>
-        <View style={styles.categoryGrid}>
-          {(['bill', 'subscription', 'debt', 'savings', 'given_expenses', 'one_time_expense'] as const).map((categoryId) => {
-            const data = contributions[categoryId] || { total: 0, count: 0 };
-            return (
-              <CategoryCard 
-                key={categoryId}
-                category={categoryId} 
-                amount={data.total}
-                count={data.count}
-                onPress={() => handleCategoryCardPress(categoryId)}
-              />
-            );
-          })}
-        </View>
-        
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Upcoming Expenses</Text>
-        <Card variant="default">
-          {hasUpcomingExpenses ? (
-            upcomingExpenses.map((expense, index) => (
-              <TransactionItem 
-                key={expense.id} 
-                transaction={expense}
-                isLast={index === upcomingExpenses.length - 1}
-                onEdit={handleEditTransaction}
-                enableSwipeActions={true}
-              />
-            ))
-          ) : (
-            <EmptyState 
-              icon="trending"
-              title="No upcoming expenses"
-              subtitle="You're all caught up for this pay period!"
-            />
-          )}
-        </Card>
-        
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Past Expenses</Text>
-        <Card variant="default">
-          {hasPastExpenses ? (
-            pastExpenses.map((expense, index) => (
-              <TransactionItem 
-                key={expense.id} 
-                transaction={expense}
-                isLast={index === pastExpenses.length - 1}
-                onEdit={handleEditTransaction}
-                enableSwipeActions={true}
-                isPastExpense={true}
-              />
-            ))
-          ) : (
-            <EmptyState 
-              icon="clock"
-              title="No past expenses"
-              subtitle="Past expenses from this pay period will appear here"
-            />
-          )}
-        </Card>
+            
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Upcoming Expenses</Text>
+            <Card variant="default">
+              {hasUpcomingExpenses ? (
+                upcomingExpenses.map((expense, index) => (
+                  <TransactionItem 
+                    key={expense.id} 
+                    transaction={expense}
+                    isLast={index === upcomingExpenses.length - 1}
+                    onEdit={handleEditTransaction}
+                    enableSwipeActions={true}
+                  />
+                ))
+              ) : (
+                <EmptyState 
+                  icon="trending"
+                  title="No upcoming expenses"
+                  subtitle="You're all caught up for this pay period!"
+                />
+              )}
+            </Card>
+            
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Past Expenses</Text>
+            <Card variant="default">
+              {hasPastExpenses ? (
+                pastExpenses.map((expense, index) => (
+                  <TransactionItem 
+                    key={expense.id} 
+                    transaction={expense}
+                    isLast={index === pastExpenses.length - 1}
+                    onEdit={handleEditTransaction}
+                    enableSwipeActions={true}
+                    isPastExpense={true}
+                  />
+                ))
+              ) : (
+                <EmptyState 
+                  icon="clock"
+                  title="No past expenses"
+                  subtitle="Past expenses from this pay period will appear here"
+                />
+              )}
+            </Card>
+          </>
+        ) : (
+          <>
+            {/* Spending Categories Row */}
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Spending Categories</Text>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScrollContent}
+              style={styles.horizontalScroll}
+            >
+              {SPENDING_CATEGORIES.map((category) => (
+                <View key={category.id} style={[styles.spendingCategoryCard, { backgroundColor: colors.card }]}>
+                  <View style={[styles.categoryColorDot, { backgroundColor: category.color }]} />
+                  <Text style={[styles.categoryName, { color: colors.text }]}>{category.name}</Text>
+                  <Text style={[styles.categoryAmount, { color: colors.text }]}>
+                    ${spendingByCategory[category.id]?.toFixed(2) || '0.00'}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+            
+            {/* Recent Transactions Section */}
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Transactions</Text>
+            <Card variant="default">
+              {recentTransactions.length > 0 ? (
+                recentTransactions.map((transaction, index) => (
+                  <TransactionItem 
+                    key={transaction.id} 
+                    transaction={transaction}
+                    isLast={index === recentTransactions.length - 1}
+                    onEdit={handleEditTransaction}
+                    enableSwipeActions={true}
+                  />
+                ))
+              ) : (
+                <EmptyState 
+                  icon="receipt"
+                  title="No recent transactions"
+                  subtitle="Your recent expense transactions will appear here"
+                />
+              )}
+            </Card>
+          </>
+        )}
       </ScrollView>
       
       <AddTransactionModal 
@@ -246,5 +382,64 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 10, // Optimized gap for 3-column layout
     justifyContent: 'space-between',
+  },
+  tabSwitcher: {
+    flexDirection: 'row',
+    marginHorizontal: Spacing.screenHorizontal,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    padding: 4,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeTab: {
+    ...Shadow.light,
+  },
+  tabButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  horizontalScroll: {
+    marginBottom: Spacing.md,
+  },
+  horizontalScrollContent: {
+    paddingHorizontal: Spacing.screenHorizontal,
+    gap: 12,
+  },
+  spendingCategoryCard: {
+    width: 120,
+    height: 100,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    ...Shadow.light,
+  },
+  categoryColorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginBottom: Spacing.xs,
+  },
+  categoryName: {
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  categoryAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    letterSpacing: -0.2,
+    lineHeight: 20,
   },
 });
