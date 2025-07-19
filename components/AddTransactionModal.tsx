@@ -128,6 +128,9 @@ export default function AddTransactionModal({ visible, onClose, editTransaction,
 
   // Helper functions for managing entries
   const addNewEntry = () => {
+    // Collapse all existing entries before adding new one
+    setEntries(prev => prev.map(entry => ({ ...entry, isCollapsed: true })));
+    
     const newEntry = createEmptyEntry();
     setEntries(prev => [...prev, newEntry]);
   };
@@ -418,14 +421,14 @@ export default function AddTransactionModal({ visible, onClose, editTransaction,
             {entry.isCollapsed && (entry.name.trim() || entry.amount.trim()) ? (
               <View style={dynamicStyles.entrySummary}>
                 <Text style={dynamicStyles.entrySummaryText}>
-                  {entry.name.trim() || 'Unnamed'} – ${entry.amount || '0.00'}
+                  {entry.name.trim() || 'Unnamed Entry'}
                 </Text>
                 <ChevronDown size={20} color={colors.textSecondary} />
               </View>
             ) : (
               <View style={dynamicStyles.entryTitle}>
                 <Text style={dynamicStyles.entryTitleText}>
-                  {isOnlyEntry ? `${transactionType === 'income' ? 'Income' : 'Expense'} Details` : `Entry ${index + 1}`}
+                  {entry.name.trim() || (isOnlyEntry ? `${transactionType === 'income' ? 'Income' : 'Expense'} Details` : `Entry ${index + 1}`)}
                 </Text>
                 {!isOnlyEntry && <ChevronUp size={20} color={colors.textSecondary} />}
               </View>
