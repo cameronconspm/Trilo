@@ -7,25 +7,20 @@ import Button from '@/components/Button';
 import { Spacing } from '@/constants/spacing';
 
 export default function DiscoveryScreen() {
-  const handleGetStarted = () => {
-    router.push('/signup');
-  };
-
-  const handleLogin = () => {
-    router.push('/login');
-  };
+  const handleGetStarted = () => router.push('/signup');
+  const handleLogin = () => router.push('/login');
 
   return (
     <LinearGradient
       colors={['#B3D4FF', '#4E91F9']}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
       style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
     >
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
           <View style={styles.logoSection}>
-            <Image 
+            <Image
               source={{ uri: 'https://r2-pub.rork.com/attachments/wpscb1bi1jo8d4adsnrqp' }}
               style={styles.arrowImage}
               resizeMode="contain"
@@ -43,7 +38,7 @@ export default function DiscoveryScreen() {
               onPress={handleGetStarted}
               variant="primary"
               size="large"
-              style={[styles.button, styles.getStartedButton]}
+              style={styles.getStartedButton}
               textStyle={styles.getStartedButtonText}
             />
             <Button
@@ -51,7 +46,7 @@ export default function DiscoveryScreen() {
               onPress={handleLogin}
               variant="outline"
               size="large"
-              style={[styles.button, styles.loginButton]}
+              style={styles.loginButton}
               textStyle={styles.loginButtonText}
             />
           </View>
@@ -73,13 +68,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 32,
-    paddingVertical: 40,
+    paddingVertical: 48,
   },
   logoSection: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 60,
+    alignItems: 'center',
+    gap: 12,
+  },
+  arrowImage: {
+    width: 160,
+    height: 160,
+    marginBottom: 24,
   },
   mainTitle: {
     fontSize: 42,
@@ -89,18 +89,13 @@ const styles = StyleSheet.create({
     lineHeight: 48,
     letterSpacing: -0.5,
   },
-  arrowImage: {
-    width: 140,
-    height: 140,
-    marginBottom: Spacing.xl,
-  },
   tagline: {
     fontSize: 17,
     fontWeight: '400',
     color: 'white',
     textAlign: 'center',
     lineHeight: 24,
-    marginTop: 16,
+    marginTop: 12,
     opacity: 0.95,
   },
   buttonSection: {
@@ -108,10 +103,8 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     paddingBottom: Spacing.lg,
   },
-  button: {
-    width: '100%',
-  },
   getStartedButton: {
+    width: '100%',
     backgroundColor: 'white',
     borderWidth: 0,
   },
@@ -120,8 +113,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   loginButton: {
-    borderColor: 'white',
+    width: '100%',
     backgroundColor: 'transparent',
+    borderColor: 'white',
     borderWidth: 2,
   },
   loginButtonText: {
