@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle, ActivityIndicator, View } from 'react-native';
 import { useThemeColors } from '@/constants/colors';
 import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
@@ -13,6 +13,7 @@ interface ButtonProps {
   loading?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  icon?: React.ReactNode;
 }
 
 export default function Button({
@@ -24,6 +25,7 @@ export default function Button({
   loading = false,
   style,
   textStyle,
+  icon,
 }: ButtonProps) {
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
@@ -85,7 +87,10 @@ export default function Button({
           size="small" 
         />
       ) : (
-        <Text style={buttonTextStyle}>{title}</Text>
+        <View style={styles.content}>
+          {icon && <View style={styles.iconContainer}>{icon}</View>}
+          <Text style={buttonTextStyle}>{title}</Text>
+        </View>
       )}
     </TouchableOpacity>
   );
@@ -143,5 +148,15 @@ const styles = StyleSheet.create({
   
   disabledText: {
     opacity: 0.7,
+  },
+  
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  iconContainer: {
+    marginRight: Spacing.sm,
   },
 });

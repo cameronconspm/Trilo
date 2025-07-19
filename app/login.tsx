@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Spacing, BorderRadius } from '@/constants/spacing';
 
 export default function LoginScreen() {
-  const colors = Colors;
+  const colors = Colors.light; // Force light theme for onboarding
   const { signIn } = useAuth();
   
   const [email, setEmail] = useState('');

@@ -15,6 +15,8 @@ interface AuthActions {
   signUp: (email: string, password: string) => Promise<{ error?: string }>;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
+  checkEmailVerification: () => Promise<{ verified: boolean; error?: string }>;
+  resendVerificationEmail: (email: string) => Promise<{ error?: string }>;
 }
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
@@ -62,15 +64,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const signUp = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: undefined, // Prevent auto-redirect, we'll handle verification manually
+        }
       });
 
       if (error) {
         return { error: error.message };
       }
 
+      // Don't automatically sign in - wait for email verification
       return {};
     } catch (error) {
       return { error: 'An unexpected error occurred' };
@@ -99,10 +105,43 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     await AsyncStorage.removeItem('userId');
   };
 
+  const checkEmailVerification = async (): Promise<{ verified: boolean; error?: string }> => {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      if (error) {
+        return { verified: false, error: error.message };
+      }
+
+      return { verified: !!user?.email_confirmed_at };
+    } catch (error) {
+      return { verified: false, error: 'An unexpected error occurred' };
+    }
+  };
+
+  const resendVerificationEmail = async (email: string): Promise<{ error?: string }> => {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+      });
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      return {};
+    } catch (error) {
+      return { error: 'An unexpected error occurred' };
+    }
+  };
+
   const actions: AuthActions = {
     signUp,
     signIn,
     signOut,
+    checkEmailVerification,
+    resendVerificationEmail,
   };
 
   return {

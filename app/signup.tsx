@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Spacing, BorderRadius } from '@/constants/spacing';
 
 export default function SignUpScreen() {
-  const colors = Colors;
+  const colors = Colors.light; // Force light theme for onboarding
   const { signUp } = useAuth();
   
   const [email, setEmail] = useState('');
@@ -56,16 +56,11 @@ export default function SignUpScreen() {
       if (error) {
         Alert.alert('Sign Up Failed', error);
       } else {
-        Alert.alert(
-          'Account Created',
-          'Your account has been created successfully!',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/(tabs)'),
-            },
-          ]
-        );
+        // Navigate to email verification screen
+        router.push({
+          pathname: '/verify-email',
+          params: { email: email.trim() }
+        });
       }
     } catch (error) {
       Alert.alert('Error', 'An unexpected error occurred');
