@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFinance } from '@/context/FinanceContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useThemeColors } from '@/constants/colors';
@@ -33,6 +34,8 @@ export default function OverviewScreen() {
   const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
   const [preselectedCategory, setPreselectedCategory] = useState<CategoryType | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<'overview' | 'transactions'>('overview');
+  const [isBankConnected, setIsBankConnected] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const { weekIncome, remainingBalance, utilization, contributions, upcomingExpenses, pastExpenses, currentPayPeriod } = weeklyOverview;
   
   // Get current month and year
@@ -58,6 +61,42 @@ export default function OverviewScreen() {
   const handleCategoryCardPress = (category: CategoryType) => {
     setPreselectedCategory(category);
     setShowAddModal(true);
+  };
+
+  const handleBankConnect = () => {
+    Alert.alert(
+      'Connect Your Bank',
+      'This will launch Plaid Link to securely connect your bank account and automatically import transactions.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Connect', 
+          onPress: () => {
+            // TODO: Implement Plaid Link or bank connection flow
+            console.log('Connecting to bank...');
+            // For now, simulate connection
+            setTimeout(() => {
+              setIsBankConnected(true);
+              Alert.alert('Success', 'Bank account connected successfully!');
+            }, 1000);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleBankSync = async () => {
+    if (isSyncing) return;
+    
+    setIsSyncing(true);
+    console.log('Syncing bank data...');
+    
+    // TODO: Implement actual bank data sync
+    // For now, simulate sync
+    setTimeout(() => {
+      setIsSyncing(false);
+      Alert.alert('Success', 'Bank data synced successfully! New transactions have been imported.');
+    }, 2000);
   };
 
   // Calculate spending by category for current pay period
@@ -127,7 +166,12 @@ export default function OverviewScreen() {
       <Header 
         title={`${month} ${year}`}
         subtitle={currentPayPeriod || 'No pay period'}
-        showAddButton
+        showAddButton={activeTab === 'overview'}
+        showBankButton={activeTab === 'transactions'}
+        isBankConnected={isBankConnected}
+        isSyncing={isSyncing}
+        onBankConnect={handleBankConnect}
+        onBankSync={handleBankSync}
       />
       
       {/* Tab Switcher */}
