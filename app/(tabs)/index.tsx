@@ -287,7 +287,7 @@ export default function OverviewScreen() {
                 ))
               ) : (
                 <EmptyState 
-                  icon="receipt"
+                  icon="clock"
                   title="No recent transactions"
                   subtitle="Your recent expense transactions will appear here"
                 />
