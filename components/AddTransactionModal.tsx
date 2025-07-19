@@ -428,7 +428,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction,
             ) : (
               <View style={dynamicStyles.entryTitle}>
                 <Text style={dynamicStyles.entryTitleText}>
-                  {entry.name.trim() || (isOnlyEntry ? `${transactionType === 'income' ? 'Income' : 'Expense'} Details` : `Entry ${index + 1}`)}
+                  {entry.name.trim() || (isOnlyEntry ? `${transactionType === 'income' ? 'Income' : 'Expense'} Details` : `${transactionType === 'income' ? 'Income Source' : 'Expense Name'}`)}
                 </Text>
                 {!isOnlyEntry && <ChevronUp size={20} color={colors.textSecondary} />}
               </View>
@@ -451,7 +451,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction,
           <View style={dynamicStyles.entryForm}>
             {/* Name Field */}
             <View style={dynamicStyles.formGroup}>
-              <Text style={dynamicStyles.label}>
+              <Text style={dynamicStyles.nameLabel}>
                 {transactionType === 'income' ? 'Income Source' : 'Expense Name'} *
               </Text>
               <TextInput
@@ -658,6 +658,14 @@ export default function AddTransactionModal({ visible, onClose, editTransaction,
       fontSize: 17,
       fontWeight: '600',
       marginBottom: Spacing.md,
+      color: colors.text,
+      letterSpacing: -0.2,
+    },
+    nameLabel: {
+      fontSize: 17,
+      fontWeight: '600',
+      marginBottom: Spacing.md,
+      marginTop: Spacing.lg,
       color: colors.text,
       letterSpacing: -0.2,
     },
