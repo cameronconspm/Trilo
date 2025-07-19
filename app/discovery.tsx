@@ -18,7 +18,7 @@ export default function DiscoveryScreen() {
 
   return (
     <LinearGradient
-      colors={['#E8F2FF', '#B8D8FF', '#87CEEB']}
+      colors={['#a6ccff', '#4E91F9']}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 0, y: 1 }}
