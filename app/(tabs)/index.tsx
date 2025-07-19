@@ -258,14 +258,9 @@ export default function OverviewScreen() {
           </>
         ) : (
           <>
-            {/* Spending Categories Row */}
+            {/* Spending Categories Grid */}
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Spending Categories</Text>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalScrollContent}
-              style={styles.horizontalScroll}
-            >
+            <View style={styles.spendingCategoryGrid}>
               {SPENDING_CATEGORIES.map((category) => (
                 <View key={category.id} style={[styles.spendingCategoryCard, { backgroundColor: colors.card }]}>
                   <View style={[styles.categoryColorDot, { backgroundColor: category.color }]} />
@@ -275,7 +270,7 @@ export default function OverviewScreen() {
                   </Text>
                 </View>
               ))}
-            </ScrollView>
+            </View>
             
             {/* Recent Transactions Section */}
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Transactions</Text>
@@ -407,15 +402,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 20,
   },
-  horizontalScroll: {
+  spendingCategoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'space-between',
     marginBottom: Spacing.md,
   },
-  horizontalScrollContent: {
-    paddingHorizontal: Spacing.screenHorizontal,
-    gap: 12,
-  },
   spendingCategoryCard: {
-    width: 120,
+    width: '31%', // Approximately 1/3 width with gaps
     height: 100,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
