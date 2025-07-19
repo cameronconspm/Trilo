@@ -76,7 +76,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         return { error: error.message };
       }
 
-      // Don't automatically sign in - wait for email verification
+      // If email confirmation is disabled, the user will be automatically signed in
+      // If email confirmation is enabled, the user will need to verify their email
       return {};
     } catch (error) {
       return { error: 'An unexpected error occurred' };

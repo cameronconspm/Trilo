@@ -56,11 +56,8 @@ export default function SignUpScreen() {
       if (error) {
         Alert.alert('Sign Up Failed', error);
       } else {
-        // Navigate to email verification screen
-        router.push({
-          pathname: '/verify-email',
-          params: { email: email.trim() }
-        });
+        // Since email confirmation is disabled, navigate directly to overview
+        router.replace('/(tabs)');
       }
     } catch (error) {
       Alert.alert('Error', 'An unexpected error occurred');
