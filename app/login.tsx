@@ -3,14 +3,12 @@ import { View, Text, StyleSheet, TextInput, Alert, KeyboardAvoidingView, Platfor
 import { router, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '@/components/Button';
-import { useThemeColors } from '@/constants/colors';
-import { useSettings } from '@/context/SettingsContext';
+import Colors from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';
 import { Spacing, BorderRadius } from '@/constants/spacing';
 
 export default function LoginScreen() {
-  const { theme } = useSettings();
-  const colors = useThemeColors(theme);
+  const colors = Colors;
   const { signIn } = useAuth();
   
   const [email, setEmail] = useState('');
