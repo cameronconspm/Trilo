@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TrendingUp } from 'lucide-react-native';
 import Button from '@/components/Button';
 import { Spacing } from '@/constants/spacing';
 
@@ -26,7 +25,11 @@ export default function DiscoveryScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
           <View style={styles.logoSection}>
-            <TrendingUp size={120} color="white" strokeWidth={2.5} />
+            <Image 
+              source={{ uri: 'https://r2-pub.rork.com/attachments/wpscb1bi1jo8d4adsnrqp' }}
+              style={styles.arrowImage}
+              resizeMode="contain"
+            />
             <Text style={styles.mainTitle}>Budgeting</Text>
             <Text style={styles.mainTitle}>made simple.</Text>
             <Text style={styles.tagline}>
@@ -85,6 +88,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 56,
     letterSpacing: -1,
+  },
+  arrowImage: {
+    width: 120,
+    height: 120,
+    marginBottom: Spacing.lg,
   },
   tagline: {
     fontSize: 18,
