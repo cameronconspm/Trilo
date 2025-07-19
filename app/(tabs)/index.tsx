@@ -316,24 +316,7 @@ export default function OverviewScreen() {
                       ${Object.values(spendingByCategory).reduce((sum, amount) => sum + amount, 0).toFixed(2)}
                     </Text>
                   </View>
-                  <View style={styles.spendingOverviewItem}>
-                    <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Most Spent Category</Text>
-                    <View style={styles.mostSpentContainer}>
-                      <View style={[styles.categoryColorDot, { backgroundColor: SPENDING_CATEGORIES.reduce((max, category) => {
-                        return spendingByCategory[category.id] > spendingByCategory[max.id] ? category : max;
-                      }, SPENDING_CATEGORIES[0]).color }]} />
-                      <Text style={[styles.mostSpentCategory, { color: colors.text }]}>
-                        {SPENDING_CATEGORIES.reduce((max, category) => {
-                          return spendingByCategory[category.id] > spendingByCategory[max.id] ? category : max;
-                        }, SPENDING_CATEGORIES[0]).name}
-                      </Text>
-                    </View>
-                    <Text style={[styles.mostSpentAmount, { color: colors.textSecondary }]}>
-                      ${spendingByCategory[SPENDING_CATEGORIES.reduce((max, category) => {
-                        return spendingByCategory[category.id] > spendingByCategory[max.id] ? category : max;
-                      }, SPENDING_CATEGORIES[0]).id]?.toFixed(2) || '0.00'}
-                    </Text>
-                  </View>
+
                 </View>
                 <View style={styles.spendingOverviewRight}>
                   {Object.values(spendingByCategory).some(amount => amount > 0) ? (
@@ -574,22 +557,7 @@ const styles = StyleSheet.create({
   spendingOverviewItem: {
     marginBottom: Spacing.md,
   },
-  mostSpentContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.xs,
-  },
-  mostSpentCategory: {
-    fontSize: 16,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  mostSpentAmount: {
-    fontSize: 14,
-    fontWeight: '500',
-    lineHeight: 18,
-  },
+
   pieChartPlaceholder: {
     width: 100,
     height: 100,
