@@ -22,8 +22,6 @@ import DatePicker from '@/components/DatePicker';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 import { Transaction, SavingsGoal, SavingsContribution } from '@/types/finance';
 
-
-
 export default function BudgetScreen() {
   const { budget, transactions, isLoading, addTransaction } = useFinance();
   const { theme } = useSettings();

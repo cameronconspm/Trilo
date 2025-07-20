@@ -47,31 +47,31 @@ export default function PieChart({
   const circumference = 2 * Math.PI * radius;
   let cumulativePercentage = 0;
   
-  const circles = data.map((item, index) => {
-    if (item.value === 0) return null;
-    
-    const percentage = item.value / total;
-    const strokeDasharray = `${percentage * circumference} ${circumference}`;
-    const strokeDashoffset = -cumulativePercentage * circumference;
-    
-    cumulativePercentage += percentage;
-    
-    return (
-      <Circle
-        key={index}
-        cx={centerX}
-        cy={centerY}
-        r={radius}
-        fill="none"
-        stroke={item.color}
-        strokeWidth={strokeWidth}
-        strokeDasharray={strokeDasharray}
-        strokeDashoffset={strokeDashoffset}
-        strokeLinecap="butt"
-        transform={`rotate(-90 ${centerX} ${centerY})`}
-      />
-    );
-  }).filter(Boolean);
+  const circles = data
+    .filter(item => item.value > 0)
+    .map((item, index) => {
+      const percentage = item.value / total;
+      const strokeDasharray = `${percentage * circumference} ${circumference}`;
+      const strokeDashoffset = -cumulativePercentage * circumference;
+      
+      cumulativePercentage += percentage;
+      
+      return (
+        <Circle
+          key={index}
+          cx={centerX}
+          cy={centerY}
+          r={radius}
+          fill="none"
+          stroke={item.color}
+          strokeWidth={strokeWidth}
+          strokeDasharray={strokeDasharray}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="butt"
+          transform={`rotate(-90 ${centerX} ${centerY})`}
+        />
+      );
+    });
   
   return (
     <View style={[styles.container, { width: size, height: size }]}>
