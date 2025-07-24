@@ -5,7 +5,6 @@ export type CategoryType =
   | 'debt'
   | 'subscription'
   | 'bill'
-  | 'savings'
   | 'one_time_expense'
   | 'given_expenses';
 

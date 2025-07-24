@@ -489,7 +489,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction,
               <CategoryPicker
                 selectedCategory={entry.category}
                 onCategorySelect={(category) => updateEntry(entry.id, { category })}
-                excludeCategories={['income']}
+                excludeCategories={['income', 'savings']}
                 label="Category *"
               />
             )}

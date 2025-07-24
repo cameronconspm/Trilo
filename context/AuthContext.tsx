@@ -43,7 +43,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
       if (fetchError && fetchError.code !== 'PGRST116') {
         // PGRST116 is "not found" error, which is expected for new users
-        console.error('AuthContext: Error checking existing user:', fetchError);
+        console.error('AuthContext: Error checking existing user:', JSON.stringify(fetchError, null, 2));
         return;
       }
 
@@ -60,7 +60,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           });
 
         if (insertError) {
-          console.error('AuthContext: Error creating user profile:', insertError);
+          console.error('AuthContext: Error creating user profile:', JSON.stringify(insertError, null, 2));
         } else {
           console.log('AuthContext: User profile created successfully');
         }
@@ -76,13 +76,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           .eq('id', user.id);
 
         if (updateError) {
-          console.error('AuthContext: Error updating user profile:', updateError);
+          console.error('AuthContext: Error updating user profile:', JSON.stringify(updateError, null, 2));
         } else {
           console.log('AuthContext: User profile updated successfully');
         }
       }
     } catch (error) {
-      console.error('AuthContext: Unexpected error in createOrUpdateUserProfile:', error);
+      console.error('AuthContext: Unexpected error in createOrUpdateUserProfile:', error instanceof Error ? error.message : JSON.stringify(error, null, 2));
     }
   }, []);
 

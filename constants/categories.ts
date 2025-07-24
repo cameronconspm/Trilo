@@ -22,11 +22,7 @@ const categories: Category[] = [
     name: 'Bills & Utilities',
     color: Colors.bill,
   },
-  {
-    id: 'savings',
-    name: 'Savings',
-    color: Colors.savings,
-  },
+
   {
     id: 'one_time_expense',
     name: 'One-Time Expenses',
