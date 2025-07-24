@@ -1,7 +1,6 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import { Home, BarChart3, LineChart, User } from "lucide-react-native";
-import { Platform } from "react-native";
 import { useThemeColors } from "@/constants/colors";
 import { useSettings } from "@/context/SettingsContext";
 import { Spacing, Shadow } from "@/constants/spacing";
@@ -39,6 +38,7 @@ export default function TabLayout() {
           fontWeight: '600',
           marginTop: 4,
         },
+        tabBarShowLabel: true,
         headerShown: false,
       }}
     >

@@ -50,6 +50,7 @@ export default function ProfileScreen() {
   } = useNotifications();
 
   const { clearAllData: clearFinanceData, reloadData: reloadFinanceData } = useFinance();
+  const { signOut } = useAuth();
 
   const { alertState, showAlert, hideAlert } = useAlert();
   const [showThemeModal, setShowThemeModal] = useState(false);
@@ -142,6 +143,34 @@ export default function ProfileScreen() {
 
   const handleNameSave = async (name: string) => {
     await setNickname(name);
+  };
+
+  const handleLogOut = () => {
+    showAlert({
+      title: 'Log Out',
+      message: 'Are you sure you want to log out? You will need to sign in again to access your account.',
+      type: 'warning',
+      actions: [
+        { text: 'Cancel', style: 'cancel', onPress: () => {} },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+            } catch (error) {
+              console.error('Logout error:', error);
+              showAlert({
+                title: 'Logout Failed',
+                message: 'There was an error logging out. Please try again.',
+                type: 'error',
+                actions: [{ text: 'OK', onPress: () => {} }],
+              });
+            }
+          },
+        },
+      ],
+    });
   };
 
   const handleResetData = () => {
@@ -351,9 +380,10 @@ export default function ProfileScreen() {
             <Text style={[styles.notificationDescription, { color: colors.textSecondary }]}>Receive weekly spending insights on Sunday evenings</Text>
           </Card>
 
-          {/* Utilities */}
+          {/* Account */}
           <Card style={[styles.card, { backgroundColor: colors.card }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Utilities</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Account</Text>
+            <SettingsItem title="Log Out" icon={<LogOut size={18} color={colors.destructive} />} onPress={handleLogOut} />
             <SettingsItem title="Reset Data" icon={<RefreshCw size={18} color={colors.destructive} />} onPress={handleResetData} isLast />
           </Card>
 
