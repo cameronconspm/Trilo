@@ -145,7 +145,7 @@ export default function AddExpenseScreen() {
           <CategoryPicker
             selectedCategory={category}
             onCategorySelect={setCategory}
-            excludeCategories={['income', 'savings']}
+            excludeCategories={['income']}
             label="Category *"
           />
           
