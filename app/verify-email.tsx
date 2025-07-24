@@ -114,7 +114,7 @@ export default function VerifyEmailScreen() {
               Check Your Email
             </Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              We've sent a verification link to{'\n'}
+              We&apos;ve sent a verification link to{'\n'}
               <Text style={[styles.email, { color: colors.text }]}>{email}</Text>
             </Text>
           </View>
@@ -127,7 +127,7 @@ export default function VerifyEmailScreen() {
               2. Click the verification link in the email
             </Text>
             <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
-              3. Return here and tap "I've Verified My Email"
+              3. Return here and tap &quot;I&apos;ve Verified My Email&quot;
             </Text>
           </View>
 
@@ -154,7 +154,7 @@ export default function VerifyEmailScreen() {
           </View>
 
           <Text style={[styles.helpText, { color: colors.textSecondary }]}>
-            Didn't receive the email? Check your spam folder or try resending.
+            Didn&apos;t receive the email? Check your spam folder or try resending.
           </Text>
         </View>
       </SafeAreaView>

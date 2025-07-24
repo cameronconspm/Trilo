@@ -88,7 +88,7 @@ export default function ProfileScreen() {
       return;
     }
 
-    const options: Array<{ text: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }> = [
+    const options: { text: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }[] = [
       { text: 'Cancel', style: 'cancel' },
     ];
     
