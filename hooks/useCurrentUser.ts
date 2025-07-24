@@ -1,27 +1,40 @@
 import { useAuth } from '@/context/AuthContext';
+import { User } from '@supabase/supabase-js';
+
+interface CurrentUserHook {
+  user: User | null;
+  userId: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  requireUserId: () => string;
+  userEmail: string | null;
+  userDisplayName: string;
+}
 
 /**
- * Hook to easily access current user information throughout the app
- * Returns the current user ID and other user-related data
+ * Hook to easily access current user information throughout the app.
  */
-export function useCurrentUser() {
+export function useCurrentUser(): CurrentUserHook {
   const { user, userId, isAuthenticated, isLoading } = useAuth();
+
+  const requireUserId = (): string => {
+    if (!userId) {
+      throw new Error('User must be authenticated to perform this action.');
+    }
+    return userId;
+  };
+
+  const userEmail = user?.email ?? null;
+  const userDisplayName =
+    user?.user_metadata?.full_name || userEmail?.split('@')[0] || 'User';
 
   return {
     user,
     userId,
     isAuthenticated,
     isLoading,
-    // Helper to get user ID or throw error if not authenticated
-    requireUserId: (): string => {
-      if (!userId) {
-        throw new Error('User must be authenticated to perform this action');
-      }
-      return userId;
-    },
-    // Helper to get user email
-    userEmail: user?.email || null,
-    // Helper to get user display name
-    userDisplayName: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User',
+    requireUserId,
+    userEmail,
+    userDisplayName,
   };
 }
