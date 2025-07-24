@@ -13,11 +13,11 @@ interface AuthState {
 }
 
 interface AuthActions {
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ error?: string }>;
-  signIn: (email: string, password: string) => Promise<{ error?: string }>;
-  signOut: () => Promise<void>;
-  checkEmailVerification: () => Promise<{ verified: boolean; error?: string }>;
-  resendVerificationEmail: (email: string) => Promise<{ error?: string }>;
+  signUp: (email: string, password: string, fullName?: string) => Promise<{ error?: string }>; 
+  signIn: (email: string, password: string) => Promise<{ error?: string }>; 
+  signOut: () => Promise<void>; 
+  checkEmailVerification: () => Promise<{ verified: boolean; error?: string }>; 
+  resendVerificationEmail: (email: string) => Promise<{ error?: string }>; 
   createOrUpdateUserProfile: (user: User) => Promise<void>;
 }
 
@@ -32,9 +32,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const createOrUpdateUserProfile = useCallback(async (user: User): Promise<void> => {
     try {
-      console.log('AuthContext: Creating/updating user profile for:', user.id);
-      
-      // Check if user already exists
       const { data: existingUser, error: fetchError } = await supabase
         .from('app_users')
         .select('id')
@@ -42,13 +39,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         .single();
 
       if (fetchError && fetchError.code !== 'PGRST116') {
-        // PGRST116 is "not found" error, which is expected for new users
         console.error('AuthContext: Error checking existing user:', JSON.stringify(fetchError, null, 2));
         return;
       }
 
       if (!existingUser) {
-        // User doesn't exist, create new profile
         const { error: insertError } = await supabase
           .from('app_users')
           .insert({
@@ -59,11 +54,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
         if (insertError) {
           console.error('AuthContext: Error creating user profile:', JSON.stringify(insertError, null, 2));
-        } else {
-          console.log('AuthContext: User profile created successfully');
         }
       } else {
-        // User exists, update profile
         const { error: updateError } = await supabase
           .from('app_users')
           .update({
@@ -74,8 +66,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
         if (updateError) {
           console.error('AuthContext: Error updating user profile:', JSON.stringify(updateError, null, 2));
-        } else {
-          console.log('AuthContext: User profile updated successfully');
         }
       }
     } catch (error) {
@@ -84,7 +74,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   }, []);
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setAuthState(prev => ({
         ...prev,
@@ -94,37 +83,31 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         userId: session?.user?.id ?? null,
         isLoading: false,
       }));
-      
-      // Create or update user profile if session exists
+
       if (session?.user) {
         createOrUpdateUserProfile(session.user);
       }
     });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setAuthState(prev => ({
-          ...prev,
-          session,
-          user: session?.user ?? null,
-          isAuthenticated: !!session,
-          userId: session?.user?.id ?? null,
-          isLoading: false,
-        }));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setAuthState(prev => ({
+        ...prev,
+        session,
+        user: session?.user ?? null,
+        isAuthenticated: !!session,
+        userId: session?.user?.id ?? null,
+        isLoading: false,
+      }));
 
-        // Store user ID in AsyncStorage for persistence
-        if (session?.user) {
-          await AsyncStorage.setItem('userId', session.user.id);
-          // Create or update user profile on sign in
-          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            await createOrUpdateUserProfile(session.user);
-          }
-        } else {
-          await AsyncStorage.removeItem('userId');
+      if (session?.user) {
+        await AsyncStorage.setItem('userId', session.user.id);
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          await createOrUpdateUserProfile(session.user);
         }
+      } else {
+        await AsyncStorage.removeItem('userId');
       }
-    );
+    });
 
     return () => subscription.unsubscribe();
   }, [createOrUpdateUserProfile]);
@@ -142,18 +125,12 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         }
       });
 
-      if (error) {
-        return { error: error.message };
-      }
+      if (error) return { error: error.message };
 
-      // If email confirmation is disabled, the user will be automatically signed in
-      // If email confirmation is enabled, the user will need to verify their email
-      
-      // If user is immediately available (email confirmation disabled), create profile
       if (data.user && data.session) {
         await createOrUpdateUserProfile(data.user);
       }
-      
+
       return {};
     } catch (error) {
       return { error: 'An unexpected error occurred' };
@@ -162,23 +139,15 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const signIn = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-      if (error) {
-        return { error: error.message };
-      }
+      if (error) return { error: error.message };
 
-      // Check if email is verified
       if (data.user && !data.user.email_confirmed_at) {
-        // Sign out the user since email is not verified
         await supabase.auth.signOut();
         return { error: 'Please verify your email before signing in. Check your inbox for a verification link.' };
       }
 
-      // Create or update user profile on successful sign in
       if (data.user) {
         await createOrUpdateUserProfile(data.user);
       }
@@ -197,11 +166,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const checkEmailVerification = async (): Promise<{ verified: boolean; error?: string }> => {
     try {
       const { data: { user }, error } = await supabase.auth.getUser();
-      
-      if (error) {
-        return { verified: false, error: error.message };
-      }
-
+      if (error) return { verified: false, error: error.message };
       return { verified: !!user?.email_confirmed_at };
     } catch (error) {
       return { verified: false, error: 'An unexpected error occurred' };
@@ -210,15 +175,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const resendVerificationEmail = async (email: string): Promise<{ error?: string }> => {
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-      });
-
-      if (error) {
-        return { error: error.message };
-      }
-
+      const { error } = await supabase.auth.resend({ type: 'signup', email });
+      if (error) return { error: error.message };
       return {};
     } catch (error) {
       return { error: 'An unexpected error occurred' };
