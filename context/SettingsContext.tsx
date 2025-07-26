@@ -59,7 +59,8 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 const CURRENT_SETTINGS_VERSION = '2.0.0';
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const { userId, isAuthenticated } = useAuth();
+  const auth = useAuth();
+  const { userId, isAuthenticated } = auth;
   const [theme, setThemeState] = useState<ThemeType>(DEFAULT_PREFERENCES.theme);
   const [weekStartDay, setWeekStartDayState] = useState<WeekStartDay>(DEFAULT_PREFERENCES.weekStartDay);
   const [isBankConnected, setIsBankConnected] = useState(DEFAULT_PREFERENCES.isBankConnected);
