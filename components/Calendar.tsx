@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: Spacing.xl,
+    gap: Spacing.xxl,
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.xl,
     borderRadius: BorderRadius.lg,
@@ -587,13 +587,15 @@ const styles = StyleSheet.create({
   legendItem: {
     flexDirection: 'column',
     alignItems: 'center',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.sm,
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    minWidth: 60,
   },
   legendText: {
     fontSize: 12,
     fontWeight: '500',
     lineHeight: 16,
+    textAlign: 'center',
   },
   legendCategoryContainer: {
     flexDirection: 'row',
