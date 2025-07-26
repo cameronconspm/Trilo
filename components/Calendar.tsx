@@ -57,6 +57,8 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
     
+
+    
     // Create array of all days in the calendar grid (6 weeks = 42 days)
     const days: (DayData | null)[] = [];
     
@@ -449,7 +451,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   dayHeaderText: {
-    width: '14.28%', // Keep standard width for headers
+    flex: 1, // Use flex instead of fixed width
     textAlign: 'center',
     fontSize: 13,
     fontWeight: '600',
@@ -463,16 +465,16 @@ const styles = StyleSheet.create({
   calendar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
   },
   emptyDay: {
-    width: '13.5%', // Match day cell width
+    flex: 1,
     aspectRatio: 1,
     marginBottom: Spacing.xs,
-    marginHorizontal: '0.75%', // Match day cell margin
+    marginHorizontal: 2,
+    maxWidth: '14.28%', // Ensure 7 items per row
   },
   dayCell: {
-    width: '13.5%', // Slightly smaller to ensure proper spacing
+    flex: 1,
     aspectRatio: 1,
     borderRadius: BorderRadius.xl,
     alignItems: 'center',
@@ -482,7 +484,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     minHeight: 48,
     marginBottom: Spacing.xs,
-    marginHorizontal: '0.75%', // Add horizontal margin for spacing
+    marginHorizontal: 2,
+    maxWidth: '14.28%', // Ensure 7 items per row
     ...Shadow.light,
   },
   dayWithActivity: {
