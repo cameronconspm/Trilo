@@ -191,7 +191,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       await migrateLocalDataToSupabase();
       
     } catch (error) {
-      console.error('FinanceContext: Error loading data from Supabase:', error);
+      console.error('FinanceContext: Error loading data from Supabase:', JSON.stringify(error, null, 2));
+      
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+      }
+      
+      // Check for specific database schema errors
+      if (error && typeof error === 'object' && 'code' in error) {
+        const dbError = error as any;
+        if (dbError.code === 'PGRST204' || dbError.code === '42703') {
+          console.error('Database schema error - table or column may not exist:', dbError.message);
+          console.error('Please ensure the database schema is up to date');
+        }
+      }
+      
       // Fallback to local storage
       await loadFromLocalStorage();
     } finally {
@@ -592,6 +606,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         console.error('Error message:', error.message);
       }
       
+      // Check for specific database schema errors
+      if (error && typeof error === 'object' && 'code' in error) {
+        const dbError = error as any;
+        if (dbError.code === 'PGRST204' || dbError.code === '42703') {
+          console.error('Database schema error - column may not exist:', dbError.message);
+          console.error('Please ensure the database schema is up to date');
+        }
+      }
+      
       // Revert state on error
       setTransactions(transactions);
       throw error;
@@ -621,7 +644,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       await saveTransactions(updatedTransactions);
       console.log('FinanceContext: Transaction updated successfully');
     } catch (error) {
-      console.error('FinanceContext: Error updating transaction:', error);
+      console.error('FinanceContext: Error updating transaction:', JSON.stringify(error, null, 2));
+      
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+      }
+      
+      // Check for specific database schema errors
+      if (error && typeof error === 'object' && 'code' in error) {
+        const dbError = error as any;
+        if (dbError.code === 'PGRST204' || dbError.code === '42703') {
+          console.error('Database schema error - column may not exist:', dbError.message);
+          console.error('Please ensure the database schema is up to date');
+        }
+      }
+      
       // Revert state on error
       setTransactions(transactions);
       throw error;
@@ -645,7 +682,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       await saveTransactions(updatedTransactions);
       console.log('FinanceContext: Transaction deleted successfully');
     } catch (error) {
-      console.error('FinanceContext: Error deleting transaction:', error);
+      console.error('FinanceContext: Error deleting transaction:', JSON.stringify(error, null, 2));
+      
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+      }
+      
+      // Check for specific database schema errors
+      if (error && typeof error === 'object' && 'code' in error) {
+        const dbError = error as any;
+        if (dbError.code === 'PGRST204' || dbError.code === '42703') {
+          console.error('Database schema error - column may not exist:', dbError.message);
+          console.error('Please ensure the database schema is up to date');
+        }
+      }
+      
       // Revert state on error
       setTransactions(transactions);
       throw error;
@@ -680,6 +731,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         console.error('Error message:', error.message);
       }
       
+      // Check for specific database schema errors
+      if (error && typeof error === 'object' && 'code' in error) {
+        const dbError = error as any;
+        if (dbError.code === 'PGRST204' || dbError.code === '42703') {
+          console.error('Database schema error - column may not exist:', dbError.message);
+          console.error('Please ensure the database schema is up to date');
+        }
+      }
+      
       // Revert state on error
       setIncomes(incomes);
       throw error;
@@ -707,7 +767,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       
       console.log('FinanceContext: Income updated successfully');
     } catch (error) {
-      console.error('FinanceContext: Error updating income:', error);
+      console.error('FinanceContext: Error updating income:', JSON.stringify(error, null, 2));
+      
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+      }
+      
+      // Check for specific database schema errors
+      if (error && typeof error === 'object' && 'code' in error) {
+        const dbError = error as any;
+        if (dbError.code === 'PGRST204' || dbError.code === '42703') {
+          console.error('Database schema error - column may not exist:', dbError.message);
+          console.error('Please ensure the database schema is up to date');
+        }
+      }
+      
       // Revert state on error
       setIncomes(incomes);
       throw error;
@@ -729,7 +803,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       
       console.log('FinanceContext: Income deleted successfully');
     } catch (error) {
-      console.error('FinanceContext: Error deleting income:', error);
+      console.error('FinanceContext: Error deleting income:', JSON.stringify(error, null, 2));
+      
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+      }
+      
+      // Check for specific database schema errors
+      if (error && typeof error === 'object' && 'code' in error) {
+        const dbError = error as any;
+        if (dbError.code === 'PGRST204' || dbError.code === '42703') {
+          console.error('Database schema error - column may not exist:', dbError.message);
+          console.error('Please ensure the database schema is up to date');
+        }
+      }
+      
       // Revert state on error
       setIncomes(incomes);
       throw error;
@@ -927,7 +1015,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       
       console.log('FinanceContext: Savings goal added successfully');
     } catch (error) {
-      console.error('FinanceContext: Error adding savings goal:', error);
+      console.error('FinanceContext: Error adding savings goal:', JSON.stringify(error, null, 2));
+      
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+      }
+      
+      // Check for specific database schema errors
+      if (error && typeof error === 'object' && 'code' in error) {
+        const dbError = error as any;
+        if (dbError.code === 'PGRST204' || dbError.code === '42703') {
+          console.error('Database schema error - column may not exist:', dbError.message);
+          console.error('Please ensure the database schema is up to date');
+        }
+      }
+      
       // Revert state on error
       setSavingsGoals(savingsGoals);
       throw error;
@@ -955,7 +1057,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       
       console.log('FinanceContext: Savings goal updated successfully');
     } catch (error) {
-      console.error('FinanceContext: Error updating savings goal:', error);
+      console.error('FinanceContext: Error updating savings goal:', JSON.stringify(error, null, 2));
+      
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+      }
+      
+      // Check for specific database schema errors
+      if (error && typeof error === 'object' && 'code' in error) {
+        const dbError = error as any;
+        if (dbError.code === 'PGRST204' || dbError.code === '42703') {
+          console.error('Database schema error - column may not exist:', dbError.message);
+          console.error('Please ensure the database schema is up to date');
+        }
+      }
+      
       // Revert state on error
       setSavingsGoals(savingsGoals);
       throw error;
@@ -977,7 +1093,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       
       console.log('FinanceContext: Savings goal deleted successfully');
     } catch (error) {
-      console.error('FinanceContext: Error deleting savings goal:', error);
+      console.error('FinanceContext: Error deleting savings goal:', JSON.stringify(error, null, 2));
+      
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+      }
+      
+      // Check for specific database schema errors
+      if (error && typeof error === 'object' && 'code' in error) {
+        const dbError = error as any;
+        if (dbError.code === 'PGRST204' || dbError.code === '42703') {
+          console.error('Database schema error - column may not exist:', dbError.message);
+          console.error('Please ensure the database schema is up to date');
+        }
+      }
+      
       // Revert state on error
       setSavingsGoals(savingsGoals);
       throw error;
