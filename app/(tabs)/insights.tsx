@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { TrendingUp, TrendingDown, DollarSign, Target } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, DollarSign, Target, Calendar as CalendarIcon } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useThemeColors } from '@/constants/colors';
@@ -11,17 +11,33 @@ import Card from '@/components/Card';
 import InsightCard from '@/components/InsightCard';
 import TransactionItem from '@/components/TransactionItem';
 import EmptyState from '@/components/EmptyState';
+import Calendar from '@/components/Calendar';
+import AddTransactionModal from '@/components/AddTransactionModal';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
+import { Transaction } from '@/types/finance';
 
 export default function InsightsScreen() {
   const { monthlyInsights, isLoading } = useFinance();
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
   const { totalSpent, totalSaved, topSpendingCategory, insights, recentTransactions } = monthlyInsights;
+  const [activeTab, setActiveTab] = useState<'insights' | 'calendar'>('insights');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
   
   const hasInsights = insights.length > 0;
   const hasRecentTransactions = recentTransactions.length > 0;
   const hasData = totalSpent > 0 || totalSaved > 0;
+  
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditTransaction(transaction);
+    setShowAddModal(true);
+  };
+  
+  const handleCloseModal = () => {
+    setShowAddModal(false);
+    setEditTransaction(undefined);
+  };
   
   if (isLoading) {
     return (
@@ -49,11 +65,50 @@ export default function InsightsScreen() {
         subtitle="Financial overview"
       />
       
-      <ScrollView 
-        style={styles.scrollView} 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
-      >
+      {/* Tab Switcher */}
+      <View style={[styles.tabSwitcher, { backgroundColor: colors.cardSecondary }]}>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === 'insights' && { backgroundColor: colors.card },
+            activeTab === 'insights' && styles.activeTab
+          ]}
+          onPress={() => setActiveTab('insights')}
+          activeOpacity={0.7}
+        >
+          <TrendingUp size={16} color={activeTab === 'insights' ? colors.primary : colors.textSecondary} strokeWidth={2} />
+          <Text style={[
+            styles.tabButtonText,
+            { color: activeTab === 'insights' ? colors.text : colors.textSecondary }
+          ]}>
+            Insights
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === 'calendar' && { backgroundColor: colors.card },
+            activeTab === 'calendar' && styles.activeTab
+          ]}
+          onPress={() => setActiveTab('calendar')}
+          activeOpacity={0.7}
+        >
+          <CalendarIcon size={16} color={activeTab === 'calendar' ? colors.primary : colors.textSecondary} strokeWidth={2} />
+          <Text style={[
+            styles.tabButtonText,
+            { color: activeTab === 'calendar' ? colors.text : colors.textSecondary }
+          ]}>
+            Calendar
+          </Text>
+        </TouchableOpacity>
+      </View>
+      
+      {activeTab === 'insights' ? (
+        <ScrollView 
+          style={styles.scrollView} 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
+        >
         {hasData ? (
           <>
             {/* Key Metrics */}
@@ -170,7 +225,18 @@ export default function InsightsScreen() {
             </Card>
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      ) : (
+        <View style={styles.calendarContainer}>
+          <Calendar onTransactionEdit={handleEditTransaction} />
+        </View>
+      )}
+      
+      <AddTransactionModal 
+        visible={showAddModal}
+        onClose={handleCloseModal}
+        editTransaction={editTransaction}
+      />
     </SafeAreaView>
     </>
   );
@@ -346,5 +412,36 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: Spacing.md,
     lineHeight: 20,
+  },
+  tabSwitcher: {
+    flexDirection: 'row',
+    marginHorizontal: Spacing.screenHorizontal,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    padding: 4,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.xs,
+  },
+  activeTab: {
+    ...Shadow.light,
+  },
+  tabButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  calendarContainer: {
+    flex: 1,
+    paddingHorizontal: Spacing.screenHorizontal,
+    paddingTop: Spacing.md,
   },
 });
