@@ -930,16 +930,25 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const convertTransactionToSupabase = (transaction: Omit<Transaction, 'id'>): Omit<UserTransaction, 'id' | 'user_id' | 'created_at' | 'updated_at'> => {
-    return {
+    const baseTransaction = {
       name: transaction.name,
       amount: transaction.amount,
       date: transaction.date,
       category: transaction.category,
       type: transaction.type,
       is_recurring: transaction.isRecurring,
-      pay_schedule: transaction.paySchedule,
-      given_expense_schedule: transaction.givenExpenseSchedule,
     };
+    
+    // Only include schedule fields if they exist and are not null/undefined
+    const result: any = { ...baseTransaction };
+    if (transaction.paySchedule !== undefined && transaction.paySchedule !== null) {
+      result.pay_schedule = transaction.paySchedule;
+    }
+    if (transaction.givenExpenseSchedule !== undefined && transaction.givenExpenseSchedule !== null) {
+      result.given_expense_schedule = transaction.givenExpenseSchedule;
+    }
+    
+    return result;
   };
 
   const convertTransactionUpdatesToSupabase = (updates: Partial<Transaction>): Partial<Omit<UserTransaction, 'id' | 'user_id' | 'created_at'>> => {
@@ -950,8 +959,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     if (updates.category !== undefined) supabaseUpdates.category = updates.category;
     if (updates.type !== undefined) supabaseUpdates.type = updates.type;
     if (updates.isRecurring !== undefined) supabaseUpdates.is_recurring = updates.isRecurring;
-    if (updates.paySchedule !== undefined) supabaseUpdates.pay_schedule = updates.paySchedule;
-    if (updates.givenExpenseSchedule !== undefined) supabaseUpdates.given_expense_schedule = updates.givenExpenseSchedule;
+    
+    // Only include schedule fields if they exist and are not null/undefined
+    if (updates.paySchedule !== undefined && updates.paySchedule !== null) {
+      supabaseUpdates.pay_schedule = updates.paySchedule;
+    }
+    if (updates.givenExpenseSchedule !== undefined && updates.givenExpenseSchedule !== null) {
+      supabaseUpdates.given_expense_schedule = updates.givenExpenseSchedule;
+    }
+    
     return supabaseUpdates;
   };
 
@@ -970,15 +986,22 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const convertIncomeToSupabase = (income: Omit<Income, 'id'>): Omit<UserIncome, 'id' | 'user_id' | 'created_at' | 'updated_at'> => {
-    return {
+    const baseIncome = {
       name: income.name,
       amount: income.amount,
       frequency: income.frequency,
       start_date: income.startDate,
       end_date: income.endDate,
       is_active: income.isActive,
-      pay_schedule: income.paySchedule,
     };
+    
+    // Only include pay_schedule if it exists and is not null/undefined
+    const result: any = { ...baseIncome };
+    if (income.paySchedule !== undefined && income.paySchedule !== null) {
+      result.pay_schedule = income.paySchedule;
+    }
+    
+    return result;
   };
 
   const convertIncomeUpdatesToSupabase = (updates: Partial<Income>): Partial<Omit<UserIncome, 'id' | 'user_id' | 'created_at'>> => {
@@ -989,7 +1012,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     if (updates.startDate !== undefined) supabaseUpdates.start_date = updates.startDate;
     if (updates.endDate !== undefined) supabaseUpdates.end_date = updates.endDate;
     if (updates.isActive !== undefined) supabaseUpdates.is_active = updates.isActive;
-    if (updates.paySchedule !== undefined) supabaseUpdates.pay_schedule = updates.paySchedule;
+    
+    // Only include pay_schedule if it exists and is not null/undefined
+    if (updates.paySchedule !== undefined && updates.paySchedule !== null) {
+      supabaseUpdates.pay_schedule = updates.paySchedule;
+    }
+    
     return supabaseUpdates;
   };
 

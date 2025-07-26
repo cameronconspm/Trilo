@@ -87,38 +87,68 @@ export const transactionService = {
 
   // Add a new transaction
   async addTransaction(userId: string, transaction: Omit<UserTransaction, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<UserTransaction> {
-    const { data, error } = await supabase
-      .from('user_transactions')
-      .insert({
-        user_id: userId,
-        ...transaction
-      })
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error adding transaction:', error);
+    try {
+      const { data, error } = await supabase
+        .from('user_transactions')
+        .insert({
+          user_id: userId,
+          ...transaction
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error adding transaction:', JSON.stringify(error, null, 2));
+        
+        if (error instanceof Error) {
+          console.error('Error message:', error.message);
+        }
+        
+        throw error;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error saving transactions:', JSON.stringify(error, null, 2));
+      
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+      }
+      
       throw error;
     }
-    
-    return data;
   },
 
   // Update a transaction
   async updateTransaction(id: string, updates: Partial<Omit<UserTransaction, 'id' | 'user_id' | 'created_at'>>): Promise<UserTransaction> {
-    const { data, error } = await supabase
-      .from('user_transactions')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error updating transaction:', error);
+    try {
+      const { data, error } = await supabase
+        .from('user_transactions')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error updating transaction:', JSON.stringify(error, null, 2));
+        
+        if (error instanceof Error) {
+          console.error('Error message:', error.message);
+        }
+        
+        throw error;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error saving transactions:', JSON.stringify(error, null, 2));
+      
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+      }
+      
       throw error;
     }
-    
-    return data;
   },
 
   // Delete a transaction
@@ -168,21 +198,36 @@ export const incomeService = {
 
   // Add a new income source
   async addIncome(userId: string, income: Omit<UserIncome, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<UserIncome> {
-    const { data, error } = await supabase
-      .from('user_income')
-      .insert({
-        user_id: userId,
-        ...income
-      })
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error adding income:', error);
+    try {
+      const { data, error } = await supabase
+        .from('user_income')
+        .insert({
+          user_id: userId,
+          ...income
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error adding income:', JSON.stringify(error, null, 2));
+        
+        if (error instanceof Error) {
+          console.error('Error message:', error.message);
+        }
+        
+        throw error;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error saving transactions:', JSON.stringify(error, null, 2));
+      
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+      }
+      
       throw error;
     }
-    
-    return data;
   },
 
   // Update an income source
