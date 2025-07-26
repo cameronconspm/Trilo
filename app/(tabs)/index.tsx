@@ -242,7 +242,7 @@ export default function OverviewScreen() {
             
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Pay Period Contributions</Text>
             <View style={styles.categoryGrid}>
-              {(['bill', 'subscription', 'debt', 'given_expenses', 'one_time_expense'] as const).map((categoryId) => {
+              {(['bill', 'subscription', 'debt', 'given_expenses', 'one_time_expense', 'savings'] as const).map((categoryId) => {
                 const data = contributions[categoryId] || { total: 0, count: 0 };
                 return (
                   <CategoryCard 

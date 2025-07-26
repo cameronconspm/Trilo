@@ -33,6 +33,11 @@ const categories: Category[] = [
     name: 'Given Expenses',
     color: Colors.givenExpenses,
   },
+  {
+    id: 'savings',
+    name: 'Savings',
+    color: Colors.savings,
+  },
 
 ];
 

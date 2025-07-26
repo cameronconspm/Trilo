@@ -28,6 +28,7 @@ const LightColors = {
 
   oneTimeExpense: "#5D6D7E",   // Gray-blue - One-Time Expenses
   givenExpenses: "#5D6D7E",    // Gray-blue - Given Expenses
+  savings: "#27AE60",           // Green - Savings
   
   // Calendar-specific accessible colors (WCAG AA compliant)
   calendarExpense: "#DC2626",  // High contrast red for expenses
@@ -68,6 +69,7 @@ const DarkColors = {
 
   oneTimeExpense: "#5D6D7E",   // Gray for dark mode
   givenExpenses: "#5D6D7E",    // Gray - Given Expenses
+  savings: "#27AE60",           // Green - Savings
   
   // Calendar-specific accessible colors for dark mode
   calendarExpense: "#F87171",  // Lighter red for dark mode contrast
