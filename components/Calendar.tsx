@@ -291,7 +291,15 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
       {/* Calendar Grid */}
       <View style={styles.calendarContainer}>
         <View style={styles.calendar}>
-          {calendarData.map((dayData, index) => renderDay(dayData, index))}
+          {/* Render calendar in 6 rows of 7 days each */}
+          {Array.from({ length: 6 }, (_, weekIndex) => (
+            <View key={weekIndex} style={styles.calendarRow}>
+              {Array.from({ length: 7 }, (_, dayIndex) => {
+                const cellIndex = weekIndex * 7 + dayIndex;
+                return renderDay(calendarData[cellIndex] || null, cellIndex);
+              })}
+            </View>
+          ))}
         </View>
       </View>
 
@@ -463,29 +471,27 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
   },
   calendar: {
+    // Grid layout: 6 rows x 7 columns
+  },
+  calendarRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    alignItems: 'center',
   },
   emptyDay: {
-    flex: 1,
+    width: '14.28%', // 1/7 of the width
     aspectRatio: 1,
-    marginBottom: Spacing.xs,
-    marginHorizontal: 2,
-    maxWidth: '14.28%', // Ensure 7 items per row
+    marginBottom: 1,
   },
   dayCell: {
-    flex: 1,
+    width: '14.28%', // 1/7 of the width
     aspectRatio: 1,
-    borderRadius: BorderRadius.xl,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    paddingHorizontal: 2,
-    paddingVertical: 4,
-    minHeight: 48,
-    marginBottom: Spacing.xs,
-    marginHorizontal: 2,
-    maxWidth: '14.28%', // Ensure 7 items per row
+    marginBottom: 1,
+    minHeight: 44,
     ...Shadow.light,
   },
   dayWithActivity: {
