@@ -193,21 +193,16 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
               accessibilityLabel="Payday"
             />
           )}
-          {dayData.expenseCount > 0 && (
+          {totalExpenses > 0 && (
             <View style={[styles.expenseIndicator, { backgroundColor: colors.calendarExpense }]}>
               <Text style={[styles.expenseCount, { color: colors.background }]}>
-                {dayData.expenseCount}
+                {totalExpenses}
               </Text>
             </View>
           )}
           {dayData.recurringExpenseCount > 0 && (
-            <View style={[styles.recurringIndicator, { backgroundColor: colors.calendarRecurring }]}>
-              <Repeat size={8} color={colors.background} strokeWidth={2} />
-              {dayData.recurringExpenseCount > 1 && (
-                <Text style={[styles.recurringCount, { color: colors.background }]}>
-                  {dayData.recurringExpenseCount}
-                </Text>
-              )}
+            <View style={[styles.recurringBadge, { backgroundColor: colors.calendarRecurring }]}>
+              <Repeat size={6} color={colors.background} strokeWidth={2.5} />
             </View>
           )}
         </View>
@@ -269,8 +264,8 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
           <Text style={[styles.legendText, { color: colors.textSecondary }]}>One-time</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.recurringIndicatorLegend, { backgroundColor: colors.calendarRecurring }]}>
-            <Repeat size={10} color={colors.background} strokeWidth={2} />
+          <View style={[styles.recurringBadgeLegend, { backgroundColor: colors.calendarRecurring }]}>
+            <Repeat size={8} color={colors.background} strokeWidth={2.5} />
           </View>
           <Text style={[styles.legendText, { color: colors.textSecondary }]}>Recurring</Text>
         </View>
@@ -341,7 +336,7 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
                       <View key={transaction.id} style={styles.transactionWrapper}>
                         <View style={styles.transactionHeader}>
                           {isRecurring && (
-                            <View style={styles.recurringBadge}>
+                            <View style={styles.recurringTransactionBadge}>
                               <Repeat size={12} color={colors.calendarRecurring} strokeWidth={2} />
                               <Text style={[styles.recurringBadgeText, { color: colors.calendarRecurring }]}>Recurring</Text>
                             </View>
@@ -423,27 +418,26 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   calendarContainer: {
-    paddingHorizontal: 2,
+    paddingHorizontal: Spacing.xs,
   },
   calendar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: Spacing.xs,
   },
   emptyDay: {
-    width: `${100/7}%`,
+    width: `${(100 - (6 * 2)) / 7}%`,
     aspectRatio: 1,
-    marginBottom: 2,
   },
   dayCell: {
-    width: `${100/7}%`,
+    width: `${(100 - (6 * 2)) / 7}%`,
     aspectRatio: 1,
-    borderRadius: BorderRadius.sm,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    marginBottom: 2,
-    paddingHorizontal: 1,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: Spacing.xs,
   },
   dayWithActivity: {
     ...Shadow.light,
@@ -455,31 +449,38 @@ const styles = StyleSheet.create({
   },
   indicators: {
     position: 'absolute',
-    bottom: 1,
-    right: 1,
+    bottom: 2,
+    right: 2,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 1,
+    gap: 2,
     flexWrap: 'wrap',
-    maxWidth: '80%',
+    maxWidth: '85%',
   },
   paydayIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   expenseIndicator: {
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 2,
+    paddingHorizontal: 3,
   },
   expenseCount: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
-    lineHeight: 11,
+    lineHeight: 12,
+  },
+  recurringBadge: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   legend: {
     flexDirection: 'row',
@@ -588,25 +589,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  recurringIndicator: {
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 1,
-    flexDirection: 'row',
-    gap: 1,
-  },
-  recurringCount: {
-    fontSize: 8,
-    fontWeight: '700',
-    lineHeight: 10,
-  },
-  recurringIndicatorLegend: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+
+  recurringBadgeLegend: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -621,7 +608,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.xs,
   },
-  recurringBadge: {
+  recurringTransactionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
