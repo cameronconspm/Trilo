@@ -585,9 +585,9 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.sm,
   },
   legendItem: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
     paddingHorizontal: Spacing.sm,
   },
   legendText: {
