@@ -1,66 +1,92 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, Switch, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFinance } from '@/context/FinanceContext';
 import Button from '@/components/Button';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
-import { IncomeFrequency } from '@/types/finance';
 
-export default function AddIncomeScreen() {
+export default function AddSavingsGoalScreen() {
   const router = useRouter();
-  const { addIncome } = useFinance();
+  const { addSavingsGoal } = useFinance();
   
   const [name, setName] = useState('');
-  const [amount, setAmount] = useState('');
-  const [frequency, setFrequency] = useState<IncomeFrequency>('monthly');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [isActive, setIsActive] = useState(true);
+  const [targetAmount, setTargetAmount] = useState('');
+  const [currentAmount, setCurrentAmount] = useState('0');
+  const [timeToSave, setTimeToSave] = useState('');
+  const [targetDate, setTargetDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const handleSubmit = async () => {
     // Validation
     if (!name.trim()) {
-      Alert.alert('Missing Information', 'Please enter an income source');
+      Alert.alert('Missing Information', 'Please enter a goal name');
       return;
     }
     
-    const numAmount = parseFloat(amount);
-    if (!amount || isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid amount greater than 0');
+    const numTargetAmount = parseFloat(targetAmount);
+    if (!targetAmount || isNaN(numTargetAmount) || numTargetAmount <= 0) {
+      Alert.alert('Invalid Target Amount', 'Please enter a valid target amount greater than 0');
       return;
     }
-
-    // Validate date format
-    const selectedDate = new Date(startDate);
-    if (isNaN(selectedDate.getTime())) {
-      Alert.alert('Invalid Date', 'Please enter a valid date in YYYY-MM-DD format');
+    
+    const numCurrentAmount = parseFloat(currentAmount);
+    if (isNaN(numCurrentAmount) || numCurrentAmount < 0) {
+      Alert.alert('Invalid Current Amount', 'Please enter a valid current amount (0 or greater)');
       return;
+    }
+    
+    if (numCurrentAmount > numTargetAmount) {
+      Alert.alert('Invalid Amount', 'Current amount cannot be greater than target amount');
+      return;
+    }
+    
+    const numTimeToSave = parseInt(timeToSave);
+    if (!timeToSave || isNaN(numTimeToSave) || numTimeToSave <= 0) {
+      Alert.alert('Invalid Time Frame', 'Please enter a valid number of months to save');
+      return;
+    }
+    
+    // Validate target date if provided
+    let parsedTargetDate: Date | undefined;
+    if (targetDate.trim()) {
+      parsedTargetDate = new Date(targetDate);
+      if (isNaN(parsedTargetDate.getTime())) {
+        Alert.alert('Invalid Date', 'Please enter a valid target date in YYYY-MM-DD format');
+        return;
+      }
+      
+      // Check if target date is in the future
+      if (parsedTargetDate <= new Date()) {
+        Alert.alert('Invalid Date', 'Target date must be in the future');
+        return;
+      }
     }
     
     setIsLoading(true);
     setError(null);
     
     try {
-      await addIncome({
+      await addSavingsGoal({
         name: name.trim(),
-        amount: numAmount,
-        frequency,
-        startDate: selectedDate.toISOString(),
-        isActive,
+        targetAmount: numTargetAmount,
+        currentAmount: numCurrentAmount,
+        timeToSave: numTimeToSave,
+        createdDate: new Date().toISOString(),
+        targetDate: parsedTargetDate?.toISOString(),
       });
       
       // Show success message
       Alert.alert(
-        'Income Source Added',
-        `${name} (${frequency}) for ${numAmount.toFixed(2)} has been added successfully.`,
+        'Savings Goal Added',
+        `${name} with target of $${numTargetAmount.toFixed(2)} has been added successfully.`,
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (error: any) {
-      console.error('Add income error:', error);
-      const errorMessage = error?.message || 'Failed to add income. Please check your connection and try again.';
+      console.error('Add savings goal error:', error);
+      const errorMessage = error?.message || 'Failed to add savings goal. Please check your connection and try again.';
       setError(errorMessage);
       Alert.alert('Error', errorMessage, [
         { text: 'Retry', onPress: () => handleSubmit() },
@@ -72,10 +98,10 @@ export default function AddIncomeScreen() {
   };
   
   const handleCancel = () => {
-    if (name.trim() || amount.trim()) {
+    if (name.trim() || targetAmount.trim() || currentAmount !== '0') {
       Alert.alert(
         'Discard Changes',
-        'Are you sure you want to discard this income entry?',
+        'Are you sure you want to discard this savings goal?',
         [
           { text: 'Keep Editing', style: 'cancel' },
           { text: 'Discard', style: 'destructive', onPress: () => router.back() }
@@ -104,6 +130,21 @@ export default function AddIncomeScreen() {
     return cleaned;
   };
   
+  const formatMonths = (text: string) => {
+    // Only allow positive integers
+    return text.replace(/[^0-9]/g, '');
+  };
+  
+  // Calculate monthly savings needed
+  const monthlyNeeded = () => {
+    const target = parseFloat(targetAmount) || 0;
+    const current = parseFloat(currentAmount) || 0;
+    const months = parseInt(timeToSave) || 1;
+    
+    if (target <= current) return 0;
+    return (target - current) / months;
+  };
+  
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView 
@@ -117,20 +158,20 @@ export default function AddIncomeScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.formContainer}>
-          <View style={styles.incomeTypeContainer}>
-            <Text style={styles.incomeTypeTitle}>Add Income Source</Text>
-            <Text style={styles.incomeTypeSubtitle}>
-              Track your salary, freelance work, or other income sources to get accurate budget insights
+          <View style={styles.goalTypeContainer}>
+            <Text style={styles.goalTypeTitle}>Add Savings Goal</Text>
+            <Text style={styles.goalTypeSubtitle}>
+              Set a savings target and track your progress towards achieving your financial goals
             </Text>
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Income Source *</Text>
+            <Text style={styles.label}>Goal Name *</Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="e.g., Salary, Freelance, Side Hustle"
+              placeholder="e.g., Emergency Fund, Vacation, New Car"
               placeholderTextColor={Colors.inactive}
               returnKeyType="next"
               autoCapitalize="words"
@@ -139,71 +180,87 @@ export default function AddIncomeScreen() {
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Amount *</Text>
+            <Text style={styles.label}>Target Amount *</Text>
             <View style={styles.amountContainer}>
               <Text style={styles.currencySymbol}>$</Text>
               <TextInput
                 style={styles.amountInput}
-                value={amount}
-                onChangeText={(text) => setAmount(formatAmount(text))}
+                value={targetAmount}
+                onChangeText={(text) => setTargetAmount(formatAmount(text))}
                 placeholder="0.00"
                 placeholderTextColor={Colors.inactive}
                 keyboardType="decimal-pad"
-                returnKeyType="done"
+                returnKeyType="next"
                 maxLength={10}
               />
             </View>
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Frequency *</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.frequencyContainer}>
-              {(['weekly', 'bi_weekly', 'monthly', 'yearly'] as IncomeFrequency[]).map((freq) => (
-                <Button
-                  key={freq}
-                  title={freq.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  onPress={() => setFrequency(freq)}
-                  variant={frequency === freq ? 'primary' : 'outline'}
-                  size="small"
-                  style={styles.frequencyButton}
-                />
-              ))}
-            </ScrollView>
+            <Text style={styles.label}>Current Amount</Text>
+            <View style={styles.amountContainer}>
+              <Text style={styles.currencySymbol}>$</Text>
+              <TextInput
+                style={styles.amountInput}
+                value={currentAmount}
+                onChangeText={(text) => setCurrentAmount(formatAmount(text))}
+                placeholder="0.00"
+                placeholderTextColor={Colors.inactive}
+                keyboardType="decimal-pad"
+                returnKeyType="next"
+                maxLength={10}
+              />
+            </View>
+            <Text style={styles.helperText}>
+              How much you have already saved towards this goal
+            </Text>
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Start Date *</Text>
+            <Text style={styles.label}>Time to Save (Months) *</Text>
             <TextInput
               style={styles.input}
-              value={startDate}
-              onChangeText={setStartDate}
+              value={timeToSave}
+              onChangeText={(text) => setTimeToSave(formatMonths(text))}
+              placeholder="12"
+              placeholderTextColor={Colors.inactive}
+              keyboardType="number-pad"
+              returnKeyType="next"
+              maxLength={3}
+            />
+            <Text style={styles.helperText}>
+              How many months you want to take to reach this goal
+            </Text>
+          </View>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Target Date (Optional)</Text>
+            <TextInput
+              style={styles.input}
+              value={targetDate}
+              onChangeText={setTargetDate}
               placeholder="YYYY-MM-DD"
               placeholderTextColor={Colors.inactive}
               keyboardType="numbers-and-punctuation"
               maxLength={10}
             />
             <Text style={styles.helperText}>
-              When this income source starts
+              When you want to achieve this goal
             </Text>
           </View>
           
-          <View style={styles.switchContainer}>
-            <View style={styles.switchTextContainer}>
-              <Text style={styles.switchLabel}>Active Income Source</Text>
-              <Text style={styles.switchSubtitle}>
-                {isActive 
-                  ? 'This income source is currently active' 
-                  : 'This income source is inactive or ended'
-                }
+          {/* Monthly Savings Calculator */}
+          {targetAmount && timeToSave && (
+            <View style={styles.calculatorContainer}>
+              <Text style={styles.calculatorTitle}>Monthly Savings Needed</Text>
+              <Text style={styles.calculatorAmount}>
+                ${monthlyNeeded().toFixed(2)}
+              </Text>
+              <Text style={styles.calculatorSubtitle}>
+                To reach your goal in {timeToSave} months
               </Text>
             </View>
-            <Switch
-              value={isActive}
-              onValueChange={setIsActive}
-              trackColor={{ false: Colors.border, true: Colors.primary }}
-              thumbColor={Colors.card}
-            />
-          </View>
+          )}
           
           {error && (
             <View style={styles.errorContainer}>
@@ -211,9 +268,9 @@ export default function AddIncomeScreen() {
             </View>
           )}
           
-          <View style={styles.recurringNote}>
-            <Text style={styles.recurringNoteText}>
-              💡 Income sources help with accurate budget planning and financial tracking
+          <View style={styles.tipContainer}>
+            <Text style={styles.tipText}>
+              💡 Break down large goals into smaller, manageable monthly targets to stay motivated
             </Text>
           </View>
         </View>
@@ -228,12 +285,12 @@ export default function AddIncomeScreen() {
           style={styles.cancelButton}
         />
         <Button
-          title="Add Income Source"
+          title="Add Savings Goal"
           onPress={handleSubmit}
           variant="primary"
           size="large"
           loading={isLoading}
-          disabled={!name.trim() || !amount || parseFloat(amount) <= 0}
+          disabled={!name.trim() || !targetAmount || !timeToSave || parseFloat(targetAmount) <= 0}
           style={styles.submitButton}
         />
       </View>
@@ -262,23 +319,23 @@ const styles = StyleSheet.create({
     padding: Spacing.screenHorizontal,
     paddingBottom: Spacing.xl,
   },
-  incomeTypeContainer: {
+  goalTypeContainer: {
     marginBottom: Spacing.xl,
     padding: Spacing.lg,
     backgroundColor: Colors.card,
     borderRadius: BorderRadius.lg,
     borderLeftWidth: 4,
-    borderLeftColor: Colors.border,
+    borderLeftColor: Colors.primary,
     ...Shadow.light,
   },
-  incomeTypeTitle: {
+  goalTypeTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: Colors.text,
     marginBottom: Spacing.xs,
     letterSpacing: -0.2,
   },
-  incomeTypeSubtitle: {
+  goalTypeSubtitle: {
     fontSize: 15,
     color: Colors.textSecondary,
     lineHeight: 20,
@@ -332,39 +389,40 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: Colors.text,
   },
-  switchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.card,
+  calculatorContainer: {
+    backgroundColor: Colors.cardSecondary,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.lg,
-    ...Shadow.light,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.primary,
   },
-  switchTextContainer: {
-    flex: 1,
-  },
-  switchLabel: {
-    fontSize: 17,
+  calculatorTitle: {
+    fontSize: 16,
     fontWeight: '600',
     color: Colors.text,
-    letterSpacing: -0.2,
+    marginBottom: Spacing.sm,
   },
-  switchSubtitle: {
-    fontSize: 15,
+  calculatorAmount: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginBottom: Spacing.xs,
+    letterSpacing: -0.3,
+  },
+  calculatorSubtitle: {
+    fontSize: 14,
     color: Colors.textSecondary,
-    marginTop: 4,
-    fontWeight: '500',
-    lineHeight: 20,
+    textAlign: 'center',
   },
-  recurringNote: {
+  tipContainer: {
     backgroundColor: Colors.cardSecondary,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.lg,
   },
-  recurringNoteText: {
+  tipText: {
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 20,
@@ -384,13 +442,6 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flex: 2,
-  },
-  frequencyContainer: {
-    marginBottom: Spacing.sm,
-  },
-  frequencyButton: {
-    marginRight: Spacing.sm,
-    minWidth: 80,
   },
   errorContainer: {
     backgroundColor: '#FEF2F2',

@@ -23,54 +23,21 @@ import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 import { Transaction, SavingsGoal, SavingsContribution } from '@/types/finance';
 
 export default function BudgetScreen() {
-  const { budget, transactions, isLoading, addTransaction } = useFinance();
+  const { budget, transactions, isLoading, addTransaction, savingsGoals, addSavingsGoal, updateSavingsGoal, deleteSavingsGoal } = useFinance();
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
   const { alertState, showAlert, hideAlert } = useAlert();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<'budget' | 'savings'>('budget');
-  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [showAddGoalModal, setShowAddGoalModal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [savingsLoading, setSavingsLoading] = useState(false);
 
-  // Load savings goals from storage
+  // Clear error when switching tabs
   useEffect(() => {
-    loadSavingsGoals();
-  }, []);
-
-  // Save savings goals when they change
-  useEffect(() => {
-    if (savingsGoals.length >= 0) {
-      saveSavingsGoals();
-    }
-  }, [savingsGoals]);
-
-  const loadSavingsGoals = async () => {
-    try {
-      const stored = await AsyncStorage.getItem('savings_goals_v1');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          // Ensure all goals have contributions array
-          const goalsWithContributions = parsed.map(goal => ({
-            ...goal,
-            contributions: goal.contributions || []
-          }));
-          setSavingsGoals(goalsWithContributions);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading savings goals:', error);
-    }
-  };
-
-  const saveSavingsGoals = async () => {
-    try {
-      await AsyncStorage.setItem('savings_goals_v1', JSON.stringify(savingsGoals));
-    } catch (error) {
-      console.error('Error saving savings goals:', error);
-    }
-  };
+    setError(null);
+  }, [activeTab]);
   const [editGoal, setEditGoal] = useState<SavingsGoal | undefined>(undefined);
   const [newGoalName, setNewGoalName] = useState('');
   const [newGoalAmount, setNewGoalAmount] = useState('');
@@ -152,7 +119,7 @@ export default function BudgetScreen() {
     setEditTransaction(undefined);
   };
 
-  const handleAddGoal = () => {
+  const handleAddGoal = async () => {
     if (!newGoalName.trim() || !newGoalAmount.trim()) {
       showAlert({
         title: 'Missing Information',
@@ -174,21 +141,45 @@ export default function BudgetScreen() {
       return;
     }
 
-    const newGoal: SavingsGoal = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      name: newGoalName.trim(),
-      targetAmount,
-      currentAmount: 0,
-      timeToSave: newGoalTimeToSave,
-      createdDate: new Date().toISOString(),
-      contributions: [],
-    };
+    setSavingsLoading(true);
+    setError(null);
 
-    setSavingsGoals(prev => [...prev, newGoal]);
-    setNewGoalName('');
-    setNewGoalAmount('');
-    setNewGoalTimeToSave(6);
-    setShowAddGoalModal(false);
+    try {
+      await addSavingsGoal({
+        name: newGoalName.trim(),
+        targetAmount,
+        currentAmount: 0,
+        timeToSave: newGoalTimeToSave,
+        createdDate: new Date().toISOString(),
+      });
+
+      setNewGoalName('');
+      setNewGoalAmount('');
+      setNewGoalTimeToSave(6);
+      setShowAddGoalModal(false);
+      
+      showAlert({
+        title: 'Success',
+        message: 'Savings goal added successfully!',
+        type: 'success',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
+    } catch (error: any) {
+      console.error('Error adding savings goal:', error);
+      const errorMessage = error?.message || 'Failed to add savings goal. Please try again.';
+      setError(errorMessage);
+      showAlert({
+        title: 'Error',
+        message: errorMessage,
+        type: 'error',
+        actions: [
+          { text: 'Retry', onPress: () => handleAddGoal() },
+          { text: 'Cancel', onPress: () => {} }
+        ],
+      });
+    } finally {
+      setSavingsLoading(false);
+    }
   };
 
   const handleEditGoal = (goal: SavingsGoal) => {

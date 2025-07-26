@@ -19,6 +19,7 @@ export default function AddExpenseScreen() {
   const [isRecurring, setIsRecurring] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const handleSubmit = async () => {
     // Validation
@@ -41,6 +42,7 @@ export default function AddExpenseScreen() {
     }
     
     setIsLoading(true);
+    setError(null);
     
     try {
       await addTransaction({
@@ -58,8 +60,14 @@ export default function AddExpenseScreen() {
         `${name} for $${numAmount.toFixed(2)} has been added successfully.`,
         [{ text: 'OK', onPress: () => router.back() }]
       );
-    } catch (error) {
-      Alert.alert('Error', 'Failed to add expense. Please try again.');
+    } catch (error: any) {
+      console.error('Add expense error:', error);
+      const errorMessage = error?.message || 'Failed to add expense. Please check your connection and try again.';
+      setError(errorMessage);
+      Alert.alert('Error', errorMessage, [
+        { text: 'Retry', onPress: () => handleSubmit() },
+        { text: 'Cancel', style: 'cancel' }
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -182,6 +190,12 @@ export default function AddExpenseScreen() {
               thumbColor={Colors.card}
             />
           </View>
+          
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>⚠️ {error}</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
       
@@ -317,5 +331,19 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flex: 2,
+  },
+  errorContainer: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#DC2626',
+    lineHeight: 20,
+    fontWeight: '500',
   },
 });
