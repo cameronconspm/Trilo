@@ -245,8 +245,12 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
     }
 
     const isToday = dayData.date.toDateString() === new Date().toDateString();
-    const hasActivity = dayData.categoryIndicators.length > 0 || dayData.isPayday;
+    const hasActivity = dayData.categoryIndicators.length > 0 || dayData.isPayday || dayData.transactions.length > 0 || dayData.incomes.length > 0;
     const totalExpenses = dayData.expenseCount + dayData.recurringExpenseCount;
+    const totalIncomes = dayData.incomes.length;
+    const totalTransactions = dayData.transactions.length;
+
+    console.log(`Calendar: Rendering day ${dayData.date.getDate()} - Expenses: ${totalExpenses}, Incomes: ${totalIncomes}, Transactions: ${totalTransactions}, HasActivity: ${hasActivity}`);
 
     return (
       <TouchableOpacity
@@ -261,7 +265,7 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
         activeOpacity={hasActivity ? 0.7 : 1}
         disabled={!hasActivity}
         accessible={true}
-        accessibilityLabel={`${dayData.date.getDate()}${isToday ? ' today' : ''}${dayData.isPayday ? ' payday' : ''}${totalExpenses > 0 ? ` ${totalExpenses} expenses` : ''}`}
+        accessibilityLabel={`${dayData.date.getDate()}${isToday ? ' today' : ''}${dayData.isPayday ? ' payday' : ''}${totalExpenses > 0 ? ` ${totalExpenses} expenses` : ''}${totalIncomes > 0 ? ` ${totalIncomes} income sources` : ''}`}
         accessibilityRole="button"
       >
         <Text style={[
@@ -277,6 +281,13 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
         {totalExpenses > 0 && (
           <View style={styles.notificationBubble}>
             <Text style={styles.notificationText}>{totalExpenses}</Text>
+          </View>
+        )}
+        
+        {/* Income indicator (small green dot) */}
+        {totalIncomes > 0 && (
+          <View style={styles.incomeIndicator}>
+            <Text style={styles.incomeIndicatorText}>{totalIncomes}</Text>
           </View>
         )}
         
@@ -345,9 +356,15 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
         </View>
         <View style={styles.legendItem}>
           <View style={styles.notificationBubble}>
-            <Text style={styles.notificationText}>2</Text>
+            <Text style={styles.notificationText}>1</Text>
           </View>
           <Text style={[styles.legendText, { color: colors.textSecondary }]}>Expenses</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={styles.incomeIndicator}>
+            <Text style={styles.incomeIndicatorText}>1</Text>
+          </View>
+          <Text style={[styles.legendText, { color: colors.textSecondary }]}>Income</Text>
         </View>
       </View>
 
@@ -581,6 +598,32 @@ const styles = StyleSheet.create({
     height: 3,
     backgroundColor: '#27AE60', // Green color for payday
     borderRadius: 1.5,
+  },
+  incomeIndicator: {
+    position: 'absolute',
+    top: -2,
+    left: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#27AE60', // Green color for income
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  incomeIndicatorText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 13,
+    textAlign: 'center',
   },
   expenseIndicator: {
     minWidth: 20,
