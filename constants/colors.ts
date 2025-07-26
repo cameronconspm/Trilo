@@ -29,6 +29,11 @@ const LightColors = {
   oneTimeExpense: "#5D6D7E",   // Gray-blue - One-Time Expenses
   givenExpenses: "#5D6D7E",    // Gray-blue - Given Expenses
   
+  // Calendar-specific accessible colors (WCAG AA compliant)
+  calendarExpense: "#DC2626",  // High contrast red for expenses
+  calendarPayday: "#059669",   // High contrast green for paydays
+  calendarRecurring: "#7C3AED", // Purple for recurring items
+  
   // Shadow colors
   shadowColor: "rgba(0, 0, 0, 0.12)",
   shadowColorLight: "rgba(0, 0, 0, 0.08)",
@@ -63,6 +68,11 @@ const DarkColors = {
 
   oneTimeExpense: "#5D6D7E",   // Gray for dark mode
   givenExpenses: "#5D6D7E",    // Gray - Given Expenses
+  
+  // Calendar-specific accessible colors for dark mode
+  calendarExpense: "#F87171",  // Lighter red for dark mode contrast
+  calendarPayday: "#34D399",   // Lighter green for dark mode contrast
+  calendarRecurring: "#A78BFA", // Lighter purple for dark mode
   
   // Shadow colors
   shadowColor: "rgba(0, 0, 0, 0.3)",

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
-import { ChevronLeft, ChevronRight, X, DollarSign, Calendar as CalendarIcon } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, X, DollarSign, Calendar as CalendarIcon, Repeat, Edit3 } from 'lucide-react-native';
 import { useThemeColors } from '@/constants/colors';
 import { useSettings } from '@/context/SettingsContext';
 import { useFinance } from '@/context/FinanceContext';
@@ -16,8 +16,10 @@ interface CalendarProps {
 interface DayData {
   date: Date;
   expenseCount: number;
+  recurringExpenseCount: number;
   isPayday: boolean;
   transactions: Transaction[];
+  recurringTransactions: Transaction[];
   incomes: Income[];
 }
 
@@ -59,11 +61,26 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
       const date = new Date(year, month, day);
       const dateString = date.toISOString().split('T')[0];
       
-      // Find transactions for this day
+      // Find one-time transactions for this day
       const dayTransactions = transactions.filter(t => {
+        if (t.isRecurring) return false; // Skip recurring transactions here
         const transactionDate = new Date(t.date);
         return transactionDate.toISOString().split('T')[0] === dateString;
       });
+      
+      // Find recurring transactions that should appear on this day
+      const recurringTransactions = transactions.filter(t => {
+        if (!t.isRecurring) return false;
+        
+        const originalDate = new Date(t.date);
+        const originalDay = originalDate.getDate();
+        
+        // Show recurring transaction on the same day of each month
+        return date.getDate() === originalDay;
+      });
+      
+      // Combine all transactions for this day
+      const allDayTransactions = [...dayTransactions, ...recurringTransactions];
       
       // Find incomes for this day (paydays)
       const dayIncomes = incomes.filter(income => {
@@ -90,13 +107,17 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
         return false;
       });
       
-      const expenseTransactions = dayTransactions.filter(t => t.type === 'expense');
+
+      const oneTimeExpenses = dayTransactions.filter(t => t.type === 'expense');
+      const recurringExpenses = recurringTransactions.filter(t => t.type === 'expense');
       
       days.push({
         date,
-        expenseCount: expenseTransactions.length,
+        expenseCount: oneTimeExpenses.length,
+        recurringExpenseCount: recurringExpenses.length,
         isPayday: dayIncomes.length > 0,
-        transactions: dayTransactions,
+        transactions: allDayTransactions,
+        recurringTransactions,
         incomes: dayIncomes,
       });
     }
@@ -122,6 +143,13 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
       setShowDayModal(true);
     }
   };
+  
+  const handleEditTransaction = (transaction: Transaction) => {
+    setShowDayModal(false);
+    if (onTransactionEdit) {
+      onTransactionEdit(transaction);
+    }
+  };
 
   const renderDay = (dayData: DayData | null, index: number) => {
     if (!dayData) {
@@ -129,7 +157,8 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
     }
 
     const isToday = dayData.date.toDateString() === new Date().toDateString();
-    const hasActivity = dayData.expenseCount > 0 || dayData.isPayday;
+    const hasActivity = dayData.expenseCount > 0 || dayData.recurringExpenseCount > 0 || dayData.isPayday;
+    const totalExpenses = dayData.expenseCount + dayData.recurringExpenseCount;
 
     return (
       <TouchableOpacity
@@ -143,6 +172,9 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
         onPress={() => handleDayPress(dayData)}
         activeOpacity={hasActivity ? 0.7 : 1}
         disabled={!hasActivity}
+        accessible={true}
+        accessibilityLabel={`${dayData.date.getDate()}${isToday ? ' today' : ''}${dayData.isPayday ? ' payday' : ''}${totalExpenses > 0 ? ` ${totalExpenses} expenses` : ''}`}
+        accessibilityRole="button"
       >
         <Text style={[
           styles.dayNumber,
@@ -155,13 +187,27 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
         {/* Activity indicators */}
         <View style={styles.indicators}>
           {dayData.isPayday && (
-            <View style={[styles.paydayIndicator, { backgroundColor: colors.success }]} />
+            <View 
+              style={[styles.paydayIndicator, { backgroundColor: colors.calendarPayday }]} 
+              accessible={true}
+              accessibilityLabel="Payday"
+            />
           )}
           {dayData.expenseCount > 0 && (
-            <View style={styles.expenseIndicator}>
-              <Text style={[styles.expenseCount, { color: colors.error }]}>
+            <View style={[styles.expenseIndicator, { backgroundColor: colors.calendarExpense }]}>
+              <Text style={[styles.expenseCount, { color: colors.background }]}>
                 {dayData.expenseCount}
               </Text>
+            </View>
+          )}
+          {dayData.recurringExpenseCount > 0 && (
+            <View style={[styles.recurringIndicator, { backgroundColor: colors.calendarRecurring }]}>
+              <Repeat size={8} color={colors.background} strokeWidth={2} />
+              {dayData.recurringExpenseCount > 1 && (
+                <Text style={[styles.recurringCount, { color: colors.background }]}>
+                  {dayData.recurringExpenseCount}
+                </Text>
+              )}
             </View>
           )}
         </View>
@@ -204,21 +250,29 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
       </View>
 
       {/* Calendar Grid */}
-      <View style={styles.calendar}>
-        {calendarData.map((dayData, index) => renderDay(dayData, index))}
+      <View style={styles.calendarContainer}>
+        <View style={styles.calendar}>
+          {calendarData.map((dayData, index) => renderDay(dayData, index))}
+        </View>
       </View>
 
       {/* Legend */}
       <View style={[styles.legend, { backgroundColor: colors.cardSecondary }]}>
         <View style={styles.legendItem}>
-          <View style={[styles.paydayIndicator, { backgroundColor: colors.success }]} />
+          <View style={[styles.paydayIndicator, { backgroundColor: colors.calendarPayday }]} />
           <Text style={[styles.legendText, { color: colors.textSecondary }]}>Payday</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.expenseIndicatorLegend, { borderColor: colors.error }]}>
-            <Text style={[styles.expenseCountLegend, { color: colors.error }]}>N</Text>
+          <View style={[styles.expenseIndicatorLegend, { backgroundColor: colors.calendarExpense }]}>
+            <Text style={[styles.expenseCountLegend, { color: colors.background }]}>N</Text>
           </View>
-          <Text style={[styles.legendText, { color: colors.textSecondary }]}>Expenses</Text>
+          <Text style={[styles.legendText, { color: colors.textSecondary }]}>One-time</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.recurringIndicatorLegend, { backgroundColor: colors.calendarRecurring }]}>
+            <Repeat size={10} color={colors.background} strokeWidth={2} />
+          </View>
+          <Text style={[styles.legendText, { color: colors.textSecondary }]}>Recurring</Text>
         </View>
       </View>
 
@@ -281,15 +335,36 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
               <>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>Transactions</Text>
                 <Card>
-                  {selectedDay.transactions.map((transaction, index) => (
-                    <TransactionItem
-                      key={transaction.id}
-                      transaction={transaction}
-                      isLast={index === selectedDay.transactions.length - 1}
-                      onEdit={onTransactionEdit}
-                      enableSwipeActions={true}
-                    />
-                  ))}
+                  {selectedDay.transactions.map((transaction, index) => {
+                    const isRecurring = selectedDay.recurringTransactions.some(rt => rt.id === transaction.id);
+                    return (
+                      <View key={transaction.id} style={styles.transactionWrapper}>
+                        <View style={styles.transactionHeader}>
+                          {isRecurring && (
+                            <View style={styles.recurringBadge}>
+                              <Repeat size={12} color={colors.calendarRecurring} strokeWidth={2} />
+                              <Text style={[styles.recurringBadgeText, { color: colors.calendarRecurring }]}>Recurring</Text>
+                            </View>
+                          )}
+                          <TouchableOpacity
+                            style={styles.editButton}
+                            onPress={() => handleEditTransaction(transaction)}
+                            activeOpacity={0.7}
+                            accessible={true}
+                            accessibilityLabel={`Edit ${transaction.name}`}
+                            accessibilityRole="button"
+                          >
+                            <Edit3 size={16} color={colors.primary} strokeWidth={2} />
+                          </TouchableOpacity>
+                        </View>
+                        <TransactionItem
+                          transaction={transaction}
+                          isLast={index === selectedDay.transactions.length - 1}
+                          enableSwipeActions={false}
+                        />
+                      </View>
+                    );
+                  })}
                 </Card>
               </>
             )}
@@ -347,22 +422,28 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 16,
   },
+  calendarContainer: {
+    paddingHorizontal: 2,
+  },
   calendar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 2,
+    justifyContent: 'space-between',
   },
   emptyDay: {
-    width: '14.28%',
+    width: `${100/7}%`,
     aspectRatio: 1,
+    marginBottom: 2,
   },
   dayCell: {
-    width: '14.28%',
+    width: `${100/7}%`,
     aspectRatio: 1,
     borderRadius: BorderRadius.sm,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    marginBottom: 2,
+    paddingHorizontal: 1,
   },
   dayWithActivity: {
     ...Shadow.light,
@@ -374,11 +455,13 @@ const styles = StyleSheet.create({
   },
   indicators: {
     position: 'absolute',
-    bottom: 2,
-    right: 2,
+    bottom: 1,
+    right: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 1,
+    flexWrap: 'wrap',
+    maxWidth: '80%',
   },
   paydayIndicator: {
     width: 6,
@@ -386,17 +469,17 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   expenseIndicator: {
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
   expenseCount: {
-    fontSize: 8,
-    fontWeight: '600',
-    lineHeight: 10,
+    fontSize: 9,
+    fontWeight: '700',
+    lineHeight: 11,
   },
   legend: {
     flexDirection: 'row',
@@ -419,17 +502,16 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   expenseIndicatorLegend: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 1,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   expenseCountLegend: {
-    fontSize: 8,
-    fontWeight: '600',
-    lineHeight: 10,
+    fontSize: 9,
+    fontWeight: '700',
+    lineHeight: 11,
   },
   modalContainer: {
     flex: 1,
@@ -505,5 +587,56 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  recurringIndicator: {
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 1,
+    flexDirection: 'row',
+    gap: 1,
+  },
+  recurringCount: {
+    fontSize: 8,
+    fontWeight: '700',
+    lineHeight: 10,
+  },
+  recurringIndicatorLegend: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  transactionWrapper: {
+    position: 'relative',
+  },
+  transactionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
+  },
+  recurringBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: 'rgba(124, 58, 237, 0.1)',
+  },
+  recurringBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    lineHeight: 14,
+  },
+  editButton: {
+    padding: Spacing.xs,
+    borderRadius: BorderRadius.sm,
   },
 });
