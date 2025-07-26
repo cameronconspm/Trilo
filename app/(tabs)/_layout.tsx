@@ -3,7 +3,7 @@ import { Tabs } from "expo-router";
 import { Home, BarChart3, LineChart, User } from "lucide-react-native";
 import { useThemeColors } from "@/constants/colors";
 import { useSettings } from "@/context/SettingsContext";
-import { Spacing, Shadow } from "@/constants/spacing";
+import { Shadow } from "@/constants/spacing";
 
 export default function TabLayout() {
   const { theme } = useSettings();
@@ -21,22 +21,25 @@ export default function TabLayout() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: 92, // Further increased height for more spacing
-          paddingBottom: 40, // Increased bottom padding for more space from edge
+          height: 88,
+          paddingBottom: 34,
           paddingTop: 8,
-          paddingHorizontal: Spacing.tabHorizontal, // Equal padding between icons
+          paddingHorizontal: 16,
           elevation: 0,
           ...Shadow.nav,
         },
         tabBarItemStyle: {
-          paddingVertical: Spacing.tabVertical, // Equal vertical padding
-          minHeight: Spacing.minTouchTarget,
-          flex: 1, // Equal width distribution
+          paddingVertical: 4,
+          minHeight: 60,
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-          marginTop: 4,
+          fontSize: 11,
+          fontWeight: '500',
+          marginTop: 2,
+          textAlign: 'center',
         },
         tabBarShowLabel: true,
         headerShown: false,
