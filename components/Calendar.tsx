@@ -48,7 +48,7 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
     
-    // Create array of all days in the calendar grid
+    // Create array of all days in the calendar grid (6 weeks = 42 days)
     const days: (DayData | null)[] = [];
     
     // Add empty cells for days before the first day of the month
@@ -122,6 +122,12 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
       });
     }
     
+    // Fill remaining cells to complete the 6-week grid (42 total cells)
+    const totalCells = 42;
+    while (days.length < totalCells) {
+      days.push(null);
+    }
+    
     return days;
   }, [currentDate, transactions, incomes]);
 
@@ -179,7 +185,7 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
         <Text style={[
           styles.dayNumber,
           { color: isToday ? '#FFFFFF' : colors.text },
-          !hasActivity && { color: colors.textSecondary },
+          !hasActivity && !isToday && { color: colors.textSecondary },
           isToday && styles.todayText
         ]}>
           {dayData.date.getDate()}
@@ -414,7 +420,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   dayHeaderText: {
-    width: '13.5%', // Match day cell width
+    width: '14.28%', // Match day cell width (100% / 7 = 14.28%)
     textAlign: 'center',
     fontSize: 13,
     fontWeight: '600',
@@ -428,16 +434,15 @@ const styles = StyleSheet.create({
   calendar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.xs, // Reduced gap for better spacing
     justifyContent: 'space-between',
   },
   emptyDay: {
-    width: '13.5%', // Consistent width calculation
+    width: '14.28%', // 100% / 7 days = 14.28%
     aspectRatio: 1,
-    margin: 1, // Small margin for consistent spacing
+    marginBottom: Spacing.xs,
   },
   dayCell: {
-    width: '13.5%', // Consistent width calculation for even spacing
+    width: '14.28%', // 100% / 7 days = 14.28% for perfect alignment
     aspectRatio: 1,
     borderRadius: BorderRadius.xl, // More rounded for iOS style
     alignItems: 'center',
@@ -446,7 +451,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 4,
     minHeight: 48,
-    margin: 1, // Small margin for consistent spacing
+    marginBottom: Spacing.xs, // Consistent vertical spacing
     ...Shadow.light, // Always show subtle shadow
   },
   dayWithActivity: {
