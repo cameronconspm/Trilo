@@ -237,32 +237,17 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
           {dayData.date.getDate()}
         </Text>
         
-        {/* Activity indicators */}
-        <View style={styles.indicators}>
-          {dayData.isPayday && (
-            <View 
-              style={[styles.paydayIndicator, { backgroundColor: colors.calendarPayday }]} 
-              accessible={true}
-              accessibilityLabel="Payday"
-            />
-          )}
-          {dayData.categoryIndicators.map((indicator, idx) => (
-            <View key={`${indicator.categoryId}-${idx}`} style={styles.categoryIndicatorContainer}>
-              <View 
-                style={[
-                  styles.categoryLine, 
-                  { backgroundColor: indicator.color }
-                ]} 
-              />
-              <Text style={[styles.categoryCount, { color: colors.text }]}>
-                {indicator.count}
-              </Text>
-              {indicator.isRecurring && (
-                <View style={[styles.recurringDot, { backgroundColor: colors.calendarRecurring }]} />
-              )}
-            </View>
-          ))}
-        </View>
+        {/* Expense notification bubble */}
+        {totalExpenses > 0 && (
+          <View style={styles.notificationBubble}>
+            <Text style={styles.notificationText}>{totalExpenses}</Text>
+          </View>
+        )}
+        
+        {/* Payday green line indicator */}
+        {dayData.isPayday && (
+          <View style={styles.paydayLine} />
+        )}
       </TouchableOpacity>
     );
   };
@@ -311,19 +296,14 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
       {/* Legend */}
       <View style={[styles.legend, { backgroundColor: colors.cardSecondary }]}>
         <View style={styles.legendItem}>
-          <View style={[styles.paydayIndicator, { backgroundColor: colors.calendarPayday }]} />
+          <View style={styles.paydayLine} />
           <Text style={[styles.legendText, { color: colors.textSecondary }]}>Payday</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={styles.legendCategoryContainer}>
-            <View style={[styles.categoryLine, { backgroundColor: colors.calendarExpense }]} />
-            <Text style={[styles.legendCategoryCount, { color: colors.text }]}>2</Text>
+          <View style={styles.notificationBubble}>
+            <Text style={styles.notificationText}>2</Text>
           </View>
-          <Text style={[styles.legendText, { color: colors.textSecondary }]}>Category</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.recurringDot, { backgroundColor: colors.calendarRecurring }]} />
-          <Text style={[styles.legendText, { color: colors.textSecondary }]}>Recurring</Text>
+          <Text style={[styles.legendText, { color: colors.textSecondary }]}>Expenses</Text>
         </View>
       </View>
 
@@ -522,46 +502,41 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-  indicators: {
+  notificationBubble: {
     position: 'absolute',
-    bottom: 2,
-    left: 2,
-    right: 2,
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 1,
-    maxHeight: '50%',
-  },
-  categoryIndicatorContainer: {
-    flexDirection: 'row',
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FF3B30', // Apple's red color
     alignItems: 'center',
-    gap: 2,
-    width: '100%',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
   },
-  categoryLine: {
-    width: 12,
-    height: 2,
-    borderRadius: 1,
-  },
-  categoryCount: {
-    fontSize: 8,
+  notificationText: {
+    color: '#FFFFFF',
+    fontSize: 11,
     fontWeight: '700',
-    lineHeight: 10,
-    minWidth: 8,
+    lineHeight: 13,
     textAlign: 'center',
   },
-  recurringDot: {
-    width: 3,
+  paydayLine: {
+    position: 'absolute',
+    bottom: 4,
+    left: '50%',
+    marginLeft: -12,
+    width: 24,
     height: 3,
+    backgroundColor: '#27AE60', // Green color for payday
     borderRadius: 1.5,
-    marginLeft: 1,
-  },
-  paydayIndicator: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)', // Subtle border for better visibility
   },
   expenseIndicator: {
     minWidth: 20,
