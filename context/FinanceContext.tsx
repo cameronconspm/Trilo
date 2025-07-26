@@ -5,6 +5,8 @@ import categories from '@/constants/categories';
 import { getPayDatesInRange, getWeeklyIncomeAmount, formatPaySchedule } from '@/utils/payScheduleUtils';
 import { getCurrentPayPeriod } from '@/utils/payPeriodUtils';
 import NotificationService from '@/services/NotificationService';
+import { transactionService, UserTransaction } from '@/services/supabase';
+import { useAuth } from '@/context/AuthContext';
 
 interface Milestone {
   id: string;
@@ -46,6 +48,7 @@ const STORAGE_KEYS = {
 const CURRENT_APP_VERSION = '2.0.0';
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
+  const { userId, isAuthenticated } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -78,10 +81,17 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     },
   });
 
-  // Load data from AsyncStorage on mount
+  // Load data when user is authenticated
   useEffect(() => {
-    loadAllData();
-  }, []);
+    if (isAuthenticated && userId) {
+      loadAllData();
+    } else if (!isAuthenticated) {
+      // Clear data when user logs out
+      setTransactions([]);
+      setMilestones([]);
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, userId]);
 
   // Check for external data clearing (like reset data)
   useEffect(() => {
@@ -133,51 +143,29 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, [transactions.length, isLoading]);
 
   const loadAllData = async () => {
+    if (!userId) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
-      console.log('FinanceContext: Loading data from storage...');
+      console.log('FinanceContext: Loading data from Supabase...');
       
-      // Check app version for migration if needed
-      const storedVersion = await AsyncStorage.getItem(STORAGE_KEYS.APP_VERSION);
-      if (!storedVersion) {
-        // First time app launch, set version
-        await AsyncStorage.setItem(STORAGE_KEYS.APP_VERSION, CURRENT_APP_VERSION);
-        console.log('FinanceContext: First app launch, version set to', CURRENT_APP_VERSION);
-      }
+      // Load transactions from Supabase
+      const supabaseTransactions = await transactionService.getTransactions(userId);
+      const convertedTransactions = supabaseTransactions.map(convertSupabaseToTransaction);
       
-      // Load transactions with error recovery
-      const storedTransactions = await AsyncStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
-      if (storedTransactions) {
-        try {
-          const parsedTransactions = JSON.parse(storedTransactions);
-          if (Array.isArray(parsedTransactions)) {
-            // Validate and clean data
-            const validTransactions = parsedTransactions.filter(validateTransaction);
-            console.log(`FinanceContext: Loaded ${validTransactions.length} valid transactions`);
-            setTransactions(validTransactions);
-            
-            // If some transactions were invalid, save the cleaned data
-            if (validTransactions.length !== parsedTransactions.length) {
-              console.log('FinanceContext: Cleaned invalid transactions, saving updated data');
-              await saveTransactions(validTransactions);
-            }
-          } else {
-            console.warn('FinanceContext: Stored transactions is not an array, resetting to empty');
-            setTransactions([]);
-          }
-        } catch (parseError) {
-          console.error('FinanceContext: Error parsing stored transactions:', parseError);
-          // Try to recover from backup
-          await recoverFromBackup();
-        }
-      } else {
-        console.log('FinanceContext: No stored transactions found, starting fresh');
-        setTransactions([]);
-      }
+      console.log(`FinanceContext: Loaded ${convertedTransactions.length} transactions from Supabase`);
+      setTransactions(convertedTransactions);
+      
+      // Also try to load from local storage as backup/migration
+      await migrateLocalDataToSupabase();
+      
     } catch (error) {
-      console.error('FinanceContext: Error loading financial data:', error);
-      // Try to recover from backup
-      await recoverFromBackup();
+      console.error('FinanceContext: Error loading data from Supabase:', error);
+      // Fallback to local storage
+      await loadFromLocalStorage();
     } finally {
       setIsLoading(false);
     }
@@ -228,12 +216,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const saveTransactions = async (newTransactions: Transaction[]) => {
     try {
+      // Save to local storage as backup
       const dataToSave = JSON.stringify(newTransactions);
       await AsyncStorage.setItem(STORAGE_KEYS.TRANSACTIONS, dataToSave);
-      console.log(`FinanceContext: Saved ${newTransactions.length} transactions to storage`);
+      console.log(`FinanceContext: Saved ${newTransactions.length} transactions to local storage`);
     } catch (error) {
-      console.error('FinanceContext: Error saving transactions:', error);
-      throw new Error('Failed to save transaction data');
+      console.error('FinanceContext: Error saving transactions to local storage:', error);
     }
   };
 
@@ -532,15 +520,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    const savingsExpenses = transactions
-      .filter(t => {
-        const transactionDate = new Date(t.date);
-        return t.type === 'expense' && 
-               t.category === 'savings' &&
-               transactionDate >= startOfMonth && 
-               transactionDate <= endOfMonth;
-      })
-      .reduce((sum, t) => sum + t.amount, 0);
+    // Savings expenses are no longer a separate category
+    const savingsExpenses = 0;
 
     setBudget({
       income: monthlyIncome,
@@ -554,20 +535,25 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+
     try {
       console.log('FinanceContext: Adding transaction', transaction);
       
-      const newTransaction: Transaction = {
-        ...transaction,
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      };
-
+      // Convert to Supabase format and save
+      const supabaseTransaction = convertTransactionToSupabase(transaction);
+      const savedTransaction = await transactionService.addTransaction(userId, supabaseTransaction);
+      
+      // Convert back to app format
+      const newTransaction = convertSupabaseToTransaction(savedTransaction);
       const updatedTransactions = [...transactions, newTransaction];
       
       // Update state immediately for real-time sync
       setTransactions(updatedTransactions);
       
-      // Save to storage
+      // Save to local storage as backup
       await saveTransactions(updatedTransactions);
       
       console.log('FinanceContext: Transaction added successfully');
@@ -580,15 +566,25 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+
     try {
+      // Convert updates to Supabase format
+      const supabaseUpdates = convertTransactionUpdatesToSupabase(updates);
+      const updatedSupabaseTransaction = await transactionService.updateTransaction(id, supabaseUpdates);
+      
+      // Convert back to app format
+      const updatedTransaction = convertSupabaseToTransaction(updatedSupabaseTransaction);
       const updatedTransactions = transactions.map(t => 
-        t.id === id ? { ...t, ...updates } : t
+        t.id === id ? updatedTransaction : t
       );
       
       // Update state immediately for real-time sync
       setTransactions(updatedTransactions);
       
-      // Save to storage
+      // Save to local storage as backup
       await saveTransactions(updatedTransactions);
       console.log('FinanceContext: Transaction updated successfully');
     } catch (error) {
@@ -600,13 +596,19 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteTransaction = async (id: string) => {
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+
     try {
+      await transactionService.deleteTransaction(id);
+      
       const updatedTransactions = transactions.filter(t => t.id !== id);
       
       // Update state immediately for real-time sync
       setTransactions(updatedTransactions);
       
-      // Save to storage
+      // Save to local storage as backup
       await saveTransactions(updatedTransactions);
       console.log('FinanceContext: Transaction deleted successfully');
     } catch (error) {
@@ -618,8 +620,17 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearAllData = async () => {
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+
     try {
       console.log('FinanceContext: Clearing all data...');
+      
+      // Clear from Supabase
+      await transactionService.clearAllTransactions(userId);
+      
+      // Clear from local storage
       await AsyncStorage.multiRemove([
         STORAGE_KEYS.TRANSACTIONS,
         STORAGE_KEYS.BUDGET_GOALS,
@@ -628,6 +639,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         STORAGE_KEYS.PLANNING_STREAK,
         'finance_auto_backup',
       ]);
+      
       setTransactions([]);
       setMilestones([]);
       console.log('FinanceContext: All data cleared successfully');
@@ -690,6 +702,103 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('FinanceContext: Auto-backup failed:', error);
       // Don't throw error for backup failures - it's not critical
+    }
+  };
+
+  // Helper functions for data conversion
+  const convertSupabaseToTransaction = (supabaseTransaction: UserTransaction): Transaction => {
+    return {
+      id: supabaseTransaction.id,
+      name: supabaseTransaction.name,
+      amount: supabaseTransaction.amount,
+      date: supabaseTransaction.date,
+      category: supabaseTransaction.category as CategoryType,
+      type: supabaseTransaction.type,
+      isRecurring: supabaseTransaction.is_recurring,
+      paySchedule: supabaseTransaction.pay_schedule,
+      givenExpenseSchedule: supabaseTransaction.given_expense_schedule,
+    };
+  };
+
+  const convertTransactionToSupabase = (transaction: Omit<Transaction, 'id'>): Omit<UserTransaction, 'id' | 'user_id' | 'created_at' | 'updated_at'> => {
+    return {
+      name: transaction.name,
+      amount: transaction.amount,
+      date: transaction.date,
+      category: transaction.category,
+      type: transaction.type,
+      is_recurring: transaction.isRecurring,
+      pay_schedule: transaction.paySchedule,
+      given_expense_schedule: transaction.givenExpenseSchedule,
+    };
+  };
+
+  const convertTransactionUpdatesToSupabase = (updates: Partial<Transaction>): Partial<Omit<UserTransaction, 'id' | 'user_id' | 'created_at'>> => {
+    const supabaseUpdates: any = {};
+    if (updates.name !== undefined) supabaseUpdates.name = updates.name;
+    if (updates.amount !== undefined) supabaseUpdates.amount = updates.amount;
+    if (updates.date !== undefined) supabaseUpdates.date = updates.date;
+    if (updates.category !== undefined) supabaseUpdates.category = updates.category;
+    if (updates.type !== undefined) supabaseUpdates.type = updates.type;
+    if (updates.isRecurring !== undefined) supabaseUpdates.is_recurring = updates.isRecurring;
+    if (updates.paySchedule !== undefined) supabaseUpdates.pay_schedule = updates.paySchedule;
+    if (updates.givenExpenseSchedule !== undefined) supabaseUpdates.given_expense_schedule = updates.givenExpenseSchedule;
+    return supabaseUpdates;
+  };
+
+  const migrateLocalDataToSupabase = async () => {
+    if (!userId) return;
+    
+    try {
+      const storedTransactions = await AsyncStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+      if (storedTransactions) {
+        const parsedTransactions = JSON.parse(storedTransactions);
+        if (Array.isArray(parsedTransactions) && parsedTransactions.length > 0) {
+          console.log('FinanceContext: Migrating local transactions to Supabase...');
+          
+          // Check if we already have data in Supabase to avoid duplicates
+          const existingTransactions = await transactionService.getTransactions(userId);
+          if (existingTransactions.length === 0) {
+            // Migrate each transaction
+            for (const transaction of parsedTransactions) {
+              if (validateTransaction(transaction)) {
+                try {
+                  const supabaseTransaction = convertTransactionToSupabase(transaction);
+                  await transactionService.addTransaction(userId, supabaseTransaction);
+                } catch (error) {
+                  console.error('FinanceContext: Error migrating transaction:', error);
+                }
+              }
+            }
+            console.log('FinanceContext: Migration completed');
+            
+            // Reload data after migration
+            const migratedTransactions = await transactionService.getTransactions(userId);
+            const convertedTransactions = migratedTransactions.map(convertSupabaseToTransaction);
+            setTransactions(convertedTransactions);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('FinanceContext: Error during migration:', error);
+    }
+  };
+
+  const loadFromLocalStorage = async () => {
+    try {
+      console.log('FinanceContext: Loading from local storage as fallback...');
+      const storedTransactions = await AsyncStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+      if (storedTransactions) {
+        const parsedTransactions = JSON.parse(storedTransactions);
+        if (Array.isArray(parsedTransactions)) {
+          const validTransactions = parsedTransactions.filter(validateTransaction);
+          console.log(`FinanceContext: Loaded ${validTransactions.length} valid transactions from local storage`);
+          setTransactions(validTransactions);
+        }
+      }
+    } catch (error) {
+      console.error('FinanceContext: Error loading from local storage:', error);
+      setTransactions([]);
     }
   };
 
