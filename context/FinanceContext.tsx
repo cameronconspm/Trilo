@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Transaction, WeeklyOverview, MonthlyInsights, Budget, CategoryType, Income } from '@/types/finance';
+import { Transaction, WeeklyOverview, MonthlyInsights, Budget, CategoryType, Income, SavingsGoal } from '@/types/finance';
 import categories from '@/constants/categories';
 import { getPayDatesInRange, getWeeklyIncomeAmount, formatPaySchedule } from '@/utils/payScheduleUtils';
 import { getCurrentPayPeriod } from '@/utils/payPeriodUtils';
 import NotificationService from '@/services/NotificationService';
-import { transactionService, UserTransaction, incomeService, UserIncome } from '@/services/supabase';
+import { transactionService, UserTransaction, incomeService, UserIncome, goalService, UserGoal } from '@/services/supabase';
 import { useAuth } from '@/context/AuthContext';
 
 interface Milestone {
@@ -27,6 +27,10 @@ interface FinanceContextType {
   addIncome: (income: Omit<Income, 'id'>) => Promise<void>;
   deleteIncome: (id: string) => Promise<void>;
   updateIncome: (id: string, updates: Partial<Income>) => Promise<void>;
+  savingsGoals: SavingsGoal[];
+  addSavingsGoal: (goal: Omit<SavingsGoal, 'id'>) => Promise<void>;
+  deleteSavingsGoal: (id: string) => Promise<void>;
+  updateSavingsGoal: (id: string, updates: Partial<SavingsGoal>) => Promise<void>;
   weeklyOverview: WeeklyOverview;
   monthlyInsights: MonthlyInsights;
   budget: Budget;
@@ -55,6 +59,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const { userId, isAuthenticated } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [weeklyOverview, setWeeklyOverview] = useState<WeeklyOverview>({
@@ -94,6 +99,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       // Clear data when user logs out
       setTransactions([]);
       setIncomes([]);
+      setSavingsGoals([]);
       setMilestones([]);
       setIsLoading(false);
     }
@@ -111,6 +117,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           console.log('FinanceContext: External data reset detected, clearing state');
           setTransactions([]);
           setIncomes([]);
+          setSavingsGoals([]);
           setMilestones([]);
         }
       } catch (error) {
@@ -172,6 +179,13 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       
       console.log(`FinanceContext: Loaded ${convertedIncomes.length} incomes from Supabase`);
       setIncomes(convertedIncomes);
+      
+      // Load goals from Supabase
+      const supabaseGoals = await goalService.getGoals(userId);
+      const convertedGoals = supabaseGoals.map(convertSupabaseToGoal);
+      
+      console.log(`FinanceContext: Loaded ${convertedGoals.length} goals from Supabase`);
+      setSavingsGoals(convertedGoals);
       
       // Also try to load from local storage as backup/migration
       await migrateLocalDataToSupabase();
@@ -723,6 +737,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       // Clear from Supabase
       await transactionService.clearAllTransactions(userId);
       await incomeService.clearAllIncomes(userId);
+      await goalService.clearAllGoals(userId);
       
       // Clear from local storage
       await AsyncStorage.multiRemove([
@@ -736,6 +751,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       
       setTransactions([]);
       setIncomes([]);
+      setSavingsGoals([]);
       setMilestones([]);
       console.log('FinanceContext: All data cleared successfully');
     } catch (error) {
@@ -879,6 +895,120 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     return supabaseUpdates;
   };
 
+  // Goal management functions
+  const addSavingsGoal = async (goal: Omit<SavingsGoal, 'id'>) => {
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      console.log('FinanceContext: Adding savings goal', goal);
+      
+      // Convert to Supabase format and save
+      const supabaseGoal = convertGoalToSupabase(goal);
+      const savedGoal = await goalService.addGoal(userId, supabaseGoal);
+      
+      // Convert back to app format
+      const newGoal = convertSupabaseToGoal(savedGoal);
+      const updatedGoals = [...savingsGoals, newGoal];
+      
+      // Update state immediately for real-time sync
+      setSavingsGoals(updatedGoals);
+      
+      console.log('FinanceContext: Savings goal added successfully');
+    } catch (error) {
+      console.error('FinanceContext: Error adding savings goal:', error);
+      // Revert state on error
+      setSavingsGoals(savingsGoals);
+      throw error;
+    }
+  };
+
+  const updateSavingsGoal = async (id: string, updates: Partial<SavingsGoal>) => {
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      // Convert updates to Supabase format
+      const supabaseUpdates = convertGoalUpdatesToSupabase(updates);
+      const updatedSupabaseGoal = await goalService.updateGoal(id, supabaseUpdates);
+      
+      // Convert back to app format
+      const updatedGoal = convertSupabaseToGoal(updatedSupabaseGoal);
+      const updatedGoals = savingsGoals.map(g => 
+        g.id === id ? updatedGoal : g
+      );
+      
+      // Update state immediately for real-time sync
+      setSavingsGoals(updatedGoals);
+      
+      console.log('FinanceContext: Savings goal updated successfully');
+    } catch (error) {
+      console.error('FinanceContext: Error updating savings goal:', error);
+      // Revert state on error
+      setSavingsGoals(savingsGoals);
+      throw error;
+    }
+  };
+
+  const deleteSavingsGoal = async (id: string) => {
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      await goalService.deleteGoal(id);
+      
+      const updatedGoals = savingsGoals.filter(g => g.id !== id);
+      
+      // Update state immediately for real-time sync
+      setSavingsGoals(updatedGoals);
+      
+      console.log('FinanceContext: Savings goal deleted successfully');
+    } catch (error) {
+      console.error('FinanceContext: Error deleting savings goal:', error);
+      // Revert state on error
+      setSavingsGoals(savingsGoals);
+      throw error;
+    }
+  };
+
+  // Goal conversion helpers
+  const convertSupabaseToGoal = (supabaseGoal: UserGoal): SavingsGoal => {
+    return {
+      id: supabaseGoal.id,
+      name: supabaseGoal.name,
+      targetAmount: supabaseGoal.target_amount,
+      currentAmount: supabaseGoal.current_amount,
+      timeToSave: supabaseGoal.time_to_save,
+      createdDate: supabaseGoal.created_date,
+      targetDate: supabaseGoal.target_date,
+    };
+  };
+
+  const convertGoalToSupabase = (goal: Omit<SavingsGoal, 'id'>): Omit<UserGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'> => {
+    return {
+      name: goal.name,
+      target_amount: goal.targetAmount,
+      current_amount: goal.currentAmount,
+      time_to_save: goal.timeToSave,
+      created_date: goal.createdDate,
+      target_date: goal.targetDate,
+    };
+  };
+
+  const convertGoalUpdatesToSupabase = (updates: Partial<SavingsGoal>): Partial<Omit<UserGoal, 'id' | 'user_id' | 'created_at'>> => {
+    const supabaseUpdates: any = {};
+    if (updates.name !== undefined) supabaseUpdates.name = updates.name;
+    if (updates.targetAmount !== undefined) supabaseUpdates.target_amount = updates.targetAmount;
+    if (updates.currentAmount !== undefined) supabaseUpdates.current_amount = updates.currentAmount;
+    if (updates.timeToSave !== undefined) supabaseUpdates.time_to_save = updates.timeToSave;
+    if (updates.createdDate !== undefined) supabaseUpdates.created_date = updates.createdDate;
+    if (updates.targetDate !== undefined) supabaseUpdates.target_date = updates.targetDate;
+    return supabaseUpdates;
+  };
+
   const migrateLocalDataToSupabase = async () => {
     if (!userId) return;
     
@@ -946,6 +1076,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         addIncome,
         deleteIncome,
         updateIncome,
+        savingsGoals,
+        addSavingsGoal,
+        deleteSavingsGoal,
+        updateSavingsGoal,
         weeklyOverview,
         monthlyInsights,
         budget,

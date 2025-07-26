@@ -54,6 +54,19 @@ export interface UserIncome {
   updated_at?: string;
 }
 
+export interface UserGoal {
+  id: string;
+  user_id: string;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  time_to_save: number;
+  created_date: string;
+  target_date?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Transaction service functions
 export const transactionService = {
   // Get all transactions for a user
@@ -230,5 +243,86 @@ export const incomeService = {
     }
     
     return data || [];
+  }
+};
+
+// Goal service functions
+export const goalService = {
+  // Get all goals for a user
+  async getGoals(userId: string): Promise<UserGoal[]> {
+    const { data, error } = await supabase
+      .from('user_goals')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching goals:', error);
+      throw error;
+    }
+    
+    return data || [];
+  },
+
+  // Add a new goal
+  async addGoal(userId: string, goal: Omit<UserGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<UserGoal> {
+    const { data, error } = await supabase
+      .from('user_goals')
+      .insert({
+        user_id: userId,
+        ...goal
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error adding goal:', error);
+      throw error;
+    }
+    
+    return data;
+  },
+
+  // Update a goal
+  async updateGoal(id: string, updates: Partial<Omit<UserGoal, 'id' | 'user_id' | 'created_at'>>): Promise<UserGoal> {
+    const { data, error } = await supabase
+      .from('user_goals')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating goal:', error);
+      throw error;
+    }
+    
+    return data;
+  },
+
+  // Delete a goal
+  async deleteGoal(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('user_goals')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error deleting goal:', error);
+      throw error;
+    }
+  },
+
+  // Clear all goals for a user
+  async clearAllGoals(userId: string): Promise<void> {
+    const { error } = await supabase
+      .from('user_goals')
+      .delete()
+      .eq('user_id', userId);
+    
+    if (error) {
+      console.error('Error clearing goals:', error);
+      throw error;
+    }
   }
 };
