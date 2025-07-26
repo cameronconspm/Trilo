@@ -8,9 +8,17 @@ import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 import Card from '@/components/Card';
 import TransactionItem from '@/components/TransactionItem';
 import { Transaction, Income } from '@/types/finance';
+import categories from '@/constants/categories';
 
 interface CalendarProps {
   onTransactionEdit?: (transaction: Transaction) => void;
+}
+
+interface CategoryIndicator {
+  categoryId: string;
+  color: string;
+  count: number;
+  isRecurring?: boolean;
 }
 
 interface DayData {
@@ -21,6 +29,7 @@ interface DayData {
   transactions: Transaction[];
   recurringTransactions: Transaction[];
   incomes: Income[];
+  categoryIndicators: CategoryIndicator[];
 }
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -111,6 +120,42 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
       const oneTimeExpenses = dayTransactions.filter(t => t.type === 'expense');
       const recurringExpenses = recurringTransactions.filter(t => t.type === 'expense');
       
+      // Group transactions by category for indicators
+      const categoryMap = new Map<string, { count: number; isRecurring: boolean; color: string }>();
+      
+      // Process one-time expenses
+      oneTimeExpenses.forEach(transaction => {
+        const category = categories.find(c => c.id === transaction.category);
+        if (category) {
+          const existing = categoryMap.get(category.id) || { count: 0, isRecurring: false, color: category.color };
+          categoryMap.set(category.id, {
+            ...existing,
+            count: existing.count + 1
+          });
+        }
+      });
+      
+      // Process recurring expenses
+      recurringExpenses.forEach(transaction => {
+        const category = categories.find(c => c.id === transaction.category);
+        if (category) {
+          const existing = categoryMap.get(category.id) || { count: 0, isRecurring: false, color: category.color };
+          categoryMap.set(category.id, {
+            ...existing,
+            count: existing.count + 1,
+            isRecurring: true
+          });
+        }
+      });
+      
+      // Convert to array of indicators
+      const categoryIndicators: CategoryIndicator[] = Array.from(categoryMap.entries()).map(([categoryId, data]) => ({
+        categoryId,
+        color: data.color,
+        count: data.count,
+        isRecurring: data.isRecurring
+      }));
+      
       days.push({
         date,
         expenseCount: oneTimeExpenses.length,
@@ -119,6 +164,7 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
         transactions: allDayTransactions,
         recurringTransactions,
         incomes: dayIncomes,
+        categoryIndicators,
       });
     }
     
@@ -163,7 +209,7 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
     }
 
     const isToday = dayData.date.toDateString() === new Date().toDateString();
-    const hasActivity = dayData.expenseCount > 0 || dayData.recurringExpenseCount > 0 || dayData.isPayday;
+    const hasActivity = dayData.categoryIndicators.length > 0 || dayData.isPayday;
     const totalExpenses = dayData.expenseCount + dayData.recurringExpenseCount;
 
     return (
@@ -200,18 +246,22 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
               accessibilityLabel="Payday"
             />
           )}
-          {totalExpenses > 0 && (
-            <View style={[styles.expenseIndicator, { backgroundColor: colors.calendarExpense }]}>
-              <Text style={[styles.expenseCount, { color: colors.background }]}>
-                {totalExpenses}
+          {dayData.categoryIndicators.map((indicator, idx) => (
+            <View key={`${indicator.categoryId}-${idx}`} style={styles.categoryIndicatorContainer}>
+              <View 
+                style={[
+                  styles.categoryLine, 
+                  { backgroundColor: indicator.color }
+                ]} 
+              />
+              <Text style={[styles.categoryCount, { color: colors.text }]}>
+                {indicator.count}
               </Text>
+              {indicator.isRecurring && (
+                <View style={[styles.recurringDot, { backgroundColor: colors.calendarRecurring }]} />
+              )}
             </View>
-          )}
-          {dayData.recurringExpenseCount > 0 && (
-            <View style={[styles.recurringBadge, { backgroundColor: colors.calendarRecurring }]}>
-              <Repeat size={6} color={colors.background} strokeWidth={2.5} />
-            </View>
-          )}
+          ))}
         </View>
       </TouchableOpacity>
     );
@@ -265,15 +315,14 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
           <Text style={[styles.legendText, { color: colors.textSecondary }]}>Payday</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.expenseIndicatorLegend, { backgroundColor: colors.calendarExpense }]}>
-            <Text style={[styles.expenseCountLegend, { color: colors.background }]}>N</Text>
+          <View style={styles.legendCategoryContainer}>
+            <View style={[styles.categoryLine, { backgroundColor: colors.calendarExpense }]} />
+            <Text style={[styles.legendCategoryCount, { color: colors.text }]}>2</Text>
           </View>
-          <Text style={[styles.legendText, { color: colors.textSecondary }]}>One-time</Text>
+          <Text style={[styles.legendText, { color: colors.textSecondary }]}>Category</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.recurringBadgeLegend, { backgroundColor: colors.calendarRecurring }]}>
-            <Repeat size={8} color={colors.background} strokeWidth={2.5} />
-          </View>
+          <View style={[styles.recurringDot, { backgroundColor: colors.calendarRecurring }]} />
           <Text style={[styles.legendText, { color: colors.textSecondary }]}>Recurring</Text>
         </View>
       </View>
@@ -420,7 +469,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   dayHeaderText: {
-    width: '14.28%', // Match day cell width (100% / 7 = 14.28%)
+    width: '14.28%', // Keep standard width for headers
     textAlign: 'center',
     fontSize: 13,
     fontWeight: '600',
@@ -437,22 +486,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   emptyDay: {
-    width: '14.28%', // 100% / 7 days = 14.28%
+    width: '13.5%', // Match day cell width
     aspectRatio: 1,
     marginBottom: Spacing.xs,
+    marginHorizontal: '0.75%', // Match day cell margin
   },
   dayCell: {
-    width: '14.28%', // 100% / 7 days = 14.28% for perfect alignment
+    width: '13.5%', // Slightly smaller to ensure proper spacing
     aspectRatio: 1,
-    borderRadius: BorderRadius.xl, // More rounded for iOS style
+    borderRadius: BorderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
     paddingVertical: 4,
     minHeight: 48,
-    marginBottom: Spacing.xs, // Consistent vertical spacing
-    ...Shadow.light, // Always show subtle shadow
+    marginBottom: Spacing.xs,
+    marginHorizontal: '0.75%', // Add horizontal margin for spacing
+    ...Shadow.light,
   },
   dayWithActivity: {
     ...Shadow.medium, // Stronger shadow for active days
@@ -473,13 +524,37 @@ const styles = StyleSheet.create({
   },
   indicators: {
     position: 'absolute',
-    bottom: 3,
-    right: 3,
+    bottom: 2,
+    left: 2,
+    right: 2,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 1,
+    maxHeight: '50%',
+  },
+  categoryIndicatorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    flexWrap: 'wrap',
-    maxWidth: '75%',
+    width: '100%',
+  },
+  categoryLine: {
+    width: 12,
+    height: 2,
+    borderRadius: 1,
+  },
+  categoryCount: {
+    fontSize: 8,
+    fontWeight: '700',
+    lineHeight: 10,
+    minWidth: 8,
+    textAlign: 'center',
+  },
+  recurringDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    marginLeft: 1,
   },
   paydayIndicator: {
     width: 10,
@@ -533,17 +608,15 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 16,
   },
-  expenseIndicatorLegend: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+  legendCategoryContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 2,
   },
-  expenseCountLegend: {
-    fontSize: 9,
+  legendCategoryCount: {
+    fontSize: 10,
     fontWeight: '700',
-    lineHeight: 11,
+    lineHeight: 12,
   },
   modalContainer: {
     flex: 1,
