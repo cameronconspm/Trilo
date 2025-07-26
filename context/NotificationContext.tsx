@@ -115,13 +115,26 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         .eq('id', userId)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('NotificationContext: Error loading from Supabase:', JSON.stringify(error, null, 2));
-        
-        if (error instanceof Error) {
-          console.error('Error message:', error.message);
+      if (error) {
+        // Handle specific database errors
+        if (error.code === 'PGRST116') {
+          // User not found, use local settings
+          console.log('NotificationContext: User profile not found, using local settings');
+          return await NotificationService.loadSettings();
+        } else if (error.code === '42703') {
+          // Column doesn't exist, fall back to local storage
+          console.warn('NotificationContext: preferences column does not exist in database, using local storage');
+          return await NotificationService.loadSettings();
+        } else {
+          // Other database errors
+          console.error('NotificationContext: Database error:', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint
+          });
+          return await NotificationService.loadSettings();
         }
-        return await NotificationService.loadSettings();
       }
 
       if (userProfile?.preferences?.notificationSettings) {
@@ -136,9 +149,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         return localSettings;
       }
     } catch (error) {
-      console.error('NotificationContext: Error loading notification settings:', {
+      console.error('NotificationContext: Unexpected error loading notification settings:', {
         message: error instanceof Error ? error.message : 'Unknown error',
-        error: error
+        error: JSON.stringify(error, null, 2)
       });
       return await NotificationService.loadSettings();
     }
@@ -159,15 +172,28 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         .eq('id', userId)
         .single();
 
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        console.error('NotificationContext: Error fetching preferences:', {
-          message: fetchError.message,
-          code: fetchError.code,
-          details: fetchError.details,
-          hint: fetchError.hint
-        });
-        await NotificationService.saveSettings(newSettings);
-        return;
+      if (fetchError) {
+        if (fetchError.code === 'PGRST116') {
+          // User not found, save to local storage only
+          console.warn('NotificationContext: User profile not found, saving to local storage only');
+          await NotificationService.saveSettings(newSettings);
+          return;
+        } else if (fetchError.code === '42703') {
+          // Column doesn't exist, fall back to local storage
+          console.warn('NotificationContext: preferences column does not exist, saving to local storage only');
+          await NotificationService.saveSettings(newSettings);
+          return;
+        } else {
+          // Other database errors
+          console.error('NotificationContext: Database error while fetching preferences:', {
+            code: fetchError.code,
+            message: fetchError.message,
+            details: fetchError.details,
+            hint: fetchError.hint
+          });
+          await NotificationService.saveSettings(newSettings);
+          return;
+        }
       }
 
       const currentPreferences = userProfile?.preferences || {};
@@ -183,23 +209,30 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         .eq('id', userId);
 
       if (error) {
-        console.error('NotificationContext: Error saving to Supabase:', {
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint
-        });
-        await NotificationService.saveSettings(newSettings);
-        return;
+        if (error.code === '42703') {
+          // Column doesn't exist, fall back to local storage
+          console.warn('NotificationContext: preferences column does not exist during update, saving to local storage only');
+          await NotificationService.saveSettings(newSettings);
+          return;
+        } else {
+          console.error('NotificationContext: Error saving to Supabase:', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint
+          });
+          await NotificationService.saveSettings(newSettings);
+          return;
+        }
       }
 
       // Also save to local storage as backup
       await NotificationService.saveSettings(newSettings);
       console.log('NotificationContext: Settings saved to Supabase successfully');
     } catch (error) {
-      console.error('NotificationContext: Error saving notification settings:', {
+      console.error('NotificationContext: Unexpected error saving notification settings:', {
         message: error instanceof Error ? error.message : 'Unknown error',
-        error: error
+        error: JSON.stringify(error, null, 2)
       });
       await NotificationService.saveSettings(newSettings);
     }
