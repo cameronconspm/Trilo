@@ -31,9 +31,9 @@ const LightColors = {
   savings: "#27AE60",           // Green - Savings
   
   // Calendar-specific accessible colors (WCAG AA compliant)
-  calendarExpense: "#DC2626",  // High contrast red for expenses
-  calendarPayday: "#059669",   // High contrast green for paydays
-  calendarRecurring: "#7C3AED", // Purple for recurring items
+  calendarExpense: "#B91C1C",  // Darker red for better contrast
+  calendarPayday: "#047857",   // Darker green for better contrast
+  calendarRecurring: "#6D28D9", // Darker purple for better contrast
   
   // Shadow colors
   shadowColor: "rgba(0, 0, 0, 0.12)",
@@ -72,9 +72,9 @@ const DarkColors = {
   savings: "#27AE60",           // Green - Savings
   
   // Calendar-specific accessible colors for dark mode
-  calendarExpense: "#F87171",  // Lighter red for dark mode contrast
-  calendarPayday: "#34D399",   // Lighter green for dark mode contrast
-  calendarRecurring: "#A78BFA", // Lighter purple for dark mode
+  calendarExpense: "#EF4444",  // Brighter red for dark mode contrast
+  calendarPayday: "#10B981",   // Brighter green for dark mode contrast
+  calendarRecurring: "#8B5CF6", // Brighter purple for dark mode
   
   // Shadow colors
   shadowColor: "rgba(0, 0, 0, 0.3)",

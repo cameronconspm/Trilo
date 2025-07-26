@@ -60,13 +60,15 @@ export default function InsightsScreen() {
     <>
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <Header 
-        title="Insights"
-        subtitle="Financial overview"
-      />
+      <View style={styles.headerContainer}>
+        <Header 
+          title="Insights"
+          subtitle="Financial overview"
+        />
+      </View>
       
       {/* Tab Switcher */}
-      <View style={[styles.tabSwitcher, { backgroundColor: colors.cardSecondary }]}>
+      <View style={[styles.tabSwitcher, { backgroundColor: colors.cardSecondary, ...Shadow.light }]}>
         <TouchableOpacity
           style={[
             styles.tabButton,
@@ -79,7 +81,8 @@ export default function InsightsScreen() {
           <TrendingUp size={16} color={activeTab === 'insights' ? colors.primary : colors.textSecondary} strokeWidth={2} />
           <Text style={[
             styles.tabButtonText,
-            { color: activeTab === 'insights' ? colors.text : colors.textSecondary }
+            { color: activeTab === 'insights' ? colors.text : colors.textSecondary },
+            activeTab === 'insights' && styles.activeTabText
           ]}>
             Insights
           </Text>
@@ -96,7 +99,8 @@ export default function InsightsScreen() {
           <CalendarIcon size={16} color={activeTab === 'calendar' ? colors.primary : colors.textSecondary} strokeWidth={2} />
           <Text style={[
             styles.tabButtonText,
-            { color: activeTab === 'calendar' ? colors.text : colors.textSecondary }
+            { color: activeTab === 'calendar' ? colors.text : colors.textSecondary },
+            activeTab === 'calendar' && styles.activeTabText
           ]}>
             Calendar
           </Text>
@@ -413,31 +417,42 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.md,
     lineHeight: 20,
   },
+  headerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tabSwitcher: {
     flexDirection: 'row',
     marginHorizontal: Spacing.screenHorizontal,
     marginTop: Spacing.sm,
     marginBottom: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    padding: 4,
+    borderRadius: BorderRadius.xl,
+    padding: 3,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
   },
   tabButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.lg,
     gap: Spacing.xs,
+    minHeight: 44, // iOS minimum tap target
   },
   activeTab: {
-    ...Shadow.light,
+    ...Shadow.medium,
+    elevation: 2,
   },
   tabButtonText: {
     fontSize: 15,
     fontWeight: '600',
     lineHeight: 20,
+    letterSpacing: -0.1,
+  },
+  activeTabText: {
+    fontWeight: '700',
   },
   calendarContainer: {
     flex: 1,

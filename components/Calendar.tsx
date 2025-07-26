@@ -166,7 +166,7 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
         style={[
           styles.dayCell,
           { backgroundColor: colors.card },
-          isToday && { backgroundColor: colors.primary },
+          isToday && { backgroundColor: colors.primary, ...Shadow.medium },
           hasActivity && styles.dayWithActivity,
         ]}
         onPress={() => handleDayPress(dayData)}
@@ -178,8 +178,9 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
       >
         <Text style={[
           styles.dayNumber,
-          { color: isToday ? colors.background : colors.text },
-          !hasActivity && { color: colors.textSecondary }
+          { color: isToday ? '#FFFFFF' : colors.text },
+          !hasActivity && { color: colors.textSecondary },
+          isToday && styles.todayText
         ]}>
           {dayData.date.getDate()}
         </Text>
@@ -400,19 +401,20 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   monthTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    letterSpacing: -0.3,
-    lineHeight: 24,
+    letterSpacing: -0.2,
+    lineHeight: 22,
+    textAlign: 'center',
   },
   daysHeader: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.sm,
     marginBottom: Spacing.md,
-    gap: Spacing.sm,
+    justifyContent: 'space-between',
   },
   dayHeaderText: {
-    flex: 1,
+    width: '13.5%', // Match day cell width
     textAlign: 'center',
     fontSize: 13,
     fontWeight: '600',
@@ -421,70 +423,90 @@ const styles = StyleSheet.create({
   },
   calendarContainer: {
     paddingHorizontal: Spacing.sm,
+    paddingBottom: Spacing.md,
   },
   calendar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm,
+    gap: Spacing.xs, // Reduced gap for better spacing
+    justifyContent: 'space-between',
   },
   emptyDay: {
-    width: `${(100 - (6 * 3)) / 7}%`,
+    width: '13.5%', // Consistent width calculation
     aspectRatio: 1,
+    margin: 1, // Small margin for consistent spacing
   },
   dayCell: {
-    width: `${(100 - (6 * 3)) / 7}%`,
+    width: '13.5%', // Consistent width calculation for even spacing
     aspectRatio: 1,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl, // More rounded for iOS style
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
     minHeight: 48,
+    margin: 1, // Small margin for consistent spacing
+    ...Shadow.light, // Always show subtle shadow
   },
   dayWithActivity: {
-    ...Shadow.light,
+    ...Shadow.medium, // Stronger shadow for active days
+    elevation: 3, // Android elevation
   },
   dayNumber: {
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 20,
     letterSpacing: -0.2,
+    textAlign: 'center',
+  },
+  todayText: {
+    fontWeight: '700',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   indicators: {
     position: 'absolute',
-    bottom: 4,
-    right: 4,
+    bottom: 3,
+    right: 3,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 2,
     flexWrap: 'wrap',
-    maxWidth: '80%',
+    maxWidth: '75%',
   },
   paydayIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)', // Subtle border for better visibility
   },
   expenseIndicator: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 3,
+    paddingHorizontal: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)', // Better contrast
   },
   expenseCount: {
-    fontSize: 10,
-    fontWeight: '700',
-    lineHeight: 12,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 13,
+    textAlign: 'center',
   },
   recurringBadge: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)', // Better contrast
   },
   legend: {
     flexDirection: 'row',
