@@ -7,10 +7,9 @@ import { Platform, Appearance, StatusBar } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { FinanceProvider } from "@/context/FinanceContext";
-import { SettingsProvider } from "@/context/SettingsContext";
+import { SettingsProvider, useSettings } from "@/context/SettingsContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { AuthProvider } from "@/context/AuthContext";
-import { useSettings } from "@/context/SettingsContext";
 import AuthWrapper from "@/components/AuthWrapper";
 
 export const unstable_settings = {
