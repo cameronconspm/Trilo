@@ -9,6 +9,7 @@ import Card from '@/components/Card';
 import TransactionItem from '@/components/TransactionItem';
 import { Transaction, Income } from '@/types/finance';
 import categories from '@/constants/categories';
+import { getPayDatesInRange } from '@/utils/payScheduleUtils';
 
 interface CalendarProps {
   onTransactionEdit?: (transaction: Transaction) => void;
@@ -83,11 +84,55 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
       const recurringTransactions = transactions.filter(t => {
         if (!t.isRecurring) return false;
         
+        // Handle expenses with given expense schedules
+        if (t.type === 'expense' && t.givenExpenseSchedule) {
+          const schedule = t.givenExpenseSchedule;
+          const startDate = new Date(schedule.startDate);
+          
+          console.log(`Calendar: Checking recurring expense ${t.name} with schedule:`, schedule);
+          
+          if (schedule.frequency === 'every_week') {
+            // Weekly: check if this date falls on the same day of week as start date
+            const daysDiff = Math.floor((date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+            const shouldShow = daysDiff >= 0 && daysDiff % 7 === 0;
+            console.log(`  Weekly check: daysDiff=${daysDiff}, shouldShow=${shouldShow}`);
+            return shouldShow;
+          } else if (schedule.frequency === 'every_other_week') {
+            // Bi-weekly: check if this date falls on the same day every 2 weeks
+            const daysDiff = Math.floor((date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+            const shouldShow = daysDiff >= 0 && daysDiff % 14 === 0;
+            console.log(`  Bi-weekly check: daysDiff=${daysDiff}, shouldShow=${shouldShow}`);
+            return shouldShow;
+          } else if (schedule.frequency === 'once_a_month') {
+            // Monthly: show on the same day of month as start date
+            const shouldShow = date.getDate() === startDate.getDate();
+            console.log(`  Monthly check: date=${date.getDate()}, startDate=${startDate.getDate()}, shouldShow=${shouldShow}`);
+            return shouldShow;
+          }
+          return false;
+        }
+        
+        // Handle income with pay schedules
+        if (t.type === 'income' && t.paySchedule) {
+          const payDates = getPayDatesInRange(t.paySchedule, date, date);
+          const shouldShow = payDates.length > 0;
+          console.log(`Calendar: Recurring income ${t.name} - payDates=${payDates.length}, shouldShow=${shouldShow}`);
+          return shouldShow;
+        }
+        
+        // Default recurring logic for other transactions
         const originalDate = new Date(t.date);
         const originalDay = originalDate.getDate();
         
         // Show recurring transaction on the same day of each month
-        return date.getDate() === originalDay;
+        const shouldShow = date.getDate() === originalDay;
+        console.log(`Calendar: Default recurring ${t.name} - originalDay=${originalDay}, currentDay=${date.getDate()}, shouldShow=${shouldShow}`);
+        return shouldShow;
+      });
+      
+      console.log(`Calendar: Day ${day} - Found ${recurringTransactions.length} recurring transactions`);
+      recurringTransactions.forEach(t => {
+        console.log(`  - ${t.name}: ${t.amount} (${t.type}, recurring: ${t.isRecurring})`);
       });
       
       // Combine all transactions for this day
@@ -95,27 +140,16 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
       
       // Find incomes for this day (paydays)
       const dayIncomes = incomes.filter(income => {
-        if (!income.paySchedule) return false;
+        if (!income.isActive || !income.paySchedule) return false;
         
-        // Check if this date matches any pay schedule
-        const schedule = income.paySchedule;
-        
-        if (schedule.cadence === 'weekly') {
-          const lastPaidDate = new Date(schedule.lastPaidDate);
-          const daysDiff = Math.floor((date.getTime() - lastPaidDate.getTime()) / (1000 * 60 * 60 * 24));
-          return daysDiff >= 0 && daysDiff % 7 === 0;
-        } else if (schedule.cadence === 'every_2_weeks') {
-          const lastPaidDate = new Date(schedule.lastPaidDate);
-          const daysDiff = Math.floor((date.getTime() - lastPaidDate.getTime()) / (1000 * 60 * 60 * 24));
-          return daysDiff >= 0 && daysDiff % 14 === 0;
-        } else if (schedule.cadence === 'monthly') {
-          const lastPaidDate = new Date(schedule.lastPaidDate);
-          return date.getDate() === lastPaidDate.getDate();
-        } else if (schedule.cadence === 'twice_monthly' && schedule.monthlyDays) {
-          return schedule.monthlyDays.includes(date.getDate());
-        }
-        
-        return false;
+        // Use the utility function to get pay dates for this specific day
+        const payDates = getPayDatesInRange(income.paySchedule, date, date);
+        return payDates.length > 0;
+      });
+      
+      console.log(`Calendar: Day ${day} - Found ${dayIncomes.length} income sources with pay dates`);
+      dayIncomes.forEach(income => {
+        console.log(`  - ${income.name}: ${income.amount} (${income.frequency})`);
       });
       
 
