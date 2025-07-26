@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Transaction, WeeklyOverview, MonthlyInsights, Budget, CategoryType, Income, SavingsGoal } from '@/types/finance';
+import { Transaction, WeeklyOverview, MonthlyInsights, Budget, CategoryType, Income, SavingsGoal, PaySchedule } from '@/types/finance';
 import categories from '@/constants/categories';
 import { getPayDatesInRange, getWeeklyIncomeAmount, formatPaySchedule } from '@/utils/payScheduleUtils';
 import { getCurrentPayPeriod } from '@/utils/payPeriodUtils';
@@ -130,7 +130,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [transactions.length]);
 
-  // Calculate insights whenever transactions change - real-time sync
+  // Calculate insights whenever transactions or incomes change - real-time sync
   useEffect(() => {
     if (!isLoading) {
       // Immediate calculation for real-time updates
@@ -140,12 +140,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       // Auto-backup every time data changes
       autoBackup();
     }
-  }, [transactions, isLoading]);
+  }, [transactions, incomes, isLoading]);
 
-  // Additional effect to ensure immediate UI updates when transactions are modified
+  // Additional effect to ensure immediate UI updates when transactions or incomes are modified
   useEffect(() => {
-    if (!isLoading && transactions.length >= 0) {
-      // Force recalculation on any transaction array change
+    if (!isLoading && (transactions.length >= 0 || incomes.length >= 0)) {
+      // Force recalculation on any data array change
       const timeoutId = setTimeout(() => {
         calculateWeeklyOverview();
         calculateMonthlyInsights();
@@ -154,7 +154,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [transactions.length, isLoading]);
+  }, [transactions.length, incomes.length, isLoading]);
 
   const loadAllData = async () => {
     if (!userId) {
@@ -298,7 +298,24 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       console.log('FinanceContext: Found', incomeTransactions.length, 'income transactions in current pay period');
       
       // Sum all income transactions in this period
-      periodIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
+      let transactionIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
+      console.log('FinanceContext: Total transaction income:', transactionIncome);
+      
+      // Calculate income from Income entries with pay schedules
+      let scheduleIncome = 0;
+      incomes.forEach(income => {
+        if (!income.isActive || !income.paySchedule) return;
+        
+        // Get pay dates for this income within the current pay period
+        const payDates = getPayDatesInRange(income.paySchedule, periodStartDate, periodEndDate);
+        const incomeAmount = payDates.length * income.amount;
+        scheduleIncome += incomeAmount;
+        
+        console.log('FinanceContext: Income', income.name, 'contributes', incomeAmount, 'from', payDates.length, 'pay dates in period');
+      });
+      
+      console.log('FinanceContext: Total schedule income:', scheduleIncome);
+      periodIncome = transactionIncome + scheduleIncome;
       console.log('FinanceContext: Total period income:', periodIncome);
     } else {
       // Fallback to weekly calculation if no pay period found
@@ -307,6 +324,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       periodEndDate = new Date(periodStartDate);
       periodEndDate.setDate(periodStartDate.getDate() + 6);
       periodEndDate.setHours(23, 59, 59, 999);
+      
+      // Calculate income for the week from Income entries
+      incomes.forEach(income => {
+        if (!income.isActive || !income.paySchedule) return;
+        
+        const payDates = getPayDatesInRange(income.paySchedule, periodStartDate, periodEndDate);
+        periodIncome += payDates.length * income.amount;
+      });
     }
 
     // Get all expense transactions and resolve their dates to the current pay period
@@ -497,6 +522,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     
     let monthlyIncome = 0;
+    
+    // Calculate income from transaction-based income entries
     const incomeTransactions = transactions.filter(t => t.type === 'income' && t.isRecurring);
     
     incomeTransactions.forEach(transaction => {
@@ -509,6 +536,19 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         monthlyIncome += transaction.amount;
       }
     });
+    
+    // Calculate income from Income entries with pay schedules
+    incomes.forEach(income => {
+      if (!income.isActive || !income.paySchedule) return;
+      
+      // Get pay dates for this income within the current month
+      const payDates = getPayDatesInRange(income.paySchedule, startOfMonth, endOfMonth);
+      monthlyIncome += payDates.length * income.amount;
+      
+      console.log('FinanceContext: Budget - Income', income.name, 'contributes', payDates.length * income.amount, 'from', payDates.length, 'pay dates in month');
+    });
+    
+    console.log('FinanceContext: Total monthly income for budget:', monthlyIncome);
 
     // Calculate recurring expenses (excluding given expenses which are handled separately)
     const recurringExpenses = transactions
@@ -712,8 +752,49 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('FinanceContext: Adding income', income);
       
+      // Create a proper PaySchedule based on the frequency and start date
+      let paySchedule: PaySchedule | undefined;
+      const startDate = new Date(income.startDate);
+      
+      switch (income.frequency) {
+        case 'weekly':
+          paySchedule = {
+            cadence: 'weekly',
+            lastPaidDate: startDate.toISOString()
+          };
+          break;
+        case 'bi_weekly':
+          paySchedule = {
+            cadence: 'every_2_weeks',
+            lastPaidDate: startDate.toISOString()
+          };
+          break;
+        case 'monthly':
+          paySchedule = {
+            cadence: 'monthly',
+            lastPaidDate: startDate.toISOString()
+          };
+          break;
+        case 'yearly':
+          // For yearly, we'll treat it as monthly for now
+          // Could be enhanced to handle yearly properly
+          paySchedule = {
+            cadence: 'monthly',
+            lastPaidDate: startDate.toISOString()
+          };
+          break;
+      }
+      
+      // Create the income with the generated pay schedule
+      const incomeWithSchedule: Omit<Income, 'id'> = {
+        ...income,
+        paySchedule
+      };
+      
+      console.log('FinanceContext: Created pay schedule for income:', paySchedule);
+      
       // Convert to Supabase format and save
-      const supabaseIncome = convertIncomeToSupabase(income);
+      const supabaseIncome = convertIncomeToSupabase(incomeWithSchedule);
       const savedIncome = await incomeService.addIncome(userId, supabaseIncome);
       
       // Convert back to app format
@@ -723,7 +804,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       // Update state immediately for real-time sync
       setIncomes(updatedIncomes);
       
-      console.log('FinanceContext: Income added successfully');
+      console.log('FinanceContext: Income added successfully with pay schedule');
     } catch (error) {
       console.error('FinanceContext: Error adding income:', JSON.stringify(error, null, 2));
       
