@@ -586,7 +586,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       
       console.log('FinanceContext: Transaction added successfully');
     } catch (error) {
-      console.error('FinanceContext: Error adding transaction:', error);
+      console.error('FinanceContext: Error adding transaction:', JSON.stringify(error, null, 2));
+      
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+      }
+      
       // Revert state on error
       setTransactions(transactions);
       throw error;
@@ -669,7 +674,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       
       console.log('FinanceContext: Income added successfully');
     } catch (error) {
-      console.error('FinanceContext: Error adding income:', error);
+      console.error('FinanceContext: Error adding income:', JSON.stringify(error, null, 2));
+      
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+      }
+      
       // Revert state on error
       setIncomes(incomes);
       throw error;
