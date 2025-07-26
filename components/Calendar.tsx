@@ -475,13 +475,14 @@ const styles = StyleSheet.create({
   },
   calendarRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: Spacing.xs,
   },
   emptyDay: {
     width: '14.28%', // 1/7 of the width
     aspectRatio: 1,
-    marginBottom: 1,
+    marginHorizontal: 1,
   },
   dayCell: {
     width: '14.28%', // 1/7 of the width
@@ -490,7 +491,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    marginBottom: 1,
+    marginHorizontal: 1,
     minHeight: 44,
     ...Shadow.light,
   },
@@ -576,16 +577,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: Spacing.lg,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
+    gap: Spacing.xl,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     borderRadius: BorderRadius.lg,
     marginTop: Spacing.lg,
+    marginHorizontal: Spacing.sm,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
   },
   legendText: {
     fontSize: 12,
