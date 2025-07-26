@@ -101,7 +101,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('SettingsContext: Error loading from Supabase:', error);
+        console.error('SettingsContext: Error loading from Supabase:', JSON.stringify(error, null, 2));
+        
+        if (error instanceof Error) {
+          console.error('Error message:', error.message);
+        }
         // Fallback to local storage
         await loadFromLocalStorage();
         return;
