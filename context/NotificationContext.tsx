@@ -116,12 +116,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('NotificationContext: Error loading from Supabase:', {
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint
-        });
+        console.error('NotificationContext: Error loading from Supabase:', JSON.stringify(error, null, 2));
+        
+        if (error instanceof Error) {
+          console.error('Error message:', error.message);
+        }
         return await NotificationService.loadSettings();
       }
 
