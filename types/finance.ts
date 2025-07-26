@@ -104,6 +104,19 @@ export interface SavingsGoal {
   contributions?: SavingsContribution[];
 }
 
+export type IncomeFrequency = 'weekly' | 'bi_weekly' | 'monthly' | 'yearly';
+
+export interface Income {
+  id: string;
+  name: string;
+  amount: number;
+  frequency: IncomeFrequency;
+  startDate: string; // ISO string
+  endDate?: string; // ISO string
+  isActive: boolean;
+  paySchedule?: PaySchedule;
+}
+
 export interface MonthlyInsights {
   totalSpent: number;
   totalSaved: number;

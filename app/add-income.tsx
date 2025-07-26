@@ -6,15 +6,17 @@ import { useFinance } from '@/context/FinanceContext';
 import Button from '@/components/Button';
 import Colors from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
+import { IncomeFrequency } from '@/types/finance';
 
 export default function AddIncomeScreen() {
   const router = useRouter();
-  const { addTransaction } = useFinance();
+  const { addIncome } = useFinance();
   
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
-  const [isRecurring, setIsRecurring] = useState(true);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [frequency, setFrequency] = useState<IncomeFrequency>('monthly');
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isActive, setIsActive] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   
   const handleSubmit = async () => {
@@ -31,7 +33,7 @@ export default function AddIncomeScreen() {
     }
 
     // Validate date format
-    const selectedDate = new Date(date);
+    const selectedDate = new Date(startDate);
     if (isNaN(selectedDate.getTime())) {
       Alert.alert('Invalid Date', 'Please enter a valid date in YYYY-MM-DD format');
       return;
@@ -40,19 +42,18 @@ export default function AddIncomeScreen() {
     setIsLoading(true);
     
     try {
-      await addTransaction({
+      await addIncome({
         name: name.trim(),
         amount: numAmount,
-        category: 'income',
-        date: selectedDate.toISOString(),
-        type: 'income',
-        isRecurring,
+        frequency,
+        startDate: selectedDate.toISOString(),
+        isActive,
       });
       
       // Show success message
       Alert.alert(
-        'Income Added',
-        `${name} for $${numAmount.toFixed(2)} has been added successfully.`,
+        'Income Source Added',
+        `${name} (${frequency}) for ${numAmount.toFixed(2)} has been added successfully.`,
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (error) {
@@ -147,46 +148,60 @@ export default function AddIncomeScreen() {
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Date *</Text>
+            <Text style={styles.label}>Frequency *</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.frequencyContainer}>
+              {(['weekly', 'bi_weekly', 'monthly', 'yearly'] as IncomeFrequency[]).map((freq) => (
+                <Button
+                  key={freq}
+                  title={freq.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  onPress={() => setFrequency(freq)}
+                  variant={frequency === freq ? 'primary' : 'outline'}
+                  size="small"
+                  style={styles.frequencyButton}
+                />
+              ))}
+            </ScrollView>
+          </View>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Start Date *</Text>
             <TextInput
               style={styles.input}
-              value={date}
-              onChangeText={setDate}
+              value={startDate}
+              onChangeText={setStartDate}
               placeholder="YYYY-MM-DD"
               placeholderTextColor={Colors.inactive}
               keyboardType="numbers-and-punctuation"
               maxLength={10}
             />
             <Text style={styles.helperText}>
-              When you received or will receive this income
+              When this income source starts
             </Text>
           </View>
           
           <View style={styles.switchContainer}>
             <View style={styles.switchTextContainer}>
-              <Text style={styles.switchLabel}>Recurring Income</Text>
+              <Text style={styles.switchLabel}>Active Income Source</Text>
               <Text style={styles.switchSubtitle}>
-                {isRecurring 
-                  ? 'This income repeats regularly (salary, pension)' 
-                  : 'One-time income (bonus, gift, freelance project)'
+                {isActive 
+                  ? 'This income source is currently active' 
+                  : 'This income source is inactive or ended'
                 }
               </Text>
             </View>
             <Switch
-              value={isRecurring}
-              onValueChange={setIsRecurring}
+              value={isActive}
+              onValueChange={setIsActive}
               trackColor={{ false: Colors.border, true: Colors.primary }}
               thumbColor={Colors.card}
             />
           </View>
           
-          {isRecurring && (
-            <View style={styles.recurringNote}>
-              <Text style={styles.recurringNoteText}>
-                💡 Recurring income helps with accurate budget planning and weekly overviews
-              </Text>
-            </View>
-          )}
+          <View style={styles.recurringNote}>
+            <Text style={styles.recurringNoteText}>
+              💡 Income sources help with accurate budget planning and financial tracking
+            </Text>
+          </View>
         </View>
       </ScrollView>
       
@@ -199,7 +214,7 @@ export default function AddIncomeScreen() {
           style={styles.cancelButton}
         />
         <Button
-          title="Add Income"
+          title="Add Income Source"
           onPress={handleSubmit}
           variant="primary"
           size="large"
@@ -355,5 +370,12 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flex: 2,
+  },
+  frequencyContainer: {
+    marginBottom: Spacing.sm,
+  },
+  frequencyButton: {
+    marginRight: Spacing.sm,
+    minWidth: 80,
   },
 });

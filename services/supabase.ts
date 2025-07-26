@@ -40,6 +40,20 @@ export interface UserTransaction {
   updated_at?: string;
 }
 
+export interface UserIncome {
+  id: string;
+  user_id: string;
+  name: string;
+  amount: number;
+  frequency: 'weekly' | 'bi_weekly' | 'monthly' | 'yearly';
+  start_date: string;
+  end_date?: string;
+  is_active: boolean;
+  pay_schedule?: any;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Transaction service functions
 export const transactionService = {
   // Get all transactions for a user
@@ -118,5 +132,103 @@ export const transactionService = {
       console.error('Error clearing transactions:', error);
       throw error;
     }
+  }
+};
+
+// Income service functions
+export const incomeService = {
+  // Get all income sources for a user
+  async getIncomes(userId: string): Promise<UserIncome[]> {
+    const { data, error } = await supabase
+      .from('user_income')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching incomes:', error);
+      throw error;
+    }
+    
+    return data || [];
+  },
+
+  // Add a new income source
+  async addIncome(userId: string, income: Omit<UserIncome, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<UserIncome> {
+    const { data, error } = await supabase
+      .from('user_income')
+      .insert({
+        user_id: userId,
+        ...income
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error adding income:', error);
+      throw error;
+    }
+    
+    return data;
+  },
+
+  // Update an income source
+  async updateIncome(id: string, updates: Partial<Omit<UserIncome, 'id' | 'user_id' | 'created_at'>>): Promise<UserIncome> {
+    const { data, error } = await supabase
+      .from('user_income')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating income:', error);
+      throw error;
+    }
+    
+    return data;
+  },
+
+  // Delete an income source
+  async deleteIncome(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('user_income')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error deleting income:', error);
+      throw error;
+    }
+  },
+
+  // Clear all income sources for a user
+  async clearAllIncomes(userId: string): Promise<void> {
+    const { error } = await supabase
+      .from('user_income')
+      .delete()
+      .eq('user_id', userId);
+    
+    if (error) {
+      console.error('Error clearing incomes:', error);
+      throw error;
+    }
+  },
+
+  // Get active income sources
+  async getActiveIncomes(userId: string): Promise<UserIncome[]> {
+    const { data, error } = await supabase
+      .from('user_income')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching active incomes:', error);
+      throw error;
+    }
+    
+    return data || [];
   }
 };
