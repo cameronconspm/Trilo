@@ -277,21 +277,14 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
           {dayData.date.getDate()}
         </Text>
         
-        {/* Expense notification bubble */}
+        {/* Expense notification bubble - top right */}
         {totalExpenses > 0 && (
           <View style={styles.notificationBubble}>
             <Text style={styles.notificationText}>{totalExpenses}</Text>
           </View>
         )}
         
-        {/* Income indicator (small green dot) */}
-        {totalIncomes > 0 && (
-          <View style={styles.incomeIndicator}>
-            <Text style={styles.incomeIndicatorText}>{totalIncomes}</Text>
-          </View>
-        )}
-        
-        {/* Payday green line indicator */}
+        {/* Payday green line indicator - below the number */}
         {dayData.isPayday && (
           <View style={styles.paydayLine} />
         )}
@@ -351,20 +344,14 @@ export default function Calendar({ onTransactionEdit }: CalendarProps) {
       {/* Legend */}
       <View style={[styles.legend, { backgroundColor: colors.cardSecondary }]}>
         <View style={styles.legendItem}>
-          <View style={styles.paydayLine} />
+          <View style={styles.legendPaydayLine} />
           <Text style={[styles.legendText, { color: colors.textSecondary }]}>Payday</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={styles.notificationBubble}>
-            <Text style={styles.notificationText}>1</Text>
+          <View style={styles.legendNotificationBubble}>
+            <Text style={styles.legendNotificationText}>1</Text>
           </View>
           <Text style={[styles.legendText, { color: colors.textSecondary }]}>Expenses</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={styles.incomeIndicator}>
-            <Text style={styles.incomeIndicatorText}>1</Text>
-          </View>
-          <Text style={[styles.legendText, { color: colors.textSecondary }]}>Income</Text>
         </View>
       </View>
 
@@ -538,24 +525,31 @@ const styles = StyleSheet.create({
   dayCell: {
     width: '14.28%', // 1/7 of the width
     aspectRatio: 1,
-    borderRadius: BorderRadius.md,
+    borderRadius: 8,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     position: 'relative',
     marginHorizontal: 1,
     minHeight: 44,
-    ...Shadow.light,
+    paddingTop: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   dayWithActivity: {
-    ...Shadow.medium, // Stronger shadow for active days
-    elevation: 3, // Android elevation
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   dayNumber: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     lineHeight: 20,
     letterSpacing: -0.2,
     textAlign: 'center',
+    marginBottom: 2,
   },
   todayText: {
     fontWeight: '700',
@@ -565,66 +559,38 @@ const styles = StyleSheet.create({
   },
   notificationBubble: {
     position: 'absolute',
-    top: -2,
-    right: -2,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#FF3B30', // Apple's red color
+    top: 2,
+    right: 2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FF3B30',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 2,
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
     borderColor: '#FFFFFF',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
+    shadowOpacity: 0.15,
+    shadowRadius: 1.5,
+    elevation: 2,
   },
   notificationText: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
-    lineHeight: 13,
+    lineHeight: 12,
     textAlign: 'center',
   },
   paydayLine: {
-    position: 'absolute',
-    bottom: 4,
-    left: '50%',
-    marginLeft: -12,
-    width: 24,
-    height: 3,
-    backgroundColor: '#27AE60', // Green color for payday
-    borderRadius: 1.5,
+    width: 20,
+    height: 2,
+    backgroundColor: '#34C759',
+    borderRadius: 1,
+    marginTop: 2,
   },
-  incomeIndicator: {
-    position: 'absolute',
-    top: -2,
-    left: -2,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#27AE60', // Green color for income
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  incomeIndicatorText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-    lineHeight: 13,
-    textAlign: 'center',
-  },
+
   expenseIndicator: {
     minWidth: 20,
     height: 20,
@@ -654,7 +620,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: Spacing.xxl,
+    gap: Spacing.xxl * 1.5,
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.xl,
     borderRadius: BorderRadius.lg,
@@ -666,12 +632,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    minWidth: 60,
+    minWidth: 70,
   },
   legendText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '500',
     lineHeight: 16,
+    textAlign: 'center',
+  },
+  legendPaydayLine: {
+    width: 20,
+    height: 2,
+    backgroundColor: '#34C759',
+    borderRadius: 1,
+  },
+  legendNotificationBubble: {
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FF3B30',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 1.5,
+    elevation: 2,
+  },
+  legendNotificationText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 12,
     textAlign: 'center',
   },
   legendCategoryContainer: {
