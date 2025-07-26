@@ -116,7 +116,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('NotificationContext: Error loading from Supabase:', error);
+        console.error('NotificationContext: Error loading from Supabase:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
         return await NotificationService.loadSettings();
       }
 
@@ -132,7 +137,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         return localSettings;
       }
     } catch (error) {
-      console.error('NotificationContext: Error loading notification settings:', error);
+      console.error('NotificationContext: Error loading notification settings:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error: error
+      });
       return await NotificationService.loadSettings();
     }
   };
@@ -153,7 +161,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         .single();
 
       if (fetchError && fetchError.code !== 'PGRST116') {
-        console.error('NotificationContext: Error fetching preferences:', fetchError);
+        console.error('NotificationContext: Error fetching preferences:', {
+          message: fetchError.message,
+          code: fetchError.code,
+          details: fetchError.details,
+          hint: fetchError.hint
+        });
         await NotificationService.saveSettings(newSettings);
         return;
       }
@@ -171,7 +184,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         .eq('id', userId);
 
       if (error) {
-        console.error('NotificationContext: Error saving to Supabase:', error);
+        console.error('NotificationContext: Error saving to Supabase:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
         await NotificationService.saveSettings(newSettings);
         return;
       }
@@ -180,7 +198,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       await NotificationService.saveSettings(newSettings);
       console.log('NotificationContext: Settings saved to Supabase successfully');
     } catch (error) {
-      console.error('NotificationContext: Error saving notification settings:', error);
+      console.error('NotificationContext: Error saving notification settings:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error: error
+      });
       await NotificationService.saveSettings(newSettings);
     }
   };
