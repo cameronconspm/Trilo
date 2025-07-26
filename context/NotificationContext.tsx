@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import NotificationService, { NotificationSettings } from '@/services/NotificationService';
 import { useFinance } from './FinanceContext';
+import { useAuth } from './AuthContext';
+import { supabase } from '@/services/supabase';
 
 interface NotificationContextType {
   settings: NotificationSettings;
@@ -13,14 +15,21 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
+  const { userId, isAuthenticated } = useAuth();
   const [settings, setSettings] = useState<NotificationSettings>(NotificationService.getSettings());
   const [isLoading, setIsLoading] = useState(true);
   const [hasPermission, setHasPermission] = useState(false);
   const { transactions } = useFinance();
 
   useEffect(() => {
-    initializeNotifications();
-  }, []);
+    if (isAuthenticated && userId) {
+      initializeNotifications();
+    } else if (!isAuthenticated) {
+      // Reset to defaults when logged out
+      setSettings(NotificationService.getSettings());
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, userId]);
 
   // Check for external data clearing (like reset data)
   useEffect(() => {
@@ -59,9 +68,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [settings.expenseReminders, settings.paydayReminder, hasPermission, isLoading]);
 
   const initializeNotifications = async () => {
+    if (!userId) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       await NotificationService.initialize();
-      const loadedSettings = await NotificationService.loadSettings();
+      
+      // Load settings from Supabase first
+      const loadedSettings = await loadNotificationSettings();
       setSettings(loadedSettings);
       
       const permission = await NotificationService.requestPermissions();
@@ -86,10 +102,94 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   };
 
+  const loadNotificationSettings = async (): Promise<NotificationSettings> => {
+    if (!userId) {
+      return NotificationService.getSettings();
+    }
+
+    try {
+      // Load from Supabase
+      const { data: userProfile, error } = await supabase
+        .from('app_users')
+        .select('preferences')
+        .eq('id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('NotificationContext: Error loading from Supabase:', error);
+        return await NotificationService.loadSettings();
+      }
+
+      if (userProfile?.preferences?.notificationSettings) {
+        const settings = userProfile.preferences.notificationSettings as NotificationSettings;
+        // Update local storage as backup
+        await NotificationService.saveSettings(settings);
+        return settings;
+      } else {
+        // No settings in Supabase, migrate from local storage
+        const localSettings = await NotificationService.loadSettings();
+        await saveNotificationSettings(localSettings);
+        return localSettings;
+      }
+    } catch (error) {
+      console.error('NotificationContext: Error loading notification settings:', error);
+      return await NotificationService.loadSettings();
+    }
+  };
+
+  const saveNotificationSettings = async (newSettings: NotificationSettings) => {
+    if (!userId) {
+      console.warn('NotificationContext: No user ID, saving to local storage only');
+      await NotificationService.saveSettings(newSettings);
+      return;
+    }
+
+    try {
+      // Get current preferences
+      const { data: userProfile, error: fetchError } = await supabase
+        .from('app_users')
+        .select('preferences')
+        .eq('id', userId)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('NotificationContext: Error fetching preferences:', fetchError);
+        await NotificationService.saveSettings(newSettings);
+        return;
+      }
+
+      const currentPreferences = userProfile?.preferences || {};
+      const updatedPreferences = {
+        ...currentPreferences,
+        notificationSettings: newSettings
+      };
+
+      // Save to Supabase
+      const { error } = await supabase
+        .from('app_users')
+        .update({ preferences: updatedPreferences })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('NotificationContext: Error saving to Supabase:', error);
+        await NotificationService.saveSettings(newSettings);
+        return;
+      }
+
+      // Also save to local storage as backup
+      await NotificationService.saveSettings(newSettings);
+      console.log('NotificationContext: Settings saved to Supabase successfully');
+    } catch (error) {
+      console.error('NotificationContext: Error saving notification settings:', error);
+      await NotificationService.saveSettings(newSettings);
+    }
+  };
+
   const updateSettings = async (newSettings: Partial<NotificationSettings>) => {
     try {
-      await NotificationService.saveSettings(newSettings);
-      setSettings(NotificationService.getSettings());
+      const updatedSettings = { ...settings, ...newSettings };
+      await saveNotificationSettings(updatedSettings);
+      setSettings(updatedSettings);
     } catch (error) {
       console.error('Failed to update notification settings:', error);
       throw error;
