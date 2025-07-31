@@ -21,7 +21,7 @@ export default function OverviewScreen() {
   const colors = useThemeColors(theme);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
-  const { weekIncome, remainingBalance, utilization, contributions, upcomingExpenses, currentPayPeriod } = weeklyOverview;
+  const { weekIncome, remainingBalance, utilization, contributions, upcomingExpenses, pastExpenses, currentPayPeriod } = weeklyOverview;
   
   // Get current month and year
   const today = new Date();
@@ -30,6 +30,7 @@ export default function OverviewScreen() {
   
   const hasContributions = Object.keys(contributions).length > 0;
   const hasUpcomingExpenses = upcomingExpenses.length > 0;
+  const hasPastExpenses = pastExpenses.length > 0;
   
   const handleEditTransaction = (transaction: Transaction) => {
     setEditTransaction(transaction);
@@ -130,6 +131,27 @@ export default function OverviewScreen() {
               icon="trending"
               title="No upcoming expenses"
               subtitle="You're all caught up for this pay period!"
+            />
+          )}
+        </Card>
+        
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Past Expenses</Text>
+        <Card variant="default">
+          {hasPastExpenses ? (
+            pastExpenses.map((expense, index) => (
+              <TransactionItem 
+                key={expense.id} 
+                transaction={expense}
+                isLast={index === pastExpenses.length - 1}
+                onEdit={handleEditTransaction}
+                enableSwipeActions={true}
+              />
+            ))
+          ) : (
+            <EmptyState 
+              icon="history"
+              title="No past expenses"
+              subtitle="No expenses recorded for this pay period yet."
             />
           )}
         </Card>
