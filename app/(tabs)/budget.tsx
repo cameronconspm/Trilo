@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   summaryCard: {
-    minHeight: 120, // Consistent card height
+    marginBottom: Spacing.md,
   },
   budgetHeader: {
     marginBottom: Spacing.lg,
@@ -444,12 +444,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   progressContainer: {
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   remainingContainer: {
     alignItems: 'center',
-    marginBottom: Spacing.lg,
-    paddingVertical: Spacing.lg,
+    marginBottom: Spacing.md,
+    paddingVertical: Spacing.md,
     borderRadius: BorderRadius.lg,
   },
   remainingLabel: {
@@ -466,7 +466,9 @@ const styles = StyleSheet.create({
   },
   breakdownContainer: {
     borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.sm,
   },
   breakdownTitle: {
     fontSize: 16,
@@ -479,8 +481,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: Spacing.rowMinHeight, // 44px minimum row height
-    marginVertical: Spacing.xs,
+    minHeight: 36,
+    paddingVertical: Spacing.xs,
   },
   breakdownLabel: {
     fontSize: 15, // Balanced body label font
@@ -497,8 +499,8 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     flexDirection: 'row',
-    marginBottom: Spacing.sectionSpacing, // Equal margin above buttons
-    gap: Spacing.cardMargin, // 16px gap between buttons
+    marginBottom: Spacing.xl,
+    gap: Spacing.cardMargin,
   },
   actionButton: {
     flex: 1,
@@ -507,8 +509,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: Spacing.sectionSpacing,
-    marginBottom: Spacing.lg,
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.md,
   },
   sectionTitle: {
     fontSize: 18, // Balanced section header font
