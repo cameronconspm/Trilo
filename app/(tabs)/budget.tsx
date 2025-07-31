@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Plus } from 'lucide-react-native';
+import { Plus, Target, DollarSign, Edit3, Trash2 } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
+import { useSavings, SavingsGoal } from '@/context/SavingsContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useThemeColors } from '@/constants/colors';
 import { useAlert } from '@/hooks/useAlert';
@@ -14,18 +15,23 @@ import ProgressBar from '@/components/ProgressBar';
 import TransactionItem from '@/components/TransactionItem';
 import EmptyState from '@/components/EmptyState';
 import AddTransactionModal from '@/components/AddTransactionModal';
+import SavingsGoalModal from '@/components/SavingsGoalModal';
 import AlertModal from '@/components/AlertModal';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 import { Transaction } from '@/types/finance';
 
 export default function BudgetScreen() {
   const { budget, transactions, isLoading } = useFinance();
+  const { savingsGoals, addSavingsGoal, updateSavingsGoal, deleteSavingsGoal, isLoading: savingsLoading } = useSavings();
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
   const { alertState, showAlert, hideAlert } = useAlert();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
   const [modalTransactionType, setModalTransactionType] = useState<'income' | 'expense'>('expense');
+  const [activeView, setActiveView] = useState<'budget' | 'savings'>('budget');
+  const [showSavingsModal, setShowSavingsModal] = useState(false);
+  const [editSavingsGoal, setEditSavingsGoal] = useState<SavingsGoal | undefined>(undefined);
   
   // Get current month transactions
   const today = new Date();
@@ -82,7 +88,48 @@ export default function BudgetScreen() {
     setModalTransactionType('expense');
   };
   
-  if (isLoading) {
+  const handleSavingsGoalSave = (goal: SavingsGoal) => {
+    if (editSavingsGoal) {
+      updateSavingsGoal(goal);
+    } else {
+      addSavingsGoal(goal);
+    }
+  };
+  
+  const handleEditSavingsGoal = (goal: SavingsGoal) => {
+    setEditSavingsGoal(goal);
+    setShowSavingsModal(true);
+  };
+  
+  const handleDeleteSavingsGoal = (goalId: string) => {
+    showAlert({
+      title: 'Delete Savings Goal',
+      message: 'Are you sure you want to delete this savings goal? This action cannot be undone.',
+      type: 'destructive',
+      actions: [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: hideAlert,
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteSavingsGoal(goalId);
+            hideAlert();
+          },
+        },
+      ],
+    });
+  };
+  
+  const handleCloseSavingsModal = () => {
+    setShowSavingsModal(false);
+    setEditSavingsGoal(undefined);
+  };
+  
+  if (isLoading || savingsLoading) {
     return (
       <>
         <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
@@ -115,11 +162,64 @@ export default function BudgetScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
         >
-          {/* Budget Overview Card */}
-          <Card variant="elevated" style={styles.summaryCard}>
-            <View style={styles.budgetHeader}>
-              <Text style={[styles.budgetTitle, { color: colors.text }]}>Monthly Budget</Text>
-            </View>
+          {/* View Toggle */}
+          <View style={styles.viewToggle}>
+            <TouchableOpacity
+              style={[
+                styles.toggleButton,
+                {
+                  backgroundColor: activeView === 'budget' ? colors.primary : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setActiveView('budget')}
+              activeOpacity={0.7}
+            >
+              <DollarSign 
+                size={18} 
+                color={activeView === 'budget' ? colors.card : colors.textSecondary} 
+                strokeWidth={2}
+              />
+              <Text style={[
+                styles.toggleText,
+                { color: activeView === 'budget' ? colors.card : colors.textSecondary }
+              ]}>
+                Budget
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.toggleButton,
+                {
+                  backgroundColor: activeView === 'savings' ? colors.primary : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setActiveView('savings')}
+              activeOpacity={0.7}
+            >
+              <Target 
+                size={18} 
+                color={activeView === 'savings' ? colors.card : colors.textSecondary} 
+                strokeWidth={2}
+              />
+              <Text style={[
+                styles.toggleText,
+                { color: activeView === 'savings' ? colors.card : colors.textSecondary }
+              ]}>
+                Savings
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          {activeView === 'budget' ? (
+            <>
+              {/* Budget Overview Card */}
+              <Card variant="elevated" style={styles.summaryCard}>
+                <View style={styles.budgetHeader}>
+                  <Text style={[styles.budgetTitle, { color: colors.text }]}>Monthly Budget</Text>
+                </View>
             
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
@@ -173,199 +273,281 @@ export default function BudgetScreen() {
                 <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Savings</Text>
                 <Text style={[styles.breakdownValue, { color: colors.text }]}>${budget.expenses.savings.toFixed(2)}</Text>
               </View>
-            </View>
-          </Card>
+                </View>
+              </Card>
 
-          {/* Quick Actions */}
-          <View style={styles.quickActions}>
-            <Button
-              title="Add Expense"
-              onPress={() => {
-                setModalTransactionType('expense');
-                setShowAddModal(true);
-              }}
-              variant="primary"
-              size="medium"
-              style={styles.actionButton}
-            />
-            <Button
-              title="Add Income"
-              onPress={handleAddIncome}
-              variant="ghost"
-              size="medium"
-              style={styles.actionButton}
-            />
-          </View>
-          
-          {/* Income Section */}
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Income</Text>
-            <TouchableOpacity 
-              onPress={() => {
-                setModalTransactionType('income');
-                setShowAddModal(true);
-              }}
-              style={[styles.addButton, { backgroundColor: colors.card }]}
-              activeOpacity={0.7}
-            >
-              <Plus size={20} color={colors.primary} strokeWidth={2.5} />
-            </TouchableOpacity>
-          </View>
-          <Card>
-            {incomeTransactions.length > 0 ? (
-              incomeTransactions.map((income, index) => (
-                <TransactionItem 
-                  key={income.id} 
-                  transaction={income}
-                  isLast={index === incomeTransactions.length - 1}
-                  onEdit={handleEditTransaction}
-                  enableSwipeActions={true}
+              {/* Quick Actions */}
+              <View style={styles.quickActions}>
+                <Button
+                  title="Add Expense"
+                  onPress={() => {
+                    setModalTransactionType('expense');
+                    setShowAddModal(true);
+                  }}
+                  variant="primary"
+                  size="medium"
+                  style={styles.actionButton}
                 />
-              ))
-            ) : (
-              <EmptyState 
-                icon="dollar"
-                title="No income this month"
-                subtitle="Add your salary, freelance work, or other income sources"
-              />
-            )}
-          </Card>
-          
-          {/* Given Expenses Section */}
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Given Expenses</Text>
-            <TouchableOpacity 
-              onPress={() => {
-                setModalTransactionType('expense');
-                setShowAddModal(true);
-              }}
-              style={[styles.addButton, { backgroundColor: colors.card }]}
-              activeOpacity={0.7}
-            >
-              <Plus size={20} color={colors.primary} strokeWidth={2.5} />
-            </TouchableOpacity>
-          </View>
-          <Card>
-            {givenExpenses.length > 0 ? (
-              givenExpenses.map((expense, index) => (
-                <TransactionItem 
-                  key={expense.id} 
-                  transaction={expense}
-                  isLast={index === givenExpenses.length - 1}
-                  onEdit={handleEditTransaction}
-                  enableSwipeActions={true}
+                <Button
+                  title="Add Income"
+                  onPress={handleAddIncome}
+                  variant="ghost"
+                  size="medium"
+                  style={styles.actionButton}
                 />
-              ))
-            ) : (
-              <EmptyState 
-                icon="dollar"
-                title="No given expenses"
-                subtitle="Add essential expenses like bills, debt payments, and subscriptions"
-              />
-            )}
-          </Card>
-          
-          {/* Savings Section */}
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Savings</Text>
-            <TouchableOpacity 
-              onPress={() => {
-                setModalTransactionType('expense');
-                setShowAddModal(true);
-              }}
-              style={[styles.addButton, { backgroundColor: colors.card }]}
-              activeOpacity={0.7}
-            >
-              <Plus size={20} color={colors.primary} strokeWidth={2.5} />
-            </TouchableOpacity>
-          </View>
-          <Card>
-            {savingsTransactions.length > 0 ? (
-              savingsTransactions.map((saving, index) => (
-                <TransactionItem 
-                  key={saving.id} 
-                  transaction={saving}
-                  isLast={index === savingsTransactions.length - 1}
-                  onEdit={handleEditTransaction}
-                  enableSwipeActions={true}
+              </View>
+              
+              {/* Income Section */}
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Income</Text>
+                <TouchableOpacity 
+                  onPress={() => {
+                    setModalTransactionType('income');
+                    setShowAddModal(true);
+                  }}
+                  style={[styles.addButton, { backgroundColor: colors.card }]}
+                  activeOpacity={0.7}
+                >
+                  <Plus size={20} color={colors.primary} strokeWidth={2.5} />
+                </TouchableOpacity>
+              </View>
+              <Card>
+                {incomeTransactions.length > 0 ? (
+                  incomeTransactions.map((income, index) => (
+                    <TransactionItem 
+                      key={income.id} 
+                      transaction={income}
+                      isLast={index === incomeTransactions.length - 1}
+                      onEdit={handleEditTransaction}
+                      enableSwipeActions={true}
+                    />
+                  ))
+                ) : (
+                  <EmptyState 
+                    icon="dollar"
+                    title="No income this month"
+                    subtitle="Add your salary, freelance work, or other income sources"
+                  />
+                )}
+              </Card>
+              
+              {/* Given Expenses Section */}
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Given Expenses</Text>
+                <TouchableOpacity 
+                  onPress={() => {
+                    setModalTransactionType('expense');
+                    setShowAddModal(true);
+                  }}
+                  style={[styles.addButton, { backgroundColor: colors.card }]}
+                  activeOpacity={0.7}
+                >
+                  <Plus size={20} color={colors.primary} strokeWidth={2.5} />
+                </TouchableOpacity>
+              </View>
+              <Card>
+                {givenExpenses.length > 0 ? (
+                  givenExpenses.map((expense, index) => (
+                    <TransactionItem 
+                      key={expense.id} 
+                      transaction={expense}
+                      isLast={index === givenExpenses.length - 1}
+                      onEdit={handleEditTransaction}
+                      enableSwipeActions={true}
+                    />
+                  ))
+                ) : (
+                  <EmptyState 
+                    icon="dollar"
+                    title="No given expenses"
+                    subtitle="Add essential expenses like bills, debt payments, and subscriptions"
+                  />
+                )}
+              </Card>
+              
+              {/* Savings Section */}
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Savings</Text>
+                <TouchableOpacity 
+                  onPress={() => {
+                    setModalTransactionType('expense');
+                    setShowAddModal(true);
+                  }}
+                  style={[styles.addButton, { backgroundColor: colors.card }]}
+                  activeOpacity={0.7}
+                >
+                  <Plus size={20} color={colors.primary} strokeWidth={2.5} />
+                </TouchableOpacity>
+              </View>
+              <Card>
+                {savingsTransactions.length > 0 ? (
+                  savingsTransactions.map((saving, index) => (
+                    <TransactionItem 
+                      key={saving.id} 
+                      transaction={saving}
+                      isLast={index === savingsTransactions.length - 1}
+                      onEdit={handleEditTransaction}
+                      enableSwipeActions={true}
+                    />
+                  ))
+                ) : (
+                  <EmptyState 
+                    icon="dollar"
+                    title="No savings"
+                    subtitle="Add your savings goals and contributions"
+                  />
+                )}
+              </Card>
+              
+              {/* Recurring Expenses Section */}
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Recurring Expenses</Text>
+                <TouchableOpacity 
+                  onPress={() => {
+                    setModalTransactionType('expense');
+                    setShowAddModal(true);
+                  }}
+                  style={[styles.addButton, { backgroundColor: colors.card }]}
+                  activeOpacity={0.7}
+                >
+                  <Plus size={20} color={colors.primary} strokeWidth={2.5} />
+                </TouchableOpacity>
+              </View>
+              <Card>
+                {recurringExpenses.length > 0 ? (
+                  recurringExpenses.map((expense, index) => (
+                    <TransactionItem 
+                      key={expense.id} 
+                      transaction={expense}
+                      isLast={index === recurringExpenses.length - 1}
+                      onEdit={handleEditTransaction}
+                      enableSwipeActions={true}
+                    />
+                  ))
+                ) : (
+                  <EmptyState 
+                    icon="trending"
+                    title="No recurring expenses"
+                    subtitle="Add monthly subscriptions, bills, and regular payments"
+                  />
+                )}
+              </Card>
+              
+              {/* One-Time Expenses Section */}
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>One-Time Expenses</Text>
+                <TouchableOpacity 
+                  onPress={() => {
+                    setModalTransactionType('expense');
+                    setShowAddModal(true);
+                  }}
+                  style={[styles.addButton, { backgroundColor: colors.card }]}
+                  activeOpacity={0.7}
+                >
+                  <Plus size={20} color={colors.primary} strokeWidth={2.5} />
+                </TouchableOpacity>
+              </View>
+              <Card>
+                {oneTimeExpenses.length > 0 ? (
+                  oneTimeExpenses.map((expense, index) => (
+                    <TransactionItem 
+                      key={expense.id} 
+                      transaction={expense}
+                      isLast={index === oneTimeExpenses.length - 1}
+                      onEdit={handleEditTransaction}
+                      enableSwipeActions={true}
+                    />
+                  ))
+                ) : (
+                  <EmptyState 
+                    icon="plus"
+                    title="No one-time expenses"
+                    subtitle="Track occasional purchases and unexpected costs"
+                  />
+                )}
+              </Card>
+            </>
+          ) : (
+            <>
+              {/* Savings Goals Section */}
+              <View style={styles.savingsHeader}>
+                <Text style={[styles.savingsTitle, { color: colors.text }]}>Savings Goals</Text>
+                <Button
+                  title="New Goal"
+                  onPress={() => setShowSavingsModal(true)}
+                  variant="primary"
+                  size="medium"
                 />
-              ))
-            ) : (
-              <EmptyState 
-                icon="dollar"
-                title="No savings"
-                subtitle="Add your savings goals and contributions"
-              />
-            )}
-          </Card>
-          
-          {/* Recurring Expenses Section */}
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recurring Expenses</Text>
-            <TouchableOpacity 
-              onPress={() => {
-                setModalTransactionType('expense');
-                setShowAddModal(true);
-              }}
-              style={[styles.addButton, { backgroundColor: colors.card }]}
-              activeOpacity={0.7}
-            >
-              <Plus size={20} color={colors.primary} strokeWidth={2.5} />
-            </TouchableOpacity>
-          </View>
-          <Card>
-            {recurringExpenses.length > 0 ? (
-              recurringExpenses.map((expense, index) => (
-                <TransactionItem 
-                  key={expense.id} 
-                  transaction={expense}
-                  isLast={index === recurringExpenses.length - 1}
-                  onEdit={handleEditTransaction}
-                  enableSwipeActions={true}
-                />
-              ))
-            ) : (
-              <EmptyState 
-                icon="trending"
-                title="No recurring expenses"
-                subtitle="Add monthly subscriptions, bills, and regular payments"
-              />
-            )}
-          </Card>
-          
-          {/* One-Time Expenses Section */}
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>One-Time Expenses</Text>
-            <TouchableOpacity 
-              onPress={() => {
-                setModalTransactionType('expense');
-                setShowAddModal(true);
-              }}
-              style={[styles.addButton, { backgroundColor: colors.card }]}
-              activeOpacity={0.7}
-            >
-              <Plus size={20} color={colors.primary} strokeWidth={2.5} />
-            </TouchableOpacity>
-          </View>
-          <Card>
-            {oneTimeExpenses.length > 0 ? (
-              oneTimeExpenses.map((expense, index) => (
-                <TransactionItem 
-                  key={expense.id} 
-                  transaction={expense}
-                  isLast={index === oneTimeExpenses.length - 1}
-                  onEdit={handleEditTransaction}
-                  enableSwipeActions={true}
-                />
-              ))
-            ) : (
-              <EmptyState 
-                icon="plus"
-                title="No one-time expenses"
-                subtitle="Track occasional purchases and unexpected costs"
-              />
-            )}
-          </Card>
+              </View>
+              
+              {savingsGoals.length > 0 ? (
+                savingsGoals.map((goal) => {
+                  const weeklySavingsRequired = goal.targetAmount / goal.timeframeWeeks;
+                  const monthsEquivalent = Math.round((goal.timeframeWeeks / 4.33) * 10) / 10;
+                  
+                  return (
+                    <Card key={goal.id} style={styles.savingsGoalCard}>
+                      <View style={styles.goalHeader}>
+                        <View style={styles.goalTitleContainer}>
+                          <Target size={20} color={colors.primary} strokeWidth={2} />
+                          <Text style={[styles.goalTitle, { color: colors.text }]}>
+                            {goal.title}
+                          </Text>
+                        </View>
+                        <View style={styles.goalActions}>
+                          <TouchableOpacity
+                            onPress={() => handleEditSavingsGoal(goal)}
+                            style={[styles.goalActionButton, { backgroundColor: colors.background }]}
+                            activeOpacity={0.7}
+                          >
+                            <Edit3 size={16} color={colors.textSecondary} strokeWidth={2} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleDeleteSavingsGoal(goal.id)}
+                            style={[styles.goalActionButton, { backgroundColor: colors.background }]}
+                            activeOpacity={0.7}
+                          >
+                            <Trash2 size={16} color={colors.error} strokeWidth={2} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                      
+                      <View style={styles.goalDetails}>
+                        <View style={styles.goalDetailRow}>
+                          <Text style={[styles.goalDetailLabel, { color: colors.textSecondary }]}>Target Amount</Text>
+                          <Text style={[styles.goalDetailValue, { color: colors.text }]}>
+                            ${goal.targetAmount.toFixed(2)}
+                          </Text>
+                        </View>
+                        
+                        <View style={styles.goalDetailRow}>
+                          <Text style={[styles.goalDetailLabel, { color: colors.textSecondary }]}>Timeframe</Text>
+                          <Text style={[styles.goalDetailValue, { color: colors.text }]}>
+                            {goal.timeframeWeeks} weeks (≈ {monthsEquivalent} months)
+                          </Text>
+                        </View>
+                        
+                        <View style={[styles.goalDetailRow, styles.weeklyRequiredRow]}>
+                          <Text style={[styles.goalDetailLabel, { color: colors.textSecondary }]}>Weekly Required</Text>
+                          <Text style={[styles.weeklyRequiredValue, { color: colors.primary }]}>
+                            ${weeklySavingsRequired.toFixed(2)}
+                          </Text>
+                        </View>
+                      </View>
+                    </Card>
+                  );
+                })
+              ) : (
+                <Card style={styles.emptySavingsCard}>
+                  <EmptyState 
+                    icon="target"
+                    title="No savings goals yet"
+                    subtitle="Create your first savings goal to start planning for the future"
+                  />
+                </Card>
+              )}
+            </>
+          )}
         </ScrollView>
         
         <AddTransactionModal 
@@ -373,6 +555,13 @@ export default function BudgetScreen() {
           onClose={handleCloseModal}
           editTransaction={editTransaction}
           initialTransactionType={modalTransactionType}
+        />
+        
+        <SavingsGoalModal
+          visible={showSavingsModal}
+          onClose={handleCloseSavingsModal}
+          onSave={handleSavingsGoalSave}
+          editGoal={editSavingsGoal}
         />
       </SafeAreaView>
       
@@ -524,5 +713,113 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     ...Shadow.light,
+  },
+  
+  // View Toggle Styles
+  viewToggle: {
+    flexDirection: 'row',
+    marginBottom: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    padding: 4,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  toggleButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    gap: Spacing.sm,
+  },
+  toggleText: {
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: -0.1,
+    lineHeight: 18,
+  },
+  
+  // Savings View Styles
+  savingsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  savingsTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    lineHeight: 28,
+  },
+  savingsGoalCard: {
+    marginBottom: Spacing.lg,
+  },
+  goalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  goalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    flex: 1,
+  },
+  goalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    letterSpacing: -0.1,
+    lineHeight: 22,
+    flex: 1,
+  },
+  goalActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  goalActionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  goalDetails: {
+    gap: Spacing.md,
+  },
+  goalDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+  },
+  goalDetailLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  goalDetailValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 20,
+    textAlign: 'right',
+  },
+  weeklyRequiredRow: {
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+    marginTop: Spacing.sm,
+  },
+  weeklyRequiredValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    lineHeight: 22,
+  },
+  emptySavingsCard: {
+    marginTop: Spacing.xl,
   },
 });

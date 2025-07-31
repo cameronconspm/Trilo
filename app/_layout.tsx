@@ -9,6 +9,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { FinanceProvider } from "@/context/FinanceContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { NotificationProvider } from "@/context/NotificationContext";
+import { SavingsProvider } from "@/context/SavingsContext";
 import { useSettings } from "@/context/SettingsContext";
 
 export const unstable_settings = {
@@ -74,11 +75,13 @@ function RootLayoutNav() {
         <SettingsProvider>
           <StatusBarManager />
           <FinanceProvider>
-            <NotificationProvider>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              </Stack>
-            </NotificationProvider>
+            <SavingsProvider>
+              <NotificationProvider>
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                </Stack>
+              </NotificationProvider>
+            </SavingsProvider>
           </FinanceProvider>
         </SettingsProvider>
       </GestureHandlerRootView>
