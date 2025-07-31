@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Plus, Edit3, Target } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useThemeColors } from '@/constants/colors';
@@ -25,6 +25,7 @@ export default function BudgetScreen() {
   const { alertState, showAlert, hideAlert } = useAlert();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
+  const [modalTransactionType, setModalTransactionType] = useState<'income' | 'expense'>('expense');
   
   // Get current month transactions
   const today = new Date();
@@ -64,23 +65,21 @@ export default function BudgetScreen() {
   const remainingIncome = budget.income - totalExpenses;
   const budgetUtilization = budget.income > 0 ? (totalExpenses / budget.income) * 100 : 0;
   
-  const handleSetBudgetGoal = () => {
-    showAlert({
-      title: 'Set Budget Goal',
-      message: 'Budget goal setting would open here with input fields for monthly income and savings targets.',
-      type: 'info',
-      actions: [{ text: 'OK', onPress: () => {} }],
-    });
+  const handleAddIncome = () => {
+    setModalTransactionType('income');
+    setShowAddModal(true);
   };
   
   const handleEditTransaction = (transaction: Transaction) => {
     setEditTransaction(transaction);
+    setModalTransactionType(transaction.type);
     setShowAddModal(true);
   };
   
   const handleCloseModal = () => {
     setShowAddModal(false);
     setEditTransaction(undefined);
+    setModalTransactionType('expense');
   };
   
   if (isLoading) {
@@ -119,16 +118,7 @@ export default function BudgetScreen() {
           {/* Budget Overview Card */}
           <Card variant="elevated" style={styles.summaryCard}>
             <View style={styles.budgetHeader}>
-              <View style={styles.budgetTitleContainer}>
-                <Text style={[styles.budgetTitle, { color: colors.text }]}>Monthly Budget</Text>
-                <TouchableOpacity 
-                  onPress={handleSetBudgetGoal}
-                  style={[styles.editButton, { backgroundColor: colors.cardSecondary }]}
-                  activeOpacity={0.7}
-                >
-                  <Edit3 size={16} color={colors.primary} strokeWidth={2} />
-                </TouchableOpacity>
-              </View>
+              <Text style={[styles.budgetTitle, { color: colors.text }]}>Monthly Budget</Text>
             </View>
             
             <View style={styles.summaryRow}>
@@ -190,14 +180,17 @@ export default function BudgetScreen() {
           <View style={styles.quickActions}>
             <Button
               title="Add Expense"
-              onPress={() => setShowAddModal(true)}
+              onPress={() => {
+                setModalTransactionType('expense');
+                setShowAddModal(true);
+              }}
               variant="primary"
               size="medium"
               style={styles.actionButton}
             />
             <Button
-              title="Set Goals"
-              onPress={handleSetBudgetGoal}
+              title="Add Income"
+              onPress={handleAddIncome}
               variant="ghost"
               size="medium"
               style={styles.actionButton}
@@ -208,7 +201,10 @@ export default function BudgetScreen() {
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Income</Text>
             <TouchableOpacity 
-              onPress={() => setShowAddModal(true)}
+              onPress={() => {
+                setModalTransactionType('income');
+                setShowAddModal(true);
+              }}
               style={[styles.addButton, { backgroundColor: colors.card }]}
               activeOpacity={0.7}
             >
@@ -239,7 +235,10 @@ export default function BudgetScreen() {
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Given Expenses</Text>
             <TouchableOpacity 
-              onPress={() => setShowAddModal(true)}
+              onPress={() => {
+                setModalTransactionType('expense');
+                setShowAddModal(true);
+              }}
               style={[styles.addButton, { backgroundColor: colors.card }]}
               activeOpacity={0.7}
             >
@@ -270,7 +269,10 @@ export default function BudgetScreen() {
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Savings</Text>
             <TouchableOpacity 
-              onPress={() => setShowAddModal(true)}
+              onPress={() => {
+                setModalTransactionType('expense');
+                setShowAddModal(true);
+              }}
               style={[styles.addButton, { backgroundColor: colors.card }]}
               activeOpacity={0.7}
             >
@@ -301,7 +303,10 @@ export default function BudgetScreen() {
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Recurring Expenses</Text>
             <TouchableOpacity 
-              onPress={() => setShowAddModal(true)}
+              onPress={() => {
+                setModalTransactionType('expense');
+                setShowAddModal(true);
+              }}
               style={[styles.addButton, { backgroundColor: colors.card }]}
               activeOpacity={0.7}
             >
@@ -332,7 +337,10 @@ export default function BudgetScreen() {
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>One-Time Expenses</Text>
             <TouchableOpacity 
-              onPress={() => setShowAddModal(true)}
+              onPress={() => {
+                setModalTransactionType('expense');
+                setShowAddModal(true);
+              }}
               style={[styles.addButton, { backgroundColor: colors.card }]}
               activeOpacity={0.7}
             >
@@ -364,6 +372,7 @@ export default function BudgetScreen() {
           visible={showAddModal}
           onClose={handleCloseModal}
           editTransaction={editTransaction}
+          initialTransactionType={modalTransactionType}
         />
       </SafeAreaView>
       
@@ -404,24 +413,14 @@ const styles = StyleSheet.create({
   budgetHeader: {
     marginBottom: Spacing.lg,
   },
-  budgetTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
+
   budgetTitle: {
     fontSize: 20, // Balanced header font
     fontWeight: '600', // Bold
     letterSpacing: -0.2,
     lineHeight: 24,
   },
-  editButton: {
-    width: Math.max(32, Spacing.minTouchTarget),
-    height: Math.max(32, Spacing.minTouchTarget),
-    borderRadius: BorderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

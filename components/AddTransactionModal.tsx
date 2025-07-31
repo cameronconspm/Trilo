@@ -35,17 +35,18 @@ interface AddTransactionModalProps {
   visible: boolean;
   onClose: () => void;
   editTransaction?: Transaction;
+  initialTransactionType?: 'income' | 'expense';
 }
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-export default function AddTransactionModal({ visible, onClose, editTransaction }: AddTransactionModalProps) {
+export default function AddTransactionModal({ visible, onClose, editTransaction, initialTransactionType = 'expense' }: AddTransactionModalProps) {
   const { addTransaction, updateTransaction } = useFinance();
   const { alertState, showAlert, hideAlert } = useAlert();
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
   
-  const [transactionType, setTransactionType] = useState<TransactionType>('expense');
+  const [transactionType, setTransactionType] = useState<TransactionType>(initialTransactionType);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<CategoryType>('one_time_expense');
@@ -91,6 +92,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
         }
       } else {
         // Reset form for new transaction
+        setTransactionType(initialTransactionType);
         setName('');
         setAmount('');
         setSelectedDay(new Date().getDate());
@@ -103,7 +105,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
       }
       setIsLoading(false);
     }
-  }, [visible, editTransaction]);
+  }, [visible, editTransaction, initialTransactionType]);
   
   useEffect(() => {
     if (transactionType === 'income') {
