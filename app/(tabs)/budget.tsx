@@ -105,7 +105,7 @@ export default function BudgetScreen() {
     showAlert({
       title: 'Delete Savings Goal',
       message: 'Are you sure you want to delete this savings goal? This action cannot be undone.',
-      type: 'destructive',
+      type: 'error',
       actions: [
         {
           text: 'Cancel',
@@ -540,7 +540,7 @@ export default function BudgetScreen() {
               ) : (
                 <Card style={styles.emptySavingsCard}>
                   <EmptyState 
-                    icon="target"
+                    icon="plus"
                     title="No savings goals yet"
                     subtitle="Create your first savings goal to start planning for the future"
                   />
