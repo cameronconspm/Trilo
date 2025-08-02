@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import Header from '@/components/Header';
 import Card from '@/components/Card';
 import SettingsItem from '@/components/SettingsItem';
@@ -23,10 +24,11 @@ import { useSettings } from '@/context/SettingsContext';
 import { useNotifications } from '@/context/NotificationContext';
 import { useFinance } from '@/context/FinanceContext';
 import { useAlert } from '@/hooks/useAlert';
-import Colors, { useThemeColors } from '@/constants/colors';
+import { useThemeColors } from '@/constants/colors';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
-import { Shield, Mail, RefreshCw, Edit3, Camera } from 'lucide-react-native';
+import { Shield, Mail, RefreshCw, Edit3, Camera, Upload, ExternalLink } from 'lucide-react-native';
 import NameEditModal from '@/components/NameEditModal';
+import { Transaction, CategoryType } from '@/types/finance';
 
 export default function ProfileScreen() {
   const {
@@ -44,16 +46,15 @@ export default function ProfileScreen() {
   const {
     settings: notificationSettings,
     updateSettings: updateNotificationSettings,
-    hasPermission,
-    requestPermission,
   } = useNotifications();
 
-  const { clearAllData: clearFinanceData, reloadData: reloadFinanceData } = useFinance();
+  const { clearAllData: clearFinanceData, reloadData: reloadFinanceData, addTransaction } = useFinance();
 
   const { alertState, showAlert, hideAlert } = useAlert();
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showWeekStartModal, setShowWeekStartModal] = useState(false);
   const [showNameEditModal, setShowNameEditModal] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   
   // Get theme-aware colors
   const colors = useThemeColors(theme);
@@ -86,7 +87,7 @@ export default function ProfileScreen() {
       return;
     }
 
-    const options: Array<{ text: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }> = [
+    const options: { text: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }[] = [
       { text: 'Cancel', style: 'cancel' },
     ];
     
@@ -204,7 +205,7 @@ export default function ProfileScreen() {
       } else {
         Alert.alert('Error', 'Unable to open privacy policy link');
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Unable to open privacy policy link');
     }
   };
@@ -221,13 +222,215 @@ export default function ProfileScreen() {
       } else {
         Alert.alert('Email Not Available', 'Please send an email to support@thetriloapp.com');
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Email Not Available', 'Please send an email to support@thetriloapp.com');
     }
   };
 
-  // Set status bar style based on theme
-  const statusBarStyle = theme === 'dark' || (theme === 'system' && colors.background === '#000000') ? 'light-content' : 'dark-content';
+  const handleImportCSV = async () => {
+    try {
+      setIsImporting(true);
+      
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'text/csv',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) {
+        setIsImporting(false);
+        return;
+      }
+
+      const file = result.assets[0];
+      if (!file) {
+        throw new Error('No file selected');
+      }
+
+      // Read the file content
+      let csvContent: string;
+      if (Platform.OS === 'web') {
+        // For web, we need to read the file differently
+        const response = await fetch(file.uri);
+        csvContent = await response.text();
+      } else {
+        // For mobile, read from the file system
+        const response = await fetch(file.uri);
+        csvContent = await response.text();
+      }
+
+      // Parse CSV content
+      const importedTransactions = parseCSV(csvContent);
+      
+      if (importedTransactions.length === 0) {
+        throw new Error('No valid transactions found in CSV file');
+      }
+
+      // Add all transactions
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (const transaction of importedTransactions) {
+        try {
+          await addTransaction(transaction);
+          successCount++;
+        } catch (error) {
+          console.error('Error adding transaction:', error);
+          errorCount++;
+        }
+      }
+
+      // Show success message
+      showAlert({
+        title: 'Import Complete',
+        message: `Successfully imported ${successCount} expenses${errorCount > 0 ? `. ${errorCount} transactions failed to import.` : '.'}`,
+        type: 'success',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
+
+    } catch (error) {
+      console.error('CSV Import Error:', error);
+      showAlert({
+        title: 'Import Failed',
+        message: error instanceof Error ? error.message : 'Failed to import CSV file. Please check the file format and try again.',
+        type: 'error',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const parseCSV = (csvContent: string): Omit<Transaction, 'id'>[] => {
+    const lines = csvContent.trim().split('\n');
+    if (lines.length < 2) {
+      throw new Error('CSV file must contain at least a header row and one data row');
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+    const transactions: Omit<Transaction, 'id'>[] = [];
+
+    // Validate required headers
+    const requiredHeaders = ['expense name', 'amount', 'category', 'day of month', 'recurring'];
+    const missingHeaders = requiredHeaders.filter(header => 
+      !headers.some(h => h.includes(header.replace(' ', '')) || h.includes(header))
+    );
+
+    if (missingHeaders.length > 0) {
+      throw new Error(`Missing required columns: ${missingHeaders.join(', ')}. Please check the template format.`);
+    }
+
+    // Find column indices
+    const nameIndex = headers.findIndex(h => h.includes('expense') && h.includes('name'));
+    const amountIndex = headers.findIndex(h => h.includes('amount'));
+    const categoryIndex = headers.findIndex(h => h.includes('category'));
+    const dayIndex = headers.findIndex(h => h.includes('day') && h.includes('month'));
+    const recurringIndex = headers.findIndex(h => h.includes('recurring'));
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+      
+      try {
+        const name = values[nameIndex]?.trim();
+        const amountStr = values[amountIndex]?.trim();
+        const categoryStr = values[categoryIndex]?.trim().toLowerCase();
+        const dayStr = values[dayIndex]?.trim();
+        const recurringStr = values[recurringIndex]?.trim().toLowerCase();
+
+        if (!name || !amountStr || !categoryStr || !dayStr) {
+          console.warn(`Skipping row ${i + 1}: Missing required data`);
+          continue;
+        }
+
+        // Parse amount
+        const amount = parseFloat(amountStr.replace(/[$,]/g, ''));
+        if (isNaN(amount) || amount <= 0) {
+          console.warn(`Skipping row ${i + 1}: Invalid amount`);
+          continue;
+        }
+
+        // Parse day of month
+        const dayOfMonth = parseInt(dayStr);
+        if (isNaN(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 31) {
+          console.warn(`Skipping row ${i + 1}: Invalid day of month`);
+          continue;
+        }
+
+        // Parse recurring
+        const isRecurring = recurringStr === 'true' || recurringStr === '1' || recurringStr === 'yes';
+
+        // Map category
+        let categoryId: CategoryType = 'one_time_expense'; // default
+        const categoryMapping: Record<string, CategoryType> = {
+          'debt': 'debt',
+          'subscription': 'subscription',
+          'subscriptions': 'subscription',
+          'bill': 'bill',
+          'bills': 'bill',
+          'utilities': 'bill',
+          'bills & utilities': 'bill',
+          'savings': 'savings',
+          'one-time': 'one_time_expense',
+          'one time': 'one_time_expense',
+          'onetime': 'one_time_expense',
+          'one-time expense': 'one_time_expense',
+          'one-time expenses': 'one_time_expense',
+          'given': 'given_expenses',
+          'given expense': 'given_expenses',
+          'given expenses': 'given_expenses',
+        };
+
+        if (categoryMapping[categoryStr]) {
+          categoryId = categoryMapping[categoryStr];
+        }
+
+        // Create date for this month with the specified day
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth();
+        const transactionDate = new Date(currentYear, currentMonth, dayOfMonth);
+
+        // If the date is in the past for this month, use next month
+        if (transactionDate < today && !isRecurring) {
+          transactionDate.setMonth(currentMonth + 1);
+        }
+
+        const transaction: Omit<Transaction, 'id'> = {
+          name,
+          amount,
+          date: transactionDate.toISOString(),
+          category: categoryId,
+          type: 'expense',
+          isRecurring,
+        };
+
+        transactions.push(transaction);
+      } catch (error) {
+        console.warn(`Error parsing row ${i + 1}:`, error);
+        continue;
+      }
+    }
+
+    return transactions;
+  };
+
+  const handleOpenTemplate = async () => {
+    const url = 'https://docs.google.com/spreadsheets/d/1OWsGvdJH9aOquUnbv2Vy45nqYh8ECkoy9pokfldqRho/edit?gid=0#gid=0';
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Unable to open template link');
+      }
+    } catch {
+      Alert.alert('Error', 'Unable to open template link');
+    }
+  };
+
+
 
   return (
     <>
@@ -350,9 +553,26 @@ export default function ProfileScreen() {
             <Text style={[styles.notificationDescription, { color: colors.textSecondary }]}>Receive weekly spending insights on Sunday evenings</Text>
           </Card>
 
-          {/* Utilities */}
+          {/* Data Management */}
           <Card style={[styles.card, { backgroundColor: colors.card }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Utilities</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Data Management</Text>
+            <SettingsItem 
+              title="Import CSV" 
+              subtitle="Import expenses from a CSV file"
+              icon={<Upload size={18} color={colors.primary} />} 
+              onPress={handleImportCSV}
+              disabled={isImporting}
+            />
+            <Pressable 
+              style={styles.templateLink}
+              onPress={handleOpenTemplate}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <View style={styles.templateLinkContent}>
+                <ExternalLink size={16} color={colors.primary} />
+                <Text style={[styles.templateLinkText, { color: colors.primary }]}>Expense Sheet Template</Text>
+              </View>
+            </Pressable>
             <SettingsItem title="Reset Data" icon={<RefreshCw size={18} color={colors.destructive} />} onPress={handleResetData} isLast />
           </Card>
 
@@ -584,5 +804,21 @@ const styles = StyleSheet.create({
   },
   modalOptionTextSelected: {
     fontWeight: '600',
+  },
+  templateLink: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    marginTop: -Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  templateLinkContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  templateLinkText: {
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 18,
   },
 });

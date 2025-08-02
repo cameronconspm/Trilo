@@ -7,6 +7,7 @@ import { Spacing } from '@/constants/spacing';
 
 interface SettingsItemProps extends TouchableOpacityProps {
   title: string;
+  subtitle?: string;
   value?: string;
   icon?: React.ReactElement;
   isDestructive?: boolean;
@@ -15,10 +16,12 @@ interface SettingsItemProps extends TouchableOpacityProps {
 
 export default function SettingsItem({ 
   title, 
+  subtitle,
   value, 
   icon,
   isDestructive = false,
   isLast = false,
+  disabled = false,
   ...props 
 }: SettingsItemProps) {
   const { theme } = useSettings();
@@ -26,19 +29,32 @@ export default function SettingsItem({
   
   return (
     <TouchableOpacity 
-      style={[styles.container, { borderBottomColor: colors.border }, isLast && styles.lastItem]} 
+      style={[
+        styles.container, 
+        { borderBottomColor: colors.border }, 
+        isLast && styles.lastItem,
+        disabled && { opacity: 0.5 }
+      ]} 
       activeOpacity={0.7}
+      disabled={disabled}
       {...props}
     >
       <View style={styles.leftContent}>
         {icon && <View style={styles.iconContainer}>{icon}</View>}
-        <Text style={[
-          styles.title,
-          { color: colors.text },
-          isDestructive && { color: colors.error }
-        ]}>
-          {title}
-        </Text>
+        <View style={styles.textContainer}>
+          <Text style={[
+            styles.title,
+            { color: colors.text },
+            isDestructive && { color: colors.error }
+          ]}>
+            {title}
+          </Text>
+          {subtitle && (
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              {subtitle}
+            </Text>
+          )}
+        </View>
       </View>
       <View style={styles.rightContent}>
         {value && <Text style={[styles.value, { color: colors.textSecondary }]}>{value}</Text>}
@@ -79,5 +95,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginRight: Spacing.sm,
     fontWeight: '500',
+  },
+  textContainer: {
+    flex: 1,
+  },
+  subtitle: {
+    fontSize: 13,
+    marginTop: 2,
+    lineHeight: 16,
   },
 });
