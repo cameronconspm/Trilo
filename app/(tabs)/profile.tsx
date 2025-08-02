@@ -553,15 +553,16 @@ export default function ProfileScreen() {
             <Text style={[styles.notificationDescription, { color: colors.textSecondary }]}>Receive weekly spending insights on Sunday evenings</Text>
           </Card>
 
-          {/* Data Management */}
+          {/* Import CSV */}
           <Card style={[styles.card, { backgroundColor: colors.card }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Data Management</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Import Data</Text>
             <SettingsItem 
               title="Import CSV" 
               subtitle="Import expenses from a CSV file"
               icon={<Upload size={18} color={colors.primary} />} 
               onPress={handleImportCSV}
               disabled={isImporting}
+              isLast
             />
             <Pressable 
               style={styles.templateLink}
@@ -573,6 +574,11 @@ export default function ProfileScreen() {
                 <Text style={[styles.templateLinkText, { color: colors.primary }]}>Expense Sheet Template</Text>
               </View>
             </Pressable>
+          </Card>
+
+          {/* Data Management */}
+          <Card style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Data Management</Text>
             <SettingsItem title="Reset Data" icon={<RefreshCw size={18} color={colors.destructive} />} onPress={handleResetData} isLast />
           </Card>
 
