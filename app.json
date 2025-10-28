@@ -17,7 +17,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.trilo.app",
+      "bundleIdentifier": "app.ios-trilo",
       "buildNumber": "2",
       "splash": {
         "image": "./assets/images/splash-icon.png",
