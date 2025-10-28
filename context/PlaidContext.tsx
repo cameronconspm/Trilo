@@ -223,11 +223,8 @@ const getStorageKeys = (userId: string) => ({
   FIRST_TIME: `plaid_first_time_${userId}`,
 });
 
-// API Base URL - Use local backend for development
-// For physical devices, replace with your actual backend URL or Railway URL
-const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:3001/api/plaid'  // Works in simulator only
-  : 'https://your-backend.railway.app/api/plaid';  // Your Railway backend URL
+// API Base URL - Production Railway deployment
+const API_BASE_URL = 'https://trilo-production.up.railway.app/api/plaid';
 
 // Provider component
 interface PlaidProviderProps {
