@@ -7,11 +7,11 @@ export default function SplashScreen() {
       <Image
         source={
           Platform.OS === 'web'
-            ? { uri: '/assets/images/Splashscreen-Trilo.jpg' }
-            : require('../assets/images/Splashscreen-Trilo.jpg')
+            ? { uri: '/assets/images/splash-icon.png' }
+            : require('../assets/images/splash-icon.png')
         }
         style={styles.image}
-        resizeMode="contain"
+        resizeMode='contain'
       />
     </View>
   );

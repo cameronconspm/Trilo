@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,55 +11,93 @@ import {
   Alert,
   Platform,
   Linking,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
-import Header from '@/components/Header';
-import Card from '@/components/Card';
+import Header from '@/components/layout/Header';
+import Card from '@/components/layout/Card';
 import SettingsItem from '@/components/SettingsItem';
-import AlertModal from '@/components/AlertModal';
+import AlertModal from '@/components/modals/AlertModal';
+import { CsvImportModal } from '@/components/modals';
+import { BadgeGalleryModal, LevelBadge } from '@/components/badges';
 import { useSettings } from '@/context/SettingsContext';
 import { useNotifications } from '@/context/NotificationContext';
 import { useFinance } from '@/context/FinanceContext';
+import { useChallengeTracking } from '@/context/ChallengeTrackingContext';
+import { useAuth } from '@/context/AuthContext';
 import { useAlert } from '@/hooks/useAlert';
 import { useThemeColors } from '@/constants/colors';
-import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
-import { Shield, Mail, RefreshCw, Edit3, Camera, Upload, ExternalLink } from 'lucide-react-native';
-import NameEditModal from '@/components/NameEditModal';
+import {
+  Spacing,
+  SpacingValues,
+  BorderRadius,
+  Shadow,
+  Typography,
+} from '@/constants/spacing';
+import {
+  Shield,
+  Mail,
+  RefreshCw,
+  Edit3,
+  Camera,
+  ExternalLink,
+  Upload,
+  ChevronDown,
+  ChevronRight,
+  Trophy,
+  LogOut,
+} from 'lucide-react-native';
+import NameEditModal from '@/components/modals/NameEditModal';
+import { ModalWrapper } from '@/components/modals/ModalWrapper';
 import { Transaction, CategoryType } from '@/types/finance';
 
 export default function ProfileScreen() {
   const {
     theme,
     setTheme,
-    weekStartDay,
-    setWeekStartDay,
     nickname,
     setNickname,
     avatarUri,
     setAvatarUri,
     resetData,
+    resetDataSelective,
   } = useSettings();
 
   const {
     settings: notificationSettings,
     updateSettings: updateNotificationSettings,
   } = useNotifications();
+  
+  const challengeTracking = useChallengeTracking();
 
-  const { clearAllData: clearFinanceData, reloadData: reloadFinanceData, addTransaction } = useFinance();
+  const {
+    clearAllData: clearFinanceData,
+    reloadData: reloadFinanceData,
+    addTransaction,
+  } = useFinance();
+
+  const { signOut, deleteAccount, user } = useAuth();
 
   const { alertState, showAlert, hideAlert } = useAlert();
   const [showThemeModal, setShowThemeModal] = useState(false);
-  const [showWeekStartModal, setShowWeekStartModal] = useState(false);
   const [showNameEditModal, setShowNameEditModal] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  
+  const [showCsvImport, setShowCsvImport] = useState(false);
+  const [notificationsExpanded, setNotificationsExpanded] = useState(false);
+  const [showBadgeGallery, setShowBadgeGallery] = useState(false);
+
   // Get theme-aware colors
   const colors = useThemeColors(theme);
 
-
+  // Collapse notifications when leaving the tab
+  // Use useEffect instead of useFocusEffect to avoid navigation context issues
+  useEffect(() => {
+    // This will run when component mounts/unmounts
+    return () => {
+      setNotificationsExpanded(false);
+    };
+  }, []);
 
   const handleAvatarPress = async () => {
     if (Platform.OS === 'web') {
@@ -78,7 +116,10 @@ export default function ProfileScreen() {
       ImagePicker.requestCameraPermissionsAsync(),
     ]);
 
-    if (mediaLibraryStatus.status !== 'granted' && cameraStatus.status !== 'granted') {
+    if (
+      mediaLibraryStatus.status !== 'granted' &&
+      cameraStatus.status !== 'granted'
+    ) {
       Alert.alert(
         'Permission Required',
         'Please grant permission to access your camera or photo library to update your avatar.',
@@ -87,25 +128,31 @@ export default function ProfileScreen() {
       return;
     }
 
-    const options: { text: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }[] = [
-      { text: 'Cancel', style: 'cancel' },
-    ];
-    
+    const options: {
+      text: string;
+      style?: 'default' | 'cancel' | 'destructive';
+      onPress?: () => void;
+    }[] = [{ text: 'Cancel', style: 'cancel' }];
+
     if (cameraStatus.status === 'granted') {
       options.push({ text: 'Camera', onPress: () => openCamera() });
     }
-    
+
     if (mediaLibraryStatus.status === 'granted') {
       options.push({ text: 'Photo Library', onPress: () => openImagePicker() });
     }
-    
+
     if (avatarUri) {
-      options.push({ text: 'Remove Photo', style: 'destructive', onPress: () => removeAvatar() });
+      options.push({
+        text: 'Remove Photo',
+        style: 'destructive',
+        onPress: () => removeAvatar(),
+      });
     }
 
     Alert.alert(
       'Update Avatar',
-      'Choose how you\'d like to update your profile picture',
+      "Choose how you'd like to update your profile picture",
       options
     );
   };
@@ -146,46 +193,49 @@ export default function ProfileScreen() {
 
   const handleResetData = () => {
     showAlert({
-      title: 'Reset All Data',
-      message: 'This will permanently delete all transactions, preferences, and settings. This action cannot be undone.',
+      title: 'Reset Personal Data',
+      message:
+        'This will reset your bank connections, transactions, and preferences. Your achievements, badges, and progress will be preserved.',
       type: 'warning',
       actions: [
         { text: 'Cancel', style: 'cancel', onPress: () => {} },
         {
-          text: 'Delete Everything',
+          text: 'Reset Data',
           style: 'destructive',
           onPress: async () => {
             try {
-              // Clear financial data first
+              // Clear financial data (transactions, budgets, bank connections)
               await clearFinanceData();
-              
-              // Then clear all settings and other data
-              await resetData();
-              
+
+              // Clear settings and preferences (but preserve achievements)
+              await resetDataSelective();
+
               // Reload financial data to reset state
               await reloadFinanceData();
-              
+
               showAlert({
                 title: 'Data Reset Complete',
-                message: 'All data has been successfully deleted. The app has been reset to default settings.',
+                message:
+                  'Personal data has been reset. Your achievements and progress have been preserved.',
                 type: 'success',
                 actions: [
-                  { 
-                    text: 'OK', 
+                  {
+                    text: 'Dismiss',
                     onPress: () => {
                       // Force app to reload by reloading the page (web) or restarting (mobile)
                       if (Platform.OS === 'web') {
                         window.location.reload();
                       }
-                    }
-                  }
+                    },
+                  },
                 ],
               });
             } catch (error) {
               console.error('Reset data error:', error);
               showAlert({
                 title: 'Reset Failed',
-                message: 'There was an error resetting your data. Please try again.',
+                message:
+                  'There was an error resetting your data. Please try again.',
                 type: 'error',
                 actions: [{ text: 'OK', onPress: () => {} }],
               });
@@ -214,259 +264,132 @@ export default function ProfileScreen() {
     const email = 'support@thetriloapp.com';
     const subject = 'Support Request';
     const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}`;
-    
+
     try {
       const supported = await Linking.canOpenURL(mailtoUrl);
       if (supported) {
         await Linking.openURL(mailtoUrl);
       } else {
-        Alert.alert('Email Not Available', 'Please send an email to support@thetriloapp.com');
+        Alert.alert(
+          'Email Not Available',
+          'Please send an email to support@thetriloapp.com'
+        );
       }
     } catch {
-      Alert.alert('Email Not Available', 'Please send an email to support@thetriloapp.com');
+      Alert.alert(
+        'Email Not Available',
+        'Please send an email to support@thetriloapp.com'
+      );
     }
   };
 
-  const handleImportCSV = async () => {
-    try {
-      setIsImporting(true);
-      
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'text/csv',
-        copyToCacheDirectory: true,
-      });
-
-      if (result.canceled) {
-        setIsImporting(false);
-        return;
-      }
-
-      const file = result.assets[0];
-      if (!file) {
-        throw new Error('No file selected');
-      }
-
-      // Read the file content
-      let csvContent: string;
-      if (Platform.OS === 'web') {
-        // For web, we need to read the file differently
-        const response = await fetch(file.uri);
-        csvContent = await response.text();
-      } else {
-        // For mobile, read from the file system
-        const response = await fetch(file.uri);
-        csvContent = await response.text();
-      }
-
-      // Parse CSV content
-      const importedTransactions = parseCSV(csvContent);
-      
-      if (importedTransactions.length === 0) {
-        throw new Error('No valid transactions found in CSV file');
-      }
-
-      // Add all transactions
-      let successCount = 0;
-      let errorCount = 0;
-      
-      for (const transaction of importedTransactions) {
-        try {
-          await addTransaction(transaction);
-          successCount++;
-        } catch (error) {
-          console.error('Error adding transaction:', error);
-          errorCount++;
-        }
-      }
-
-      // Show success message
-      showAlert({
-        title: 'Import Complete',
-        message: `Successfully imported ${successCount} expenses${errorCount > 0 ? `. ${errorCount} transactions failed to import.` : '.'}`,
-        type: 'success',
-        actions: [{ text: 'OK', onPress: () => {} }],
-      });
-
-    } catch (error) {
-      console.error('CSV Import Error:', error);
-      showAlert({
-        title: 'Import Failed',
-        message: error instanceof Error ? error.message : 'Failed to import CSV file. Please check the file format and try again.',
-        type: 'error',
-        actions: [{ text: 'OK', onPress: () => {} }],
-      });
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
-  const parseCSV = (csvContent: string): Omit<Transaction, 'id'>[] => {
-    const lines = csvContent.trim().split('\n');
-    if (lines.length < 2) {
-      throw new Error('CSV file must contain at least a header row and one data row');
-    }
-
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
-    const transactions: Omit<Transaction, 'id'>[] = [];
-
-    // Validate required headers
-    const requiredHeaders = ['expense name', 'amount', 'category', 'day of month', 'recurring'];
-    const missingHeaders = requiredHeaders.filter(header => 
-      !headers.some(h => h.includes(header.replace(' ', '')) || h.includes(header))
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
+          },
+        },
+      ]
     );
-
-    if (missingHeaders.length > 0) {
-      throw new Error(`Missing required columns: ${missingHeaders.join(', ')}. Please check the template format.`);
-    }
-
-    // Find column indices
-    const nameIndex = headers.findIndex(h => h.includes('expense') && h.includes('name'));
-    const amountIndex = headers.findIndex(h => h.includes('amount'));
-    const categoryIndex = headers.findIndex(h => h.includes('category'));
-    const dayIndex = headers.findIndex(h => h.includes('day') && h.includes('month'));
-    const recurringIndex = headers.findIndex(h => h.includes('recurring'));
-
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
-      const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-      
-      try {
-        const name = values[nameIndex]?.trim();
-        const amountStr = values[amountIndex]?.trim();
-        const categoryStr = values[categoryIndex]?.trim().toLowerCase();
-        const dayStr = values[dayIndex]?.trim();
-        const recurringStr = values[recurringIndex]?.trim().toLowerCase();
-
-        if (!name || !amountStr || !categoryStr || !dayStr) {
-          console.warn(`Skipping row ${i + 1}: Missing required data`);
-          continue;
-        }
-
-        // Parse amount
-        const amount = parseFloat(amountStr.replace(/[$,]/g, ''));
-        if (isNaN(amount) || amount <= 0) {
-          console.warn(`Skipping row ${i + 1}: Invalid amount`);
-          continue;
-        }
-
-        // Parse day of month
-        const dayOfMonth = parseInt(dayStr);
-        if (isNaN(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 31) {
-          console.warn(`Skipping row ${i + 1}: Invalid day of month`);
-          continue;
-        }
-
-        // Parse recurring
-        const isRecurring = recurringStr === 'true' || recurringStr === '1' || recurringStr === 'yes';
-
-        // Map category
-        let categoryId: CategoryType = 'one_time_expense'; // default
-        const categoryMapping: Record<string, CategoryType> = {
-          'debt': 'debt',
-          'subscription': 'subscription',
-          'subscriptions': 'subscription',
-          'bill': 'bill',
-          'bills': 'bill',
-          'utilities': 'bill',
-          'bills & utilities': 'bill',
-          'savings': 'savings',
-          'one-time': 'one_time_expense',
-          'one time': 'one_time_expense',
-          'onetime': 'one_time_expense',
-          'one-time expense': 'one_time_expense',
-          'one-time expenses': 'one_time_expense',
-          'given': 'given_expenses',
-          'given expense': 'given_expenses',
-          'given expenses': 'given_expenses',
-        };
-
-        if (categoryMapping[categoryStr]) {
-          categoryId = categoryMapping[categoryStr];
-        }
-
-        // Create date for this month with the specified day
-        const today = new Date();
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth();
-        const transactionDate = new Date(currentYear, currentMonth, dayOfMonth);
-
-        // If the date is in the past for this month, use next month
-        if (transactionDate < today && !isRecurring) {
-          transactionDate.setMonth(currentMonth + 1);
-        }
-
-        const transaction: Omit<Transaction, 'id'> = {
-          name,
-          amount,
-          date: transactionDate.toISOString(),
-          category: categoryId,
-          type: 'expense',
-          isRecurring,
-        };
-
-        transactions.push(transaction);
-      } catch (error) {
-        console.warn(`Error parsing row ${i + 1}:`, error);
-        continue;
-      }
-    }
-
-    return transactions;
   };
 
-  const handleOpenTemplate = async () => {
-    const url = 'https://docs.google.com/spreadsheets/d/1OWsGvdJH9aOquUnbv2Vy45nqYh8ECkoy9pokfldqRho/edit?gid=0#gid=0';
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert('Error', 'Unable to open template link');
-      }
-    } catch {
-      Alert.alert('Error', 'Unable to open template link');
-    }
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and all your data. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccount();
+              Alert.alert('Success', 'Your account has been deleted.');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete account. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
-
-
 
   return (
     <>
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-        <Header title="Profile" subtitle="Manage your account and preferences" />
-        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]} showsVerticalScrollIndicator={false}>
-
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: colors.text }]}>Profile</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Manage your account and preferences
+            </Text>
+          </View>
           {/* Account Info */}
-          <Card style={[styles.card, { backgroundColor: colors.card }]}>
+          <Card style={[styles.card, { backgroundColor: colors.card }] as any}>
             <View style={styles.profileHeader}>
-              <Pressable 
-                style={styles.avatarContainer} 
+              <Pressable
+                style={styles.avatarContainer}
                 onPress={handleAvatarPress}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 {avatarUri ? (
-                  <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+                  <Image
+                    source={{ uri: avatarUri }}
+                    style={styles.avatarImage}
+                  />
                 ) : (
-                  <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+                  <View
+                    style={[styles.avatar, { backgroundColor: colors.primary }]}
+                  >
                     <Text style={[styles.avatarText, { color: colors.card }]}>
                       {nickname?.[0]?.toUpperCase() || 'U'}
                     </Text>
                   </View>
                 )}
-                <View style={[styles.cameraIcon, { backgroundColor: colors.primary, borderColor: colors.card }]}>
+                <View
+                  style={[
+                    styles.cameraIcon,
+                    {
+                      backgroundColor: colors.primary,
+                      borderColor: colors.card,
+                    },
+                  ]}
+                >
                   <Camera size={16} color={colors.card} />
                 </View>
               </Pressable>
               <View style={styles.nameSection}>
-                <Text style={[styles.nameText, { color: colors.text }, !nickname && { color: colors.textSecondary }]}>
+                <Text
+                  style={[
+                    styles.nameText,
+                    { color: colors.text },
+                    !nickname && { color: colors.textSecondary },
+                  ]}
+                >
                   {nickname || 'Add Your Name'}
                 </Text>
               </View>
-              <Pressable 
-                style={styles.editIcon} 
+              <Pressable
+                style={styles.editIcon}
                 onPress={() => setShowNameEditModal(true)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
@@ -476,127 +399,315 @@ export default function ProfileScreen() {
           </Card>
 
           {/* Preferences */}
-          <Card style={[styles.card, { backgroundColor: colors.card }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Preferences</Text>
-            <SettingsItem title="Theme" value={theme.charAt(0).toUpperCase() + theme.slice(1)} onPress={() => setShowThemeModal(true)} />
-            <SettingsItem title="Week Starts On" value={weekStartDay.charAt(0).toUpperCase() + weekStartDay.slice(1)} onPress={() => setShowWeekStartModal(true)} isLast />
+          <Card style={[styles.card, { backgroundColor: colors.card }] as any}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
+              Preferences
+            </Text>
+            <SettingsItem
+              title='Theme'
+              value={theme.charAt(0).toUpperCase() + theme.slice(1)}
+              onPress={() => setShowThemeModal(true)}
+              isLast
+            />
+          </Card>
+
+          {/* Badges & Achievements */}
+          <Card style={[styles.card, { backgroundColor: colors.card }] as any}>
+            <View style={styles.rowBetween}>
+              <View style={styles.badgeHeaderLeft}>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>
+                  Badges & Achievements
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowBadgeGallery(true)}
+                style={styles.badgeButton}
+              >
+                <Text style={[styles.badgeButtonText, { color: colors.primary }]}>
+                  View All
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Level Badge */}
+            {challengeTracking.financialScore && (
+              <View style={styles.levelSection}>
+                <View style={styles.levelInfo}>
+                  <LevelBadge 
+                    level={challengeTracking.financialScore.current_level}
+                    levelName={challengeTracking.financialScore.level_name}
+                    size={40}
+                    showLevelNumber={true}
+                  />
+                  <View style={styles.levelDetails}>
+                    <Text style={[styles.levelName, { color: colors.text }]}>
+                      {challengeTracking.financialScore.level_name}
+                    </Text>
+                    <Text style={[styles.levelPoints, { color: colors.textSecondary }]}>
+                      {challengeTracking.financialScore.total_points} total points
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+            
+            {/* Recent Badges */}
+            <View style={styles.recentBadgesSection}>
+              <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+                Recent Badges ({challengeTracking.userBadges.length})
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.badgesScroll}>
+                {challengeTracking.userBadges.slice(0, 5).map((badge) => (
+                  <View key={badge.id} style={styles.recentBadgeItem}>
+                    <Text style={styles.badgeEmoji}>🏆</Text>
+                    <Text style={[styles.badgeName, { color: colors.text }]} numberOfLines={1}>
+                      {badge.badge_name.replace(/_/g, ' ')}
+                    </Text>
+                  </View>
+                ))}
+                {challengeTracking.userBadges.length === 0 && (
+                  <View style={styles.noBadgesContainer}>
+                    <Text style={[styles.noBadgesText, { color: colors.textSecondary }]}>
+                      Complete challenges to earn badges!
+                    </Text>
+                  </View>
+                )}
+              </ScrollView>
+            </View>
           </Card>
 
           {/* Notifications */}
-          <Card style={[styles.card, { backgroundColor: colors.card }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Notifications</Text>
+          <Card style={[styles.card, { backgroundColor: colors.card }] as any}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
+              Notifications
+            </Text>
             
-            <View style={styles.rowBetween}>
-              <Text style={[styles.itemLabel, { color: colors.text }]}>Weekly Planner Reminder</Text>
+            <Pressable
+              style={styles.rowBetween}
+              onPress={() => setNotificationsExpanded(!notificationsExpanded)}
+            >
+              <Text style={[styles.itemLabel, { color: colors.text }]}>
+                Notification Settings
+              </Text>
+              {notificationsExpanded ? (
+                <ChevronDown size={20} color={colors.textSecondary} />
+              ) : (
+                <ChevronRight size={20} color={colors.textSecondary} />
+              )}
+            </Pressable>
+
+            {notificationsExpanded && (
+              <View style={styles.expandedContent}>
+                <View style={styles.rowBetween}>
+              <Text style={[styles.itemLabel, { color: colors.text }]}>
+                Weekly Planner Reminder
+              </Text>
               <Switch
                 value={notificationSettings.weeklyPlannerReminder}
-                onValueChange={(value) => updateNotificationSettings({ weeklyPlannerReminder: value })}
+                onValueChange={value =>
+                  updateNotificationSettings({ weeklyPlannerReminder: value })
+                }
                 trackColor={{ false: colors.inactive, true: colors.primary }}
                 thumbColor={colors.card}
               />
             </View>
-            <Text style={[styles.notificationDescription, { color: colors.textSecondary }]}>Get reminded to plan your week every Monday morning</Text>
+            <Text
+              style={[
+                styles.notificationDescription,
+                { color: colors.textSecondary },
+              ]}
+            >
+              Get reminded to plan your week every Monday morning
+            </Text>
 
             <View style={styles.rowBetween}>
-              <Text style={[styles.itemLabel, { color: colors.text }]}>Payday Reminder</Text>
+              <Text style={[styles.itemLabel, { color: colors.text }]}>
+                Payday Reminder
+              </Text>
               <Switch
                 value={notificationSettings.paydayReminder}
-                onValueChange={(value) => updateNotificationSettings({ paydayReminder: value })}
+                onValueChange={value =>
+                  updateNotificationSettings({ paydayReminder: value })
+                }
                 trackColor={{ false: colors.inactive, true: colors.primary }}
                 thumbColor={colors.card}
               />
             </View>
-            <Text style={[styles.notificationDescription, { color: colors.textSecondary }]}>Get notified when your paycheck arrives based on your pay schedule</Text>
+            <Text
+              style={[
+                styles.notificationDescription,
+                { color: colors.textSecondary },
+              ]}
+            >
+              Get notified when your paycheck arrives based on your pay schedule
+            </Text>
 
             <View style={styles.rowBetween}>
-              <Text style={[styles.itemLabel, { color: colors.text }]}>Weekly Digest Summary</Text>
+              <Text style={[styles.itemLabel, { color: colors.text }]}>
+                Weekly Digest Summary
+              </Text>
               <Switch
                 value={notificationSettings.weeklyDigestSummary}
-                onValueChange={(value) => updateNotificationSettings({ weeklyDigestSummary: value })}
+                onValueChange={value =>
+                  updateNotificationSettings({ weeklyDigestSummary: value })
+                }
                 trackColor={{ false: colors.inactive, true: colors.primary }}
                 thumbColor={colors.card}
               />
             </View>
-            <Text style={[styles.notificationDescription, { color: colors.textSecondary }]}>Receive a weekly spending summary every Sunday evening</Text>
+            <Text
+              style={[
+                styles.notificationDescription,
+                { color: colors.textSecondary },
+              ]}
+            >
+              Receive a weekly spending summary every Sunday evening
+            </Text>
 
             <View style={styles.rowBetween}>
-              <Text style={[styles.itemLabel, { color: colors.text }]}>Milestone Celebrations</Text>
+              <Text style={[styles.itemLabel, { color: colors.text }]}>
+                Milestone Celebrations
+              </Text>
               <Switch
                 value={notificationSettings.milestoneNotifications}
-                onValueChange={(value) => updateNotificationSettings({ milestoneNotifications: value })}
+                onValueChange={value =>
+                  updateNotificationSettings({ milestoneNotifications: value })
+                }
                 trackColor={{ false: colors.inactive, true: colors.primary }}
                 thumbColor={colors.card}
               />
             </View>
-            <Text style={[styles.notificationDescription, { color: colors.textSecondary }]}>Celebrate when you reach savings goals and spending milestones</Text>
+            <Text
+              style={[
+                styles.notificationDescription,
+                { color: colors.textSecondary },
+              ]}
+            >
+              Celebrate when you reach savings goals and spending milestones
+            </Text>
 
             <View style={styles.rowBetween}>
-              <Text style={[styles.itemLabel, { color: colors.text }]}>Expense Reminders</Text>
+              <Text style={[styles.itemLabel, { color: colors.text }]}>
+                Expense Reminders
+              </Text>
               <Switch
                 value={notificationSettings.expenseReminders}
-                onValueChange={(value) => updateNotificationSettings({ expenseReminders: value })}
+                onValueChange={value =>
+                  updateNotificationSettings({ expenseReminders: value })
+                }
                 trackColor={{ false: colors.inactive, true: colors.primary }}
                 thumbColor={colors.card}
               />
             </View>
-            <Text style={[styles.notificationDescription, { color: colors.textSecondary }]}>Get reminded about upcoming expenses automatically</Text>
+            <Text
+              style={[
+                styles.notificationDescription,
+                { color: colors.textSecondary },
+              ]}
+            >
+              Get reminded about upcoming expenses automatically
+            </Text>
 
             <View style={styles.rowBetween}>
-              <Text style={[styles.itemLabel, { color: colors.text }]}>Weekly Insights</Text>
+              <Text style={[styles.itemLabel, { color: colors.text }]}>
+                Weekly Insights
+              </Text>
               <Switch
                 value={notificationSettings.insightAlerts}
-                onValueChange={(value) => updateNotificationSettings({ insightAlerts: value })}
+                onValueChange={value =>
+                  updateNotificationSettings({ insightAlerts: value })
+                }
                 trackColor={{ false: colors.inactive, true: colors.primary }}
                 thumbColor={colors.card}
               />
             </View>
-            <Text style={[styles.notificationDescription, { color: colors.textSecondary }]}>Receive weekly spending insights on Sunday evenings</Text>
-          </Card>
-
-          {/* Import CSV */}
-          <Card style={[styles.card, { backgroundColor: colors.card }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Import Data</Text>
-            <SettingsItem 
-              title="Import CSV" 
-              subtitle="Import expenses from a CSV file"
-              icon={<Upload size={18} color={colors.primary} />} 
-              onPress={handleImportCSV}
-              disabled={isImporting}
-              isLast
-            />
-            <Pressable 
-              style={styles.templateLink}
-              onPress={handleOpenTemplate}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            <Text
+              style={[
+                styles.notificationDescription,
+                { color: colors.textSecondary },
+              ]}
             >
-              <View style={styles.templateLinkContent}>
-                <ExternalLink size={16} color={colors.primary} />
-                <Text style={[styles.templateLinkText, { color: colors.primary }]}>Expense Sheet Template</Text>
+              Receive weekly spending insights on Sunday evenings
+            </Text>
               </View>
-            </Pressable>
+            )}
           </Card>
 
           {/* Data Management */}
-          <Card style={[styles.card, { backgroundColor: colors.card }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Data Management</Text>
-            <SettingsItem title="Reset Data" icon={<RefreshCw size={18} color={colors.destructive} />} onPress={handleResetData} isLast />
+          <Card style={[styles.card, { backgroundColor: colors.card }] as any}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
+              Data Management
+            </Text>
+            <SettingsItem
+              title='Import expenses (CSV)'
+              icon={<Upload size={18} color={colors.primary} />}
+              onPress={() => setShowCsvImport(true)}
+            />
+            <SettingsItem
+              title='Reset Personal Data'
+              icon={<RefreshCw size={18} color={colors.warning} />}
+              onPress={handleResetData}
+            />
+            <SettingsItem
+              title='Reset All App Data'
+              icon={<RefreshCw size={18} color={colors.warning} />}
+              onPress={handleResetData}
+              isLast
+            />
           </Card>
+
+          {/* Account Management */}
+          {user && (
+            <Card style={[styles.card, { backgroundColor: colors.card }] as any}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>
+                Account
+              </Text>
+              <SettingsItem
+                title='Signed in as'
+                subtitle={user.email}
+                icon={<Mail size={18} color={colors.primary} />}
+                disabled={true}
+              />
+              <SettingsItem
+                title='Sign Out'
+                icon={<LogOut size={18} color={colors.textSecondary} />}
+                onPress={handleSignOut}
+              />
+              <SettingsItem
+                title='Delete Account'
+                icon={<Shield size={18} color={colors.error} />}
+                onPress={handleDeleteAccount}
+                isLast
+              />
+            </Card>
+          )}
 
           {/* Help & Support */}
-          <Card style={[styles.card, { backgroundColor: colors.card }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Support</Text>
-            <SettingsItem title="Privacy Policy" icon={<Shield size={18} color={colors.primary} />} onPress={handlePrivacyPolicy} />
-            <SettingsItem title="Contact Support" icon={<Mail size={18} color={colors.primary} />} onPress={handleContactSupport} isLast />
+          <Card style={[styles.card, { backgroundColor: colors.card }] as any}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
+              Support
+            </Text>
+            <SettingsItem
+              title='Privacy Policy'
+              icon={<Shield size={18} color={colors.primary} />}
+              onPress={handlePrivacyPolicy}
+            />
+            <SettingsItem
+              title='Contact Support'
+              icon={<Mail size={18} color={colors.primary} />}
+              onPress={handleContactSupport}
+              isLast
+            />
           </Card>
 
-          <Text style={[styles.versionText, { color: colors.inactive }]}>Version 1.0.0 — Data stored locally</Text>
+          <Text style={[styles.versionText, { color: colors.inactive }]}>
+            Version 1.0.0 — Data stored locally
+          </Text>
         </ScrollView>
       </SafeAreaView>
 
-
-
       <AlertModal {...alertState} onClose={hideAlert} />
-      
+
       <NameEditModal
         visible={showNameEditModal}
         currentName={nickname}
@@ -604,75 +715,54 @@ export default function ProfileScreen() {
         onClose={() => setShowNameEditModal(false)}
       />
 
-      {/* Theme Selection Modal */}
-      <Modal
-        visible={showThemeModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowThemeModal(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowThemeModal(false)}>
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Choose Theme</Text>
-            {(['system', 'light', 'dark'] as const).map((themeOption) => (
-              <Pressable
-                key={themeOption}
-                style={[
-                  styles.modalOption, 
-                  theme === themeOption && [styles.modalOptionSelected, { backgroundColor: colors.primary }]
-                ]}
-                onPress={async () => {
-                  await setTheme(themeOption);
-                  setShowThemeModal(false);
-                }}
-              >
-                <Text style={[
-                  styles.modalOptionText, 
-                  { color: colors.text },
-                  theme === themeOption && [styles.modalOptionTextSelected, { color: colors.card }]
-                ]}>
-                  {themeOption.charAt(0).toUpperCase() + themeOption.slice(1)}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
+      {/* CSV Import Modal */}
+      <CsvImportModal visible={showCsvImport} onClose={() => setShowCsvImport(false)} />
 
-      {/* Week Start Day Selection Modal */}
-      <Modal
-        visible={showWeekStartModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowWeekStartModal(false)}
+      {/* Theme Selection Modal */}
+      <ModalWrapper
+        visible={showThemeModal}
+        onClose={() => setShowThemeModal(false)}
+        animationType='fade'
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowWeekStartModal(false)}>
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Week Starts On</Text>
-            {(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const).map((day) => (
-              <Pressable
-                key={day}
-                style={[
-                  styles.modalOption, 
-                  weekStartDay === day && [styles.modalOptionSelected, { backgroundColor: colors.primary }]
-                ]}
-                onPress={async () => {
-                  await setWeekStartDay(day);
-                  setShowWeekStartModal(false);
-                }}
-              >
-                <Text style={[
-                  styles.modalOptionText, 
-                  { color: colors.text },
-                  weekStartDay === day && [styles.modalOptionTextSelected, { color: colors.card }]
-                ]}>
-                  {day.charAt(0).toUpperCase() + day.slice(1)}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
+        <Text style={[styles.modalTitle, { color: colors.text }]}>
+          Choose Theme
+        </Text>
+        {(['system', 'light', 'dark'] as const).map(themeOption => (
+          <Pressable
+            key={themeOption}
+            style={[
+              styles.modalOption,
+              theme === themeOption && [
+                styles.modalOptionSelected,
+                { backgroundColor: colors.primary },
+              ],
+            ]}
+            onPress={async () => {
+              await setTheme(themeOption);
+              setShowThemeModal(false);
+            }}
+          >
+            <Text
+              style={[
+                styles.modalOptionText,
+                { color: colors.text },
+                theme === themeOption && [
+                  styles.modalOptionTextSelected,
+                  { color: colors.card },
+                ],
+              ]}
+            >
+              {themeOption.charAt(0).toUpperCase() + themeOption.slice(1)}
+            </Text>
+          </Pressable>
+        ))}
+      </ModalWrapper>
+      
+      {/* Badge Gallery Modal */}
+      <BadgeGalleryModal
+        visible={showBadgeGallery}
+        onClose={() => setShowBadgeGallery(false)}
+      />
     </>
   );
 }
@@ -681,34 +771,45 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
   scrollContent: {
-    paddingHorizontal: Spacing.screenHorizontal, // 16px horizontal padding
-    paddingTop: Spacing.cardMargin, // 16px padding between header and first card
-    gap: Spacing.sectionSpacing, // 24px between sections
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: 100, // Space for tab bar
+    gap: Spacing.xxl, // 24px between sections
+  },
+  header: {
+    paddingVertical: Spacing.lg,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: Spacing.xs,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '400',
   },
   card: {
-    padding: Spacing.cardPadding, // Standard 16px padding
+    padding: SpacingValues.cardPadding, // Standard 16px padding
     borderRadius: BorderRadius.lg, // Standard 12px border radius
     ...Shadow.card, // Standard card shadow
   },
   cardTitle: {
-    fontSize: 17, // Balanced card title font
-    fontWeight: '600', // Bold
-    marginBottom: Spacing.lg, // 16px margin
-    lineHeight: 22,
-    letterSpacing: -0.1,
+    ...Typography.h3, // Using new typography system
+    marginBottom: Spacing.md, // Reduced from lg
   },
   rowBetween: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: Spacing.rowMinHeight, // 44px minimum row height
+    minHeight: SpacingValues.rowMinHeight, // 44px minimum row height
     paddingVertical: Spacing.sm,
   },
   itemLabel: {
-    fontSize: 15, // Balanced body label font
+    ...Typography.bodyMedium, // Using new typography system
     fontWeight: '400', // Regular weight
-    lineHeight: 20,
     flexShrink: 1,
   },
   profileHeader: {
@@ -732,7 +833,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
   },
   avatarText: {
-    fontSize: 24,
+    ...Typography.currencyMedium, // Using new typography system
     fontWeight: '700',
   },
   cameraIcon: {
@@ -751,80 +852,126 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   nameText: {
-    fontSize: 17, // Balanced name font
+    ...Typography.bodyMedium, // Using new typography system
     fontWeight: '600', // Medium weight
-    lineHeight: 22,
     flexShrink: 1,
   },
   editIcon: {
     padding: Spacing.sm,
     borderRadius: BorderRadius.sm,
-    minWidth: Spacing.minTouchTarget,
-    minHeight: Spacing.minTouchTarget,
+    minWidth: SpacingValues.minTouchTarget,
+    minHeight: SpacingValues.minTouchTarget,
     justifyContent: 'center',
     alignItems: 'center',
   },
   notificationDescription: {
-    fontSize: 13,
-    lineHeight: 17,
+    ...Typography.caption, // Using new typography system
     marginTop: -Spacing.sm,
     marginBottom: Spacing.md,
     paddingLeft: 0,
   },
+  expandedContent: {
+    paddingTop: Spacing.sm,
+    paddingLeft: Spacing.md,
+  },
   versionText: {
     textAlign: 'center',
-    fontSize: 12,
+    ...Typography.caption, // Using new typography system
     paddingVertical: Spacing.xl,
-    lineHeight: 16,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    width: '80%',
-    maxWidth: 300,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...Typography.h3, // Using new typography system
     marginBottom: Spacing.lg,
     textAlign: 'center',
+    position: 'relative',
+    zIndex: 1,
   },
   modalOption: {
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.xs,
+    position: 'relative',
+    zIndex: 1,
   },
   modalOptionSelected: {
     // backgroundColor will be set dynamically
   },
   modalOptionText: {
-    fontSize: 16,
+    ...Typography.body, // Using new typography system
     textAlign: 'center',
   },
   modalOptionTextSelected: {
     fontWeight: '600',
   },
-  templateLink: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    marginTop: -Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  templateLinkContent: {
+  // Badge section styles
+  badgeHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: Spacing.sm,
   },
-  templateLinkText: {
+  badgeButton: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  badgeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  levelSection: {
+    marginTop: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  levelInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  levelDetails: {
+    flex: 1,
+  },
+  levelName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  levelPoints: {
+    fontSize: 14,
+    fontWeight: '400',
+  },
+  recentBadgesSection: {
+    marginTop: Spacing.sm,
+  },
+  sectionSubtitle: {
     fontSize: 14,
     fontWeight: '500',
-    lineHeight: 18,
+    marginBottom: Spacing.sm,
+  },
+  badgesScroll: {
+    marginHorizontal: -Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  recentBadgeItem: {
+    alignItems: 'center',
+    marginRight: Spacing.md,
+    minWidth: 60,
+  },
+  badgeEmoji: {
+    fontSize: 24,
+    marginBottom: Spacing.xs,
+  },
+  badgeName: {
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  noBadgesContainer: {
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+  },
+  noBadgesText: {
+    fontSize: 14,
+    fontWeight: '400',
+    textAlign: 'center',
   },
 });

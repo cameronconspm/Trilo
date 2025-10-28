@@ -1,0 +1,35 @@
+{
+  "name": "trilo-backend",
+  "version": "1.0.0",
+  "description": "Trilo app backend with Plaid integration",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "build": "echo 'No build step required'",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.76.1",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "plaid": "^12.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [
+    "plaid",
+    "banking",
+    "finance",
+    "api"
+  ],
+  "author": "Trilo Team",
+  "license": "MIT"
+}

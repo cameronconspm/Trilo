@@ -46,7 +46,8 @@ class NotificationService {
   async requestPermissions(): Promise<boolean> {
     if (Platform.OS === 'web') return false;
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
     if (existingStatus !== 'granted') {
@@ -95,13 +96,13 @@ class NotificationService {
 
   async resetAllData() {
     if (Platform.OS === 'web') return;
-    
+
     // Cancel all notifications
     await this.cancelAllNotifications();
-    
+
     // Reset settings to defaults
     this.settings = DEFAULT_SETTINGS;
-    
+
     // Clear stored settings
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
@@ -135,7 +136,9 @@ class NotificationService {
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     for (const notification of scheduled) {
       if (notification.identifier.startsWith('expense_reminder_')) {
-        await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+        await Notifications.cancelScheduledNotificationAsync(
+          notification.identifier
+        );
       }
     }
 
@@ -145,7 +148,7 @@ class NotificationService {
     tomorrow.setHours(9, 0, 0, 0); // 9 AM tomorrow
 
     // Find expenses due in the next 3 days
-    const upcomingExpenses = transactions.filter((t) => {
+    const upcomingExpenses = transactions.filter(t => {
       if (t.type !== 'expense') return false;
       const dueDate = new Date(t.date);
       const threeDaysFromNow = new Date(now);
@@ -188,8 +191,6 @@ class NotificationService {
     });
   }
 
-
-
   async scheduleWeeklyPlannerReminder() {
     if (Platform.OS === 'web') return;
 
@@ -197,7 +198,7 @@ class NotificationService {
       identifier: 'weekly_planner_reminder',
       content: {
         title: 'Plan Your Week',
-        body: 'New week, new plan. Let\'s map out your money.',
+        body: "New week, new plan. Let's map out your money.",
         data: { type: 'weekly_planner' },
       },
       trigger: {
@@ -217,17 +218,23 @@ class NotificationService {
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     for (const notification of scheduled) {
       if (notification.identifier.startsWith('payday_reminder_')) {
-        await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+        await Notifications.cancelScheduledNotificationAsync(
+          notification.identifier
+        );
       }
     }
 
     // Find income transactions with pay schedules
-    const incomeTransactions = transactions.filter(t => 
-      t.type === 'income' && t.paySchedule && t.isRecurring
+    const incomeTransactions = transactions.filter(
+      t => t.type === 'income' && t.paySchedule && t.isRecurring
     );
 
     const now = new Date();
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    const nextMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      now.getDate()
+    );
 
     incomeTransactions.forEach(async (income, index) => {
       if (income.paySchedule) {
@@ -241,7 +248,7 @@ class NotificationService {
           await Notifications.scheduleNotificationAsync({
             identifier: `payday_reminder_${income.id}`,
             content: {
-              title: 'It\'s Payday!',
+              title: "It's Payday!",
               body: `Your ${income.name} paycheck is here! Time to plan your money.`,
               data: { type: 'payday', incomeId: income.id },
             },
@@ -258,7 +265,7 @@ class NotificationService {
     // This is a simplified implementation - you might want to use your existing pay schedule utilities
     const today = new Date(fromDate);
     today.setHours(0, 0, 0, 0);
-    
+
     if (paySchedule.frequency === 'weekly') {
       const nextWeek = new Date(today);
       nextWeek.setDate(today.getDate() + 7);
@@ -268,10 +275,14 @@ class NotificationService {
       nextPayday.setDate(today.getDate() + 14);
       return nextPayday;
     } else if (paySchedule.frequency === 'monthly') {
-      const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, paySchedule.dayOfMonth || 1);
+      const nextMonth = new Date(
+        today.getFullYear(),
+        today.getMonth() + 1,
+        paySchedule.dayOfMonth || 1
+      );
       return nextMonth;
     }
-    
+
     return null;
   }
 
@@ -282,7 +293,7 @@ class NotificationService {
       identifier: 'weekly_digest',
       content: {
         title: 'Weekly Wrap-Up',
-        body: 'See how you spent, saved, and what\'s ahead next week.',
+        body: "See how you spent, saved, and what's ahead next week.",
         data: { type: 'weekly_digest' },
       },
       trigger: {
@@ -295,7 +306,11 @@ class NotificationService {
     });
   }
 
-  async scheduleMilestoneNotification(title: string, body: string, delay: number = 0) {
+  async scheduleMilestoneNotification(
+    title: string,
+    body: string,
+    delay: number = 0
+  ) {
     if (Platform.OS === 'web' || !this.settings.milestoneNotifications) return;
 
     // Only send milestone notifications for significant achievements
@@ -309,12 +324,17 @@ class NotificationService {
         body,
         data: { type: 'milestone' },
       },
-      trigger: triggerDate ? { date: triggerDate } as Notifications.DateTriggerInput : null,
+      trigger: triggerDate
+        ? ({ date: triggerDate } as Notifications.DateTriggerInput)
+        : null,
     });
   }
 
   // Method to check if a milestone notification should be sent
-  shouldSendMilestoneNotification(milestoneType: string, value: number): boolean {
+  shouldSendMilestoneNotification(
+    milestoneType: string,
+    value: number
+  ): boolean {
     // Only send notifications for significant milestones
     const significantMilestones = {
       savings: [100, 500, 1000, 2500, 5000, 10000], // Dollar amounts
@@ -327,15 +347,13 @@ class NotificationService {
     } else if (milestoneType === 'transactions') {
       return significantMilestones.transactions.includes(value);
     } else if (milestoneType === 'budgetGoals') {
-      return significantMilestones.budgetGoals.some(threshold => 
-        Math.abs(value - threshold) < 0.01
+      return significantMilestones.budgetGoals.some(
+        threshold => Math.abs(value - threshold) < 0.01
       );
     }
 
     return false;
   }
-
-
 }
 
 export default new NotificationService();

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import NotificationService, { NotificationSettings } from '@/services/NotificationService';
-import { useFinance } from './FinanceContext';
+import NotificationService, {
+  NotificationSettings,
+} from '@/services/NotificationService';
 
 interface NotificationContextType {
   settings: NotificationSettings;
@@ -10,13 +11,33 @@ interface NotificationContextType {
   requestPermission: () => Promise<boolean>;
 }
 
-const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
+const DEFAULT_CONTEXT_VALUE: NotificationContextType = {
+  settings: {
+    expenseReminders: false,
+    paydayReminder: false,
+    weeklyPlannerReminder: false,
+    weeklyDigestSummary: false,
+    milestoneNotifications: false,
+    insightAlerts: false,
+  },
+  updateSettings: async () => {},
+  isLoading: false,
+  hasPermission: false,
+  requestPermission: async () => false,
+};
 
-export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const [settings, setSettings] = useState<NotificationSettings>(NotificationService.getSettings());
+const NotificationContext = createContext<NotificationContextType>(DEFAULT_CONTEXT_VALUE);
+
+export function NotificationProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [settings, setSettings] = useState<NotificationSettings>(
+    NotificationService.getSettings()
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [hasPermission, setHasPermission] = useState(false);
-  const { transactions } = useFinance();
 
   useEffect(() => {
     initializeNotifications();
@@ -32,7 +53,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           setSettings(storedSettings);
         }
       } catch (error) {
-        console.error('NotificationContext: Error checking for data reset:', error);
+        console.error(
+          'NotificationContext: Error checking for data reset:',
+          error
+        );
       }
     };
 
@@ -41,43 +65,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     return () => clearInterval(interval);
   }, [settings]);
 
-  useEffect(() => {
-    // Only update behavior-based notifications when settings change or significant transaction changes occur
-    // Avoid triggering on every small transaction addition
-    if (hasPermission && !isLoading && transactions.length > 0) {
-      const timeoutId = setTimeout(() => {
-        if (settings.expenseReminders) {
-          NotificationService.scheduleExpenseReminders(transactions);
-        }
-        if (settings.paydayReminder) {
-          NotificationService.schedulePaydayReminder(transactions);
-        }
-      }, 2000); // Debounce for 2 seconds to avoid excessive scheduling
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [settings.expenseReminders, settings.paydayReminder, hasPermission, isLoading]);
+  // Transaction-based notifications will be handled by FinanceContext
+  // to avoid circular dependency
 
   const initializeNotifications = async () => {
     try {
       await NotificationService.initialize();
       const loadedSettings = await NotificationService.loadSettings();
       setSettings(loadedSettings);
-      
+
       const permission = await NotificationService.requestPermissions();
       setHasPermission(permission);
-      
+
       if (permission) {
         await NotificationService.scheduleAllNotifications();
-        // Schedule behavior-based notifications if we have transaction data
-        if (transactions.length > 0) {
-          if (loadedSettings.expenseReminders) {
-            await NotificationService.scheduleExpenseReminders(transactions);
-          }
-          if (loadedSettings.paydayReminder) {
-            await NotificationService.schedulePaydayReminder(transactions);
-          }
-        }
+        // Transaction-based notifications will be handled by FinanceContext
+        // to avoid circular dependency
       }
     } catch (error) {
       console.error('Failed to initialize notifications:', error);
@@ -119,8 +122,5 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
 export function useNotifications() {
   const context = useContext(NotificationContext);
-  if (context === undefined) {
-    throw new Error('useNotifications must be used within a NotificationProvider');
-  }
   return context;
 }

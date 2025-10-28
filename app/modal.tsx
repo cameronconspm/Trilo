@@ -1,6 +1,6 @@
-import { StatusBar } from "expo-status-bar";
-import { Platform, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from 'expo-status-bar';
+import { Platform, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ModalScreen() {
   return (
@@ -10,7 +10,7 @@ export default function ModalScreen() {
       <Text>This is an example modal. You can edit it in app/modal.tsx.</Text>
 
       {/* Use a light status bar on iOS to account for the black space above the modal */}
-      <StatusBar style={Platform.OS === "ios" ? "light" : "auto"} />
+      <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
     </SafeAreaView>
   );
 }
@@ -18,18 +18,18 @@ export default function ModalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingTop: 24,
     paddingBottom: 30,
   },
   title: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   separator: {
     marginVertical: 30,
     height: 1,
-    width: "80%",
+    width: '80%',
   },
 });

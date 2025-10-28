@@ -1,0 +1,173 @@
+---
+alwaysApply: true
+---
+
+Follow these rules when creating, modifying, or refactoring code in the Trilo app. These rules ensure long-term scalability, UI consistency, and performance aligned with Apple Human Interface Guidelines.
+
+⸻
+
+1. File & Project Structure
+	•	Group code by feature or domain, not just component type
+	•	Example: screens/Budget/, components/Profile/, utils/formatters.ts
+	•	Use consistent naming: PascalCase for components, camelCase for functions/vars
+	•	Avoid large, single-purpose files — split into logical, reusable pieces
+
+⸻
+
+2. Component Design
+	•	All components must be functional components using hooks (useState, useEffect, etc.)
+	•	Avoid prop drilling — use context/state providers where needed
+	•	Reuse shared styles and components instead of duplicating
+	•	Keep files <150–200 lines unless logically justified
+
+⸻
+
+3. Styling & Layout
+	•	Use StyleSheet.create() or consistent utility-based styling (e.g. Tailwind/nativewind)
+	•	All UI elements must follow:
+	•	Corner radius: 8–12pt
+	•	Minimum touch size: 44x44pt
+	•	Consistent spacing (margin/padding) between elements
+	•	Match font sizes and weights to the Apple HIG scale
+	•	Titles: large, bold
+	•	Body: readable, not cramped
+	•	Captions: subtle but legible
+
+⸻
+
+4. UI/UX Guidelines
+	•	Follow Apple’s Human Interface Guidelines:
+	•	Use smooth transitions/animations (e.g., for modals, swipe actions)
+	•	Avoid abrupt UI state changes
+	•	Respect dark/light mode and user theme preferences
+	•	Use visual hierarchy (title, subtext, icons) that aligns across all screens
+
+⸻
+
+5. Data & State Management
+	•	Centralize shared app state in context/FinanceContext.tsx or similar providers
+	•	Avoid redundant state across screens
+	•	Use strong TypeScript typing for:
+	•	Transactions
+	•	Income entries
+	•	Savings goals
+	•	Pay period metadata
+
+⸻
+
+6. File Imports & Utilities
+	•	Use relative imports only (e.g., ../utils/date.ts instead of absolute paths)
+	•	Place reusable logic in utils/, reusable UI in components/shared/
+	•	Avoid unnecessary dependencies — reuse existing helper functions when available
+
+⸻
+
+7. Performance Optimization
+	•	Memoize expensive or frequently rerendered components (React.memo, useMemo)
+	•	Debounce inputs or scroll events where needed
+	•	Use lazy loading for modals or less-visited components
+
+⸻
+
+8. Accessibility & Theming
+	•	Use theme-aware colors (e.g., colors.text, colors.background) throughout
+	•	Ensure legible contrast and spacing in both light and dark mode
+	•	Use proper ARIA labels or accessibility props for inputs, buttons, and modals
+
+⸻
+
+9. Code Cleanliness
+	•	No unused variables, commented-out code, or console logs in committed files
+	•	Use Prettier and ESLint standards
+	•	Keep interfaces and types up to date in types/ folder
+
+⸻
+
+10. Do Not
+	•	Do not refactor or modify existing logic unless instructed
+	•	Do not override existing design patterns or component structure
+	•	Do not introduce third-party packages without justificationFollow these rules when creating, modifying, or refactoring code in the Trilo app. These rules ensure long-term scalability, UI consistency, and performance aligned with Apple Human Interface Guidelines.
+
+⸻
+
+1. File & Project Structure
+	•	Group code by feature or domain, not just component type
+	•	Example: screens/Budget/, components/Profile/, utils/formatters.ts
+	•	Use consistent naming: PascalCase for components, camelCase for functions/vars
+	•	Avoid large, single-purpose files — split into logical, reusable pieces
+
+⸻
+
+2. Component Design
+	•	All components must be functional components using hooks (useState, useEffect, etc.)
+	•	Avoid prop drilling — use context/state providers where needed
+	•	Reuse shared styles and components instead of duplicating
+	•	Keep files <150–200 lines unless logically justified
+
+⸻
+
+3. Styling & Layout
+	•	Use StyleSheet.create() or consistent utility-based styling (e.g. Tailwind/nativewind)
+	•	All UI elements must follow:
+	•	Corner radius: 8–12pt
+	•	Minimum touch size: 44x44pt
+	•	Consistent spacing (margin/padding) between elements
+	•	Match font sizes and weights to the Apple HIG scale
+	•	Titles: large, bold
+	•	Body: readable, not cramped
+	•	Captions: subtle but legible
+
+⸻
+
+4. UI/UX Guidelines
+	•	Follow Apple’s Human Interface Guidelines:
+	•	Use smooth transitions/animations (e.g., for modals, swipe actions)
+	•	Avoid abrupt UI state changes
+	•	Respect dark/light mode and user theme preferences
+	•	Use visual hierarchy (title, subtext, icons) that aligns across all screens
+
+⸻
+
+5. Data & State Management
+	•	Centralize shared app state in context/FinanceContext.tsx or similar providers
+	•	Avoid redundant state across screens
+	•	Use strong TypeScript typing for:
+	•	Transactions
+	•	Income entries
+	•	Savings goals
+	•	Pay period metadata
+
+⸻
+
+6. File Imports & Utilities
+	•	Use relative imports only (e.g., ../utils/date.ts instead of absolute paths)
+	•	Place reusable logic in utils/, reusable UI in components/shared/
+	•	Avoid unnecessary dependencies — reuse existing helper functions when available
+
+⸻
+
+7. Performance Optimization
+	•	Memoize expensive or frequently rerendered components (React.memo, useMemo)
+	•	Debounce inputs or scroll events where needed
+	•	Use lazy loading for modals or less-visited components
+
+⸻
+
+8. Accessibility & Theming
+	•	Use theme-aware colors (e.g., colors.text, colors.background) throughout
+	•	Ensure legible contrast and spacing in both light and dark mode
+	•	Use proper ARIA labels or accessibility props for inputs, buttons, and modals
+
+⸻
+
+9. Code Cleanliness
+	•	No unused variables, commented-out code, or console logs in committed files
+	•	Use Prettier and ESLint standards
+	•	Keep interfaces and types up to date in types/ folder
+
+⸻
+
+10. Do Not
+	•	Do not refactor or modify existing logic unless instructed
+	•	Do not override existing design patterns or component structure
+	•	Do not introduce third-party packages without justification

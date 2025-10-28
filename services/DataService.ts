@@ -12,19 +12,22 @@ export interface DataService {
   saveTransaction(transaction: Transaction): Promise<void>;
   updateTransaction(id: string, updates: Partial<Transaction>): Promise<void>;
   deleteTransaction(id: string): Promise<void>;
-  
+
   // Bulk operations
   saveAllTransactions(transactions: Transaction[]): Promise<void>;
   clearAllTransactions(): Promise<void>;
-  
+
   // Data management
   exportData(): Promise<string>;
   importData(data: string): Promise<void>;
-  
+
   // Analytics
   getTransactionsByCategory(category: CategoryType): Promise<Transaction[]>;
-  getTransactionsByDateRange(startDate: Date, endDate: Date): Promise<Transaction[]>;
-  
+  getTransactionsByDateRange(
+    startDate: Date,
+    endDate: Date
+  ): Promise<Transaction[]>;
+
   // Data integrity
   validateDataIntegrity(): Promise<boolean>;
   repairData(): Promise<void>;
@@ -42,16 +45,18 @@ class LocalDataService implements DataService {
     try {
       console.log('DataService: Loading transactions...');
       const data = await AsyncStorage.getItem(this.STORAGE_KEY);
-      
+
       if (!data) {
         console.log('DataService: No transactions found');
         return [];
       }
 
       const transactions = JSON.parse(data);
-      
+
       if (!Array.isArray(transactions)) {
-        console.warn('DataService: Invalid transaction data format, attempting recovery...');
+        console.warn(
+          'DataService: Invalid transaction data format, attempting recovery...'
+        );
         const recovered = await this.restoreFromBackup();
         if (recovered) {
           return this.getTransactions();
@@ -61,23 +66,27 @@ class LocalDataService implements DataService {
 
       // Validate each transaction
       const validTransactions = transactions.filter(this.validateTransaction);
-      
+
       if (validTransactions.length !== transactions.length) {
-        console.warn(`DataService: Found ${transactions.length - validTransactions.length} invalid transactions, cleaning up...`);
+        console.warn(
+          `DataService: Found ${transactions.length - validTransactions.length} invalid transactions, cleaning up...`
+        );
         await this.saveAllTransactions(validTransactions);
       }
 
-      console.log(`DataService: Loaded ${validTransactions.length} valid transactions`);
+      console.log(
+        `DataService: Loaded ${validTransactions.length} valid transactions`
+      );
       return validTransactions;
     } catch (error) {
       console.error('DataService: Error loading transactions:', error);
-      
+
       // Attempt recovery from backup
       const recovered = await this.restoreFromBackup();
       if (recovered) {
         return this.getTransactions();
       }
-      
+
       return [];
     }
   }
@@ -85,14 +94,16 @@ class LocalDataService implements DataService {
   async saveTransaction(transaction: Transaction): Promise<void> {
     try {
       const transactions = await this.getTransactions();
-      const existingIndex = transactions.findIndex(t => t.id === transaction.id);
-      
+      const existingIndex = transactions.findIndex(
+        t => t.id === transaction.id
+      );
+
       if (existingIndex >= 0) {
         transactions[existingIndex] = transaction;
       } else {
         transactions.push(transaction);
       }
-      
+
       await this.saveAllTransactions(transactions);
       console.log(`DataService: Saved transaction ${transaction.id}`);
     } catch (error) {
@@ -101,11 +112,14 @@ class LocalDataService implements DataService {
     }
   }
 
-  async updateTransaction(id: string, updates: Partial<Transaction>): Promise<void> {
+  async updateTransaction(
+    id: string,
+    updates: Partial<Transaction>
+  ): Promise<void> {
     try {
       const transactions = await this.getTransactions();
       const index = transactions.findIndex(t => t.id === id);
-      
+
       if (index >= 0) {
         transactions[index] = { ...transactions[index], ...updates };
         await this.saveAllTransactions(transactions);
@@ -123,11 +137,11 @@ class LocalDataService implements DataService {
     try {
       const transactions = await this.getTransactions();
       const filteredTransactions = transactions.filter(t => t.id !== id);
-      
+
       if (filteredTransactions.length === transactions.length) {
         throw new Error('Transaction not found');
       }
-      
+
       await this.saveAllTransactions(filteredTransactions);
       console.log(`DataService: Deleted transaction ${id}`);
     } catch (error) {
@@ -140,23 +154,27 @@ class LocalDataService implements DataService {
     try {
       // Validate all transactions before saving
       const validTransactions = transactions.filter(this.validateTransaction);
-      
+
       if (validTransactions.length !== transactions.length) {
-        console.warn(`DataService: Filtered out ${transactions.length - validTransactions.length} invalid transactions`);
+        console.warn(
+          `DataService: Filtered out ${transactions.length - validTransactions.length} invalid transactions`
+        );
       }
 
       const dataToSave = JSON.stringify(validTransactions);
       await AsyncStorage.setItem(this.STORAGE_KEY, dataToSave);
-      
+
       // Update integrity check
       await this.updateIntegrityCheck(validTransactions);
-      
+
       // Create backup periodically
       if (validTransactions.length > 0) {
         await this.createBackup();
       }
-      
-      console.log(`DataService: Saved ${validTransactions.length} transactions`);
+
+      console.log(
+        `DataService: Saved ${validTransactions.length} transactions`
+      );
     } catch (error) {
       console.error('DataService: Error saving all transactions:', error);
       throw new Error('Failed to save transactions');
@@ -186,7 +204,7 @@ class LocalDataService implements DataService {
         version: this.VERSION,
         integrity: await this.calculateIntegrityHash(transactions),
       };
-      
+
       console.log(`DataService: Exported ${transactions.length} transactions`);
       return JSON.stringify(exportData, null, 2);
     } catch (error) {
@@ -198,44 +216,62 @@ class LocalDataService implements DataService {
   async importData(data: string): Promise<void> {
     try {
       const parsedData = JSON.parse(data);
-      
+
       if (!parsedData.transactions || !Array.isArray(parsedData.transactions)) {
         throw new Error('Invalid data format - no transactions array found');
       }
 
       // Validate integrity if available
       if (parsedData.integrity) {
-        const calculatedHash = await this.calculateIntegrityHash(parsedData.transactions);
+        const calculatedHash = await this.calculateIntegrityHash(
+          parsedData.transactions
+        );
         if (calculatedHash !== parsedData.integrity) {
-          console.warn('DataService: Import data integrity check failed, proceeding with caution');
+          console.warn(
+            'DataService: Import data integrity check failed, proceeding with caution'
+          );
         }
       }
 
-      const validTransactions = parsedData.transactions.filter(this.validateTransaction);
-      
+      const validTransactions = parsedData.transactions.filter(
+        this.validateTransaction
+      );
+
       if (validTransactions.length === 0) {
         throw new Error('No valid transactions found in import data');
       }
 
       await this.saveAllTransactions(validTransactions);
-      console.log(`DataService: Imported ${validTransactions.length} valid transactions`);
+      console.log(
+        `DataService: Imported ${validTransactions.length} valid transactions`
+      );
     } catch (error) {
       console.error('DataService: Error importing data:', error);
-      throw new Error('Failed to import data - invalid format or corrupted data');
+      throw new Error(
+        'Failed to import data - invalid format or corrupted data'
+      );
     }
   }
 
-  async getTransactionsByCategory(category: CategoryType): Promise<Transaction[]> {
+  async getTransactionsByCategory(
+    category: CategoryType
+  ): Promise<Transaction[]> {
     try {
       const transactions = await this.getTransactions();
       return transactions.filter(t => t.category === category);
     } catch (error) {
-      console.error('DataService: Error getting transactions by category:', error);
+      console.error(
+        'DataService: Error getting transactions by category:',
+        error
+      );
       return [];
     }
   }
 
-  async getTransactionsByDateRange(startDate: Date, endDate: Date): Promise<Transaction[]> {
+  async getTransactionsByDateRange(
+    startDate: Date,
+    endDate: Date
+  ): Promise<Transaction[]> {
     try {
       const transactions = await this.getTransactions();
       return transactions.filter(t => {
@@ -243,7 +279,10 @@ class LocalDataService implements DataService {
         return transactionDate >= startDate && transactionDate <= endDate;
       });
     } catch (error) {
-      console.error('DataService: Error getting transactions by date range:', error);
+      console.error(
+        'DataService: Error getting transactions by date range:',
+        error
+      );
       return [];
     }
   }
@@ -252,7 +291,7 @@ class LocalDataService implements DataService {
     try {
       const transactions = await this.getTransactions();
       const storedIntegrity = await AsyncStorage.getItem(this.INTEGRITY_KEY);
-      
+
       if (!storedIntegrity) {
         // No integrity check exists, create one
         await this.updateIntegrityCheck(transactions);
@@ -261,13 +300,13 @@ class LocalDataService implements DataService {
 
       const { hash, count, lastUpdated } = JSON.parse(storedIntegrity);
       const currentHash = await this.calculateIntegrityHash(transactions);
-      
+
       const isValid = hash === currentHash && count === transactions.length;
-      
+
       if (!isValid) {
         console.warn('DataService: Data integrity check failed');
       }
-      
+
       return isValid;
     } catch (error) {
       console.error('DataService: Error validating data integrity:', error);
@@ -278,18 +317,20 @@ class LocalDataService implements DataService {
   async repairData(): Promise<void> {
     try {
       console.log('DataService: Attempting data repair...');
-      
+
       const transactions = await this.getTransactions();
       const validTransactions = transactions.filter(this.validateTransaction);
-      
+
       if (validTransactions.length !== transactions.length) {
-        console.log(`DataService: Repaired ${transactions.length - validTransactions.length} invalid transactions`);
+        console.log(
+          `DataService: Repaired ${transactions.length - validTransactions.length} invalid transactions`
+        );
         await this.saveAllTransactions(validTransactions);
       }
-      
+
       // Update integrity check
       await this.updateIntegrityCheck(validTransactions);
-      
+
       console.log('DataService: Data repair completed');
     } catch (error) {
       console.error('DataService: Error repairing data:', error);
@@ -311,7 +352,7 @@ class LocalDataService implements DataService {
   async restoreFromBackup(): Promise<boolean> {
     try {
       console.log('DataService: Attempting to restore from backup...');
-      
+
       const backupData = await AsyncStorage.getItem(this.BACKUP_KEY);
       if (!backupData) {
         console.log('DataService: No backup found');
@@ -319,16 +360,23 @@ class LocalDataService implements DataService {
       }
 
       const parsedBackup = JSON.parse(backupData);
-      if (parsedBackup.transactions && Array.isArray(parsedBackup.transactions)) {
-        const validTransactions = parsedBackup.transactions.filter(this.validateTransaction);
-        
+      if (
+        parsedBackup.transactions &&
+        Array.isArray(parsedBackup.transactions)
+      ) {
+        const validTransactions = parsedBackup.transactions.filter(
+          this.validateTransaction
+        );
+
         if (validTransactions.length > 0) {
           await this.saveAllTransactions(validTransactions);
-          console.log(`DataService: Restored ${validTransactions.length} transactions from backup`);
+          console.log(
+            `DataService: Restored ${validTransactions.length} transactions from backup`
+          );
           return true;
         }
       }
-      
+
       console.log('DataService: Backup contains no valid transactions');
       return false;
     } catch (error) {
@@ -337,7 +385,9 @@ class LocalDataService implements DataService {
     }
   }
 
-  private validateTransaction = (transaction: any): transaction is Transaction => {
+  private validateTransaction = (
+    transaction: any
+  ): transaction is Transaction => {
     try {
       return (
         transaction &&
@@ -358,19 +408,25 @@ class LocalDataService implements DataService {
     }
   };
 
-  private async calculateIntegrityHash(transactions: Transaction[]): Promise<string> {
+  private async calculateIntegrityHash(
+    transactions: Transaction[]
+  ): Promise<string> {
     // Simple hash calculation for integrity checking
-    const dataString = JSON.stringify(transactions.sort((a, b) => a.id.localeCompare(b.id)));
+    const dataString = JSON.stringify(
+      transactions.sort((a, b) => a.id.localeCompare(b.id))
+    );
     let hash = 0;
     for (let i = 0; i < dataString.length; i++) {
       const char = dataString.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     return hash.toString();
   }
 
-  private async updateIntegrityCheck(transactions: Transaction[]): Promise<void> {
+  private async updateIntegrityCheck(
+    transactions: Transaction[]
+  ): Promise<void> {
     try {
       const integrityData = {
         hash: await this.calculateIntegrityHash(transactions),
@@ -378,8 +434,11 @@ class LocalDataService implements DataService {
         lastUpdated: new Date().toISOString(),
         version: this.VERSION,
       };
-      
-      await AsyncStorage.setItem(this.INTEGRITY_KEY, JSON.stringify(integrityData));
+
+      await AsyncStorage.setItem(
+        this.INTEGRITY_KEY,
+        JSON.stringify(integrityData)
+      );
     } catch (error) {
       console.error('DataService: Error updating integrity check:', error);
     }
@@ -390,7 +449,9 @@ class LocalDataService implements DataService {
 export const dataService = new LocalDataService();
 
 // Factory function for future cloud service implementation
-export function createDataService(type: 'local' | 'cloud' = 'local'): DataService {
+export function createDataService(
+  type: 'local' | 'cloud' = 'local'
+): DataService {
   switch (type) {
     case 'local':
       return new LocalDataService();

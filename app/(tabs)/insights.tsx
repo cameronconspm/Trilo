@@ -1,177 +1,356 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { TrendingUp, TrendingDown, DollarSign, Target } from 'lucide-react-native';
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Target,
+  BarChart3,
+  Calendar as CalendarIcon,
+} from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useThemeColors } from '@/constants/colors';
-import Header from '@/components/Header';
-import Card from '@/components/Card';
+import { Spacing } from '@/constants/spacing';
+import { useResponsiveDesign } from '@/hooks/useResponsiveDesign';
+import Card from '@/components/layout/Card';
 import InsightCard from '@/components/InsightCard';
 import TransactionItem from '@/components/TransactionItem';
-import EmptyState from '@/components/EmptyState';
-import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
+import EmptyState from '@/components/feedback/EmptyState';
+import Calendar from '@/components/Calendar';
+import DateExpensesModal from '@/components/modals/DateExpensesModal';
+import Toggle, { ToggleOption } from '@/components/shared/Toggle';
 
 export default function InsightsScreen() {
-  const { monthlyInsights, isLoading } = useFinance();
+  const { monthlyInsights, weeklyOverview, isLoading } = useFinance();
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
-  const { totalSpent, totalSaved, topSpendingCategory, insights, recentTransactions } = monthlyInsights;
-  
+  const { spacing, typography } = useResponsiveDesign();
+  const {
+    totalSpent,
+    totalSaved,
+    insights,
+    recentTransactions,
+  } = monthlyInsights;
+
+  // Calculate new metrics from weekly overview
+  const netBalance = weeklyOverview.remainingBalance;
+  const budgetUtilization = weeklyOverview.utilization;
+  const weekIncome = weeklyOverview.weekIncome;
+
+  const [activeView, setActiveView] = useState<'insights' | 'calendar'>(
+    'insights'
+  );
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showDateModal, setShowDateModal] = useState(false);
+
+  // Toggle options for Insights/Calendar
+  const toggleOptions: ToggleOption[] = [
+    {
+      id: 'insights',
+      label: 'Insights',
+    },
+    {
+      id: 'calendar',
+      label: 'Calendar',
+    },
+  ];
+
+  const handleToggleChange = (optionId: string) => {
+    setActiveView(optionId as 'insights' | 'calendar');
+  };
+
   const hasInsights = insights.length > 0;
   const hasRecentTransactions = recentTransactions.length > 0;
-  const hasData = totalSpent > 0 || totalSaved > 0;
-  
+  const hasData = weekIncome > 0 || insights.length > 0 || recentTransactions.length > 0;
+
+  const handleDatePress = (date: Date) => {
+    setSelectedDate(date);
+    setShowDateModal(true);
+  };
+
+  const handleCloseDateModal = () => {
+    setShowDateModal(false);
+    setSelectedDate(null);
+  };
+
   if (isLoading) {
     return (
       <>
         <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-        <Header 
-          title="Insights"
-          subtitle="Financial overview"
-        />
-        <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingText, { color: colors.inactive }]}>Loading...</Text>
-        </View>
-      </SafeAreaView>
+        <SafeAreaView
+          style={[styles.container, { backgroundColor: colors.background }]}
+        >
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={[styles.title, { color: colors.text }]}>Insights</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                Financial overview
+              </Text>
+            </View>
+            <View style={styles.loadingContainer}>
+              <Text style={[styles.loadingText, typography.body, { color: colors.inactive }]}>
+                Loading...
+              </Text>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
       </>
     );
   }
-  
+
   return (
     <>
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <Header 
-        title="Insights"
-        subtitle="Financial overview"
-      />
-      
-      <ScrollView 
-        style={styles.scrollView} 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
       >
-        {hasData ? (
-          <>
-            {/* Key Metrics */}
-            <View style={styles.metricsContainer}>
-              <Card variant="elevated" style={styles.metricCard}>
-                <View style={styles.metricIcon}>
-                  <TrendingDown size={24} color={colors.error} strokeWidth={2} />
-                </View>
-                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total Spent</Text>
-                <Text style={[styles.metricValue, { color: colors.error }]}>
-                  ${totalSpent.toFixed(2)}
-                </Text>
-              </Card>
-              
-              <Card variant="elevated" style={styles.metricCard}>
-                <View style={styles.metricIcon}>
-                  <TrendingUp size={24} color={colors.success} strokeWidth={2} />
-                </View>
-                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total Saved</Text>
-                <Text style={[styles.metricValue, { color: colors.success }]}>
-                  ${totalSaved.toFixed(2)}
-                </Text>
-              </Card>
-            </View>
-            
-            {/* Top Spending Category */}
-            {topSpendingCategory.amount > 0 && (
-              <Card variant="elevated" style={styles.topCategoryCard}>
-                <View style={styles.topCategoryHeader}>
-                  <View style={styles.topCategoryIcon}>
-                    <Target size={20} color={colors.primary} strokeWidth={2} />
-                  </View>
-                  <Text style={[styles.topCategoryTitle, { color: colors.textSecondary }]}>Top Spending Category</Text>
-                </View>
-                
-                <View style={styles.categoryInfo}>
-                  <View style={[styles.categoryDot, { backgroundColor: topSpendingCategory.category.color }]} />
-                  <Text style={[styles.topCategoryName, { color: colors.text }]}>{topSpendingCategory.category.name}</Text>
-                </View>
-                <Text style={[styles.topCategoryAmount, { color: colors.text }]}>${topSpendingCategory.amount.toFixed(2)}</Text>
-                
-                <View style={styles.categoryInsight}>
-                  <Text style={[styles.categoryInsightText, { color: colors.textSecondary }]}>
-                    This represents your highest spending area this month
-                  </Text>
-                </View>
-              </Card>
-            )}
-            
-            {/* AI Insights */}
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Smart Insights</Text>
-            {hasInsights ? (
-              <View style={styles.insightsContainer}>
-                {insights.map((insight, index) => (
-                  <InsightCard key={index} text={insight} />
-                ))}
-              </View>
-            ) : (
-              <Card variant="subtle">
-                <EmptyState 
-                  icon="trending"
-                  title="Building insights..."
-                  subtitle="Add more transactions to get personalized financial insights"
-                />
-              </Card>
-            )}
-            
-            {/* Recent Transactions */}
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
-            <Card>
-              {hasRecentTransactions ? (
-                recentTransactions.map((transaction, index) => (
-                  <TransactionItem 
-                    key={transaction.id} 
-                    transaction={transaction}
-                    isLast={index === recentTransactions.length - 1}
-                  />
-                ))
-              ) : (
-                <EmptyState 
-                  icon="dollar"
-                  title="No recent transactions"
-                  subtitle="Your transaction history will appear here"
-                />
-              )}
-            </Card>
-          </>
-        ) : (
-          /* No Data State */
-          <View style={styles.noDataContainer}>
-            <Card variant="elevated" style={styles.welcomeCard}>
-              <View style={styles.welcomeIcon}>
-                <DollarSign size={48} color={colors.primary} strokeWidth={2} />
-              </View>
-              <Text style={[styles.welcomeTitle, { color: colors.text }]}>Welcome to Insights!</Text>
-              <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>
-                Start tracking your expenses and income to see personalized financial insights and trends.
-              </Text>
-              
-              <View style={styles.welcomeFeatures}>
-                <View style={styles.featureItem}>
-                  <TrendingUp size={20} color={colors.success} strokeWidth={2} />
-                  <Text style={[styles.featureText, { color: colors.text }]}>Spending trends</Text>
-                </View>
-                <View style={styles.featureItem}>
-                  <Target size={20} color={colors.primary} strokeWidth={2} />
-                  <Text style={[styles.featureText, { color: colors.text }]}>Category analysis</Text>
-                </View>
-                <View style={styles.featureItem}>
-                  <DollarSign size={20} color={colors.warning} strokeWidth={2} />
-                  <Text style={[styles.featureText, { color: colors.text }]}>Savings tracking</Text>
-                </View>
-              </View>
-            </Card>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollContent, 
+            { 
+              paddingBottom: spacing.screenBottom, // Proper bottom padding for tab bar + home indicator
+              paddingHorizontal: spacing.screenHorizontal 
+            }
+          ]}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: colors.text }]}>Insights</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Financial overview
+            </Text>
           </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+          {/* View Toggle - Two evenly sized pills */}
+          <Toggle
+            options={toggleOptions}
+            activeOption={activeView}
+            onOptionChange={handleToggleChange}
+          />
+
+          {activeView === 'insights' ? (
+            hasData ? (
+              <>
+                {/* KPI Cards Row - Net Balance and Budget Utilization */}
+                <View style={styles.metricsContainer}>
+                  <Card variant='elevated' style={styles.metricCard}>
+                    <View style={styles.metricIcon}>
+                      <DollarSign
+                        size={24}
+                        color={netBalance >= 0 ? colors.success : colors.error}
+                        strokeWidth={2}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.metricLabel,
+                        typography.footnote,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      Net Balance
+                    </Text>
+                    <Text 
+                      style={[
+                        styles.metricValue,
+                        typography.currencyMedium,
+                        { color: netBalance >= 0 ? colors.success : colors.error }
+                      ]}
+                    >
+                      {netBalance >= 0 ? '+' : ''}${netBalance.toFixed(2)}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.metricPeriod,
+                        typography.caption,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      As of today
+                    </Text>
+                  </Card>
+
+                  <Card variant='elevated' style={styles.metricCard}>
+                    <View style={styles.metricIcon}>
+                      <Target
+                        size={24}
+                        color={budgetUtilization > 90 ? colors.warning : colors.primary}
+                        strokeWidth={2}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.metricLabel,
+                        typography.footnote,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      Budget Utilization
+                    </Text>
+                    <Text 
+                      style={[
+                        styles.metricValue,
+                        typography.currencyMedium,
+                        { color: budgetUtilization > 90 ? colors.warning : colors.primary }
+                      ]}
+                    >
+                      {budgetUtilization.toFixed(0)}%
+                    </Text>
+                    <Text
+                      style={[
+                        styles.metricPeriod,
+                        typography.caption,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      of your budget used
+                    </Text>
+                  </Card>
+                </View>
+
+                {/* Top Spending Category - Simplified layout */}
+                {/* Removed as per edit hint */}
+
+                {/* Smart Insights - Left-aligned list */}
+                <Text style={[styles.sectionTitle, typography.h3, { color: colors.text }]}>
+                  Smart Insights
+                </Text>
+                {hasInsights ? (
+                  <Card>
+                    {insights.map((insight, index) => (
+                      <InsightCard 
+                        key={index} 
+                        text={insight} 
+                        isLast={index === insights.length - 1}
+                      />
+                    ))}
+                  </Card>
+                ) : (
+                  <Card variant='subtle'>
+                    <EmptyState
+                      icon='trending'
+                      title='Building insights...'
+                      subtitle='Add more transactions to get personalized financial insights'
+                    />
+                  </Card>
+                )}
+
+                {/* Recent Transactions */}
+                <Text style={[styles.sectionTitle, typography.h3, { color: colors.text }]}>
+                  Recent Activity
+                </Text>
+                <Card>
+                  {hasRecentTransactions ? (
+                    recentTransactions.map((transaction, index) => (
+                      <TransactionItem
+                        key={transaction.id}
+                        transaction={transaction}
+                        isLast={index === recentTransactions.length - 1}
+                      />
+                    ))
+                  ) : (
+                    <EmptyState
+                      icon='dollar'
+                      title='No recent transactions'
+                      subtitle='Your transaction history will appear here'
+                    />
+                  )}
+                </Card>
+              </>
+            ) : (
+              /* No Data State */
+              <View style={styles.noDataContainer}>
+                <Card variant='elevated' style={styles.welcomeCard}>
+                  <View style={styles.welcomeIcon}>
+                    <DollarSign
+                      size={48}
+                      color={colors.primary}
+                      strokeWidth={2}
+                    />
+                  </View>
+                  <Text style={[styles.welcomeTitle, typography.h2, { color: colors.text }]}>
+                    Welcome to Insights!
+                  </Text>
+                  <Text
+                    style={[
+                      styles.welcomeSubtitle,
+                      typography.callout,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Start tracking your expenses and income to see personalized
+                    financial insights and trends.
+                  </Text>
+
+                  <View style={styles.welcomeFeatures}>
+                    <View style={styles.featureItem}>
+                      <TrendingUp
+                        size={20}
+                        color={colors.success}
+                        strokeWidth={2}
+                      />
+                      <Text
+                        style={[styles.featureText, typography.callout, { color: colors.text }]}
+                      >
+                        Spending trends
+                      </Text>
+                    </View>
+                    <View style={styles.featureItem}>
+                      <Target
+                        size={20}
+                        color={colors.primary}
+                        strokeWidth={2}
+                      />
+                      <Text
+                        style={[styles.featureText, typography.callout, { color: colors.text }]}
+                      >
+                        Category analysis
+                      </Text>
+                    </View>
+                    <View style={styles.featureItem}>
+                      <DollarSign
+                        size={20}
+                        color={colors.warning}
+                        strokeWidth={2}
+                      />
+                      <Text
+                        style={[styles.featureText, typography.callout, { color: colors.text }]}
+                      >
+                        Savings tracking
+                      </Text>
+                    </View>
+                  </View>
+                </Card>
+              </View>
+            )
+          ) : (
+            /* Calendar View */
+            <Card variant='elevated'>
+              <Calendar onDatePress={handleDatePress} />
+            </Card>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+
+      <DateExpensesModal
+        visible={showDateModal}
+        onClose={handleCloseDateModal}
+        selectedDate={selectedDate}
+      />
     </>
   );
 }
@@ -184,8 +363,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.screenHorizontal, // 16px horizontal padding
-    paddingTop: Spacing.lg, // 16px padding between header and first card
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: 100, // Space for tab bar
+  },
+  header: {
+    paddingVertical: Spacing.lg,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: Spacing.xs,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '400',
+  },
+  // Section Title Styles
+  sectionTitle: {
+    marginTop: 24, // Consistent spacing from previous section
+    marginBottom: 12, // Consistent spacing to content below
   },
   loadingContainer: {
     flex: 1,
@@ -193,142 +389,65 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: 16,
+    // Typography applied at component level
   },
   metricsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
-    gap: Spacing.md,
+    marginBottom: 16,
+    gap: 16, // Gap between cards (12-16 as specified)
   },
   metricCard: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: Spacing.xl,
+    paddingVertical: 20, // Card padding (16-20 as specified)
+    paddingHorizontal: 16, // Card padding (16-20 as specified)
+    minHeight: 120, // Ensure consistent height for both states
+    justifyContent: 'center', // Center content vertically
   },
   metricIcon: {
     width: 48,
     height: 48,
-    borderRadius: BorderRadius.full,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: 12,
   },
   metricLabel: {
-    fontSize: 14,
-    marginBottom: Spacing.sm,
+    marginBottom: 8,
     textAlign: 'center',
-    fontWeight: '500',
-    lineHeight: 18,
   },
   metricValue: {
-    fontSize: 20, // Balanced metric display
-    fontWeight: '700',
     textAlign: 'center',
-    letterSpacing: -0.2,
-    lineHeight: 24,
   },
-  topCategoryCard: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xl,
-    marginBottom: Spacing.lg,
-  },
-  topCategoryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  topCategoryIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: BorderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.sm,
-  },
-  topCategoryTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    letterSpacing: -0.1,
-    lineHeight: 20,
-  },
-  categoryInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  categoryDot: {
-    width: 16,
-    height: 16,
-    borderRadius: BorderRadius.full,
-    marginRight: Spacing.md,
-  },
-  topCategoryName: {
-    fontSize: 18, // Balanced category name
-    fontWeight: '600',
-    letterSpacing: -0.2,
-    lineHeight: 22,
-  },
-  topCategoryAmount: {
-    fontSize: 22, // Balanced amount display
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    marginBottom: Spacing.md,
-    lineHeight: 26,
-  },
-  categoryInsight: {
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    marginTop: Spacing.sm,
-  },
-  categoryInsightText: {
-    fontSize: 14,
+  metricPeriod: {
     textAlign: 'center',
-    fontWeight: '500',
-    lineHeight: 20,
-  },
-  sectionTitle: {
-    fontSize: 18, // Balanced section header
-    fontWeight: '600',
-    marginTop: Spacing.sectionSpacing,
-    marginBottom: Spacing.lg,
-    letterSpacing: -0.1,
-    lineHeight: 22,
-  },
-  insightsContainer: {
-    marginBottom: Spacing.lg,
+    marginTop: 4,
   },
   noDataContainer: {
     flex: 1,
     justifyContent: 'center',
-    paddingVertical: Spacing.xxl,
+    paddingVertical: 24,
   },
   welcomeCard: {
     alignItems: 'center',
-    paddingVertical: Spacing.xxl,
+    paddingVertical: 24,
   },
   welcomeIcon: {
     width: 80,
     height: 80,
-    borderRadius: BorderRadius.full,
+    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: 16,
   },
   welcomeTitle: {
-    fontSize: 22, // Balanced welcome title
-    fontWeight: '700',
-    marginBottom: Spacing.md,
-    letterSpacing: -0.2,
-    lineHeight: 26,
+    marginBottom: 8,
   },
   welcomeSubtitle: {
-    fontSize: 15, // Balanced subtitle
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
-    fontWeight: '400',
+    marginBottom: 16,
+    paddingHorizontal: 16,
   },
   welcomeFeatures: {
     alignSelf: 'stretch',
@@ -336,15 +455,13 @@ const styles = StyleSheet.create({
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.lg,
-    marginBottom: Spacing.sm,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 8,
   },
   featureText: {
-    fontSize: 15, // Balanced feature text
     fontWeight: '500',
-    marginLeft: Spacing.md,
-    lineHeight: 20,
+    marginLeft: 8,
   },
 });

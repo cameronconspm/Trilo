@@ -3,23 +3,24 @@
     "name": "Trilo",
     "slug": "trilo",
     "owner": "cameroncons",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "jsEngine": "hermes",
     "splash": {
-      "image": "./assets/images/splash-trilo.png",
+      "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#4E91F9"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.ios-trilo",
-      "buildNumber": "1",
+      "bundleIdentifier": "com.trilo.app",
+      "buildNumber": "2",
       "splash": {
-        "image": "./assets/images/splash-trilo.png",
+        "image": "./assets/images/splash-icon.png",
         "resizeMode": "contain",
         "backgroundColor": "#4E91F9"
       },
@@ -27,7 +28,13 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos",
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
-        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone"
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone",
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLName": "plaidlink",
+            "CFBundleURLSchemes": ["plaidlink"]
+          }
+        ]
       },
       "usesIcloudStorage": true
     },
@@ -36,10 +43,10 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.cameroncons.trilo",
+      "package": "com.trilo.app",
       "versionCode": 1,
       "splash": {
-        "image": "./assets/images/splash-trilo.png",
+        "image": "./assets/images/splash-icon.png",
         "resizeMode": "contain",
         "backgroundColor": "#4E91F9"
       },
@@ -70,21 +77,13 @@
       [
         "expo-notifications",
         {
-          "icon": "./local/assets/notification_icon.png",
-          "color": "#ffffff",
           "defaultChannel": "default",
-          "sounds": [
-            "./local/assets/notification_sound.wav"
-          ],
           "enableBackgroundRemoteNotifications": false
         }
       ],
-      [
-        "expo-document-picker",
-        {
-          "iCloudContainerEnvironment": "Production"
-        }
-      ]
+      "expo-font",
+      "expo-web-browser",
+      "./plugins/withPlaidLink"
     ],
     "experiments": {
       "typedRoutes": true
@@ -95,7 +94,14 @@
       },
       "eas": {
         "projectId": "75bef967-5779-49d0-bc57-ae4f0621a7d4"
-      }
-    }
+      },
+      "supabaseUrl": "https://raictkrsnejvfvpgqzcq.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJhaWN0a3JzbmVqdmZ2cGdxemNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0OTI4NDYsImV4cCI6MjA3NzA2ODg0Nn0.VGIKiPi03R_FgaXvYppCwvDkNXQMSu9xJ1H51Z2Eulw"
+    },
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ]
   }
 }

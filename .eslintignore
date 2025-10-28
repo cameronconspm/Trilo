@@ -1,0 +1,10 @@
+node_modules/
+.expo/
+.expo-shared/
+dist-web/
+coverage/
+*.log
+*.lock
+ios/
+android/
+.web/

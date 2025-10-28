@@ -1,19 +1,19 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationService from '@/services/NotificationService';
+import { Appearance } from 'react-native';
+import { useAuth } from './AuthContext';
 
 type ThemeType = 'system' | 'light' | 'dark';
-type WeekStartDay = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
 
 interface SettingsContextType {
   theme: ThemeType;
   setTheme: (theme: ThemeType) => Promise<void>;
-  weekStartDay: WeekStartDay;
-  setWeekStartDay: (day: WeekStartDay) => Promise<void>;
   isBankConnected: boolean;
   connectBank: () => Promise<void>;
   disconnectBank: () => Promise<void>;
   resetData: () => Promise<void>;
+  resetDataSelective: () => Promise<void>;
   isLoading: boolean;
   nickname: string;
   setNickname: (name: string) => Promise<void>;
@@ -21,20 +21,34 @@ interface SettingsContextType {
   setAvatarUri: (uri: string | null) => Promise<void>;
 }
 
-const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
+const DEFAULT_CONTEXT_VALUE: SettingsContextType = {
+  theme: 'system',
+  setTheme: async () => {},
+  isBankConnected: false,
+  connectBank: async () => {},
+  disconnectBank: async () => {},
+  resetData: async () => {},
+  resetDataSelective: async () => {},
+  isLoading: true,
+  nickname: '',
+  setNickname: async () => {},
+  avatarUri: null,
+  setAvatarUri: async () => {},
+};
 
-const STORAGE_KEYS = {
-  USER_PREFERENCES: 'settings_user_preferences_v2',
-  SETTINGS_VERSION: 'settings_version',
+const SettingsContext = createContext<SettingsContextType>(DEFAULT_CONTEXT_VALUE);
+
+// Helper to get user-specific storage keys
+const getStorageKeys = (userId: string) => ({
+  USER_PREFERENCES: `settings_user_preferences_v2_${userId}`,
+  SETTINGS_VERSION: `settings_version_${userId}`,
   // Legacy keys for migration
-  THEME: 'settings_theme',
-  WEEK_START_DAY: 'settings_week_start_day',
-  BANK_CONNECTED: 'settings_bank_connected',
-} as const;
+  THEME: `settings_theme_${userId}`,
+  BANK_CONNECTED: `settings_bank_connected_${userId}`,
+});
 
 interface UserPreferences {
   theme: ThemeType;
-  weekStartDay: WeekStartDay;
   isBankConnected: boolean;
   notificationsEnabled: boolean;
   budgetAlerts: boolean;
@@ -45,7 +59,6 @@ interface UserPreferences {
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'system',
-  weekStartDay: 'thursday',
   isBankConnected: false,
   notificationsEnabled: true,
   budgetAlerts: true,
@@ -57,11 +70,20 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 const CURRENT_SETTINGS_VERSION = '2.0.0';
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const userId = user?.id || 'anonymous';
+  const STORAGE_KEYS = getStorageKeys(userId);
+  
   const [theme, setThemeState] = useState<ThemeType>(DEFAULT_PREFERENCES.theme);
-  const [weekStartDay, setWeekStartDayState] = useState<WeekStartDay>(DEFAULT_PREFERENCES.weekStartDay);
-  const [isBankConnected, setIsBankConnected] = useState(DEFAULT_PREFERENCES.isBankConnected);
-  const [nickname, setNicknameState] = useState<string>(DEFAULT_PREFERENCES.nickname);
-  const [avatarUri, setAvatarUriState] = useState<string | null>(DEFAULT_PREFERENCES.avatarUri);
+  const [isBankConnected, setIsBankConnected] = useState(
+    DEFAULT_PREFERENCES.isBankConnected
+  );
+  const [nickname, setNicknameState] = useState<string>(
+    DEFAULT_PREFERENCES.nickname
+  );
+  const [avatarUri, setAvatarUriState] = useState<string | null>(
+    DEFAULT_PREFERENCES.avatarUri
+  );
   const [isLoading, setIsLoading] = useState(true);
 
   // Load settings from AsyncStorage on mount
@@ -73,29 +95,39 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
       console.log('SettingsContext: Loading settings from storage...');
-      
+
       // Check settings version
-      const storedVersion = await AsyncStorage.getItem(STORAGE_KEYS.SETTINGS_VERSION);
+      const storedVersion = await AsyncStorage.getItem(
+        STORAGE_KEYS.SETTINGS_VERSION
+      );
       if (!storedVersion) {
         // First time app launch, set version
-        await AsyncStorage.setItem(STORAGE_KEYS.SETTINGS_VERSION, CURRENT_SETTINGS_VERSION);
-        console.log('SettingsContext: First app launch, version set to', CURRENT_SETTINGS_VERSION);
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.SETTINGS_VERSION,
+          CURRENT_SETTINGS_VERSION
+        );
+        console.log(
+          'SettingsContext: First app launch, version set to',
+          CURRENT_SETTINGS_VERSION
+        );
       }
-      
+
       // Try to load consolidated preferences first
-      const storedPreferences = await AsyncStorage.getItem(STORAGE_KEYS.USER_PREFERENCES);
-      
+      const storedPreferences = await AsyncStorage.getItem(
+        STORAGE_KEYS.USER_PREFERENCES
+      );
+
       if (storedPreferences) {
         try {
           const preferences: UserPreferences = JSON.parse(storedPreferences);
           console.log('SettingsContext: Loaded preferences from storage');
-          
+
           // Validate and apply preferences
-          if (preferences.theme && ['system', 'light', 'dark'].includes(preferences.theme)) {
+          if (
+            preferences.theme &&
+            ['system', 'light', 'dark'].includes(preferences.theme)
+          ) {
             setThemeState(preferences.theme);
-          }
-          if (preferences.weekStartDay && ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].includes(preferences.weekStartDay)) {
-            setWeekStartDayState(preferences.weekStartDay);
           }
           if (typeof preferences.isBankConnected === 'boolean') {
             setIsBankConnected(preferences.isBankConnected);
@@ -103,11 +135,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           if (typeof preferences.nickname === 'string') {
             setNicknameState(preferences.nickname);
           }
-          if (preferences.avatarUri === null || typeof preferences.avatarUri === 'string') {
+          if (
+            preferences.avatarUri === null ||
+            typeof preferences.avatarUri === 'string'
+          ) {
             setAvatarUriState(preferences.avatarUri);
           }
         } catch (parseError) {
-          console.error('SettingsContext: Error parsing stored preferences:', parseError);
+          console.error(
+            'SettingsContext: Error parsing stored preferences:',
+            parseError
+          );
           await migrateFromLegacySettings();
         }
       } else {
@@ -125,23 +163,21 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const migrateFromLegacySettings = async () => {
     try {
-      console.log('SettingsContext: Attempting to migrate from legacy settings...');
-      
+      console.log(
+        'SettingsContext: Attempting to migrate from legacy settings...'
+      );
+
       // Try to load individual legacy keys
-      const [storedTheme, storedWeekStartDay, storedBankConnection] = await Promise.all([
-        AsyncStorage.getItem(STORAGE_KEYS.THEME),
-        AsyncStorage.getItem(STORAGE_KEYS.WEEK_START_DAY),
-        AsyncStorage.getItem(STORAGE_KEYS.BANK_CONNECTED),
-      ]);
+      const [storedTheme, storedBankConnection] =
+        await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEYS.THEME),
+          AsyncStorage.getItem(STORAGE_KEYS.BANK_CONNECTED),
+        ]);
 
       let migrated = false;
-      
+
       if (storedTheme && ['system', 'light', 'dark'].includes(storedTheme)) {
         setThemeState(storedTheme as ThemeType);
-        migrated = true;
-      }
-      if (storedWeekStartDay && ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].includes(storedWeekStartDay)) {
-        setWeekStartDayState(storedWeekStartDay as WeekStartDay);
         migrated = true;
       }
       if (storedBankConnection) {
@@ -160,15 +196,16 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         console.log('SettingsContext: Successfully migrated legacy settings');
         // Save migrated settings to new format
         await saveAllPreferences();
-        
+
         // Clean up legacy keys
         await AsyncStorage.multiRemove([
           STORAGE_KEYS.THEME,
-          STORAGE_KEYS.WEEK_START_DAY,
           STORAGE_KEYS.BANK_CONNECTED,
         ]);
       } else {
-        console.log('SettingsContext: No legacy settings found, using defaults');
+        console.log(
+          'SettingsContext: No legacy settings found, using defaults'
+        );
         await saveAllPreferences();
       }
     } catch (error) {
@@ -182,7 +219,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     try {
       const preferences: UserPreferences = {
         theme,
-        weekStartDay,
         isBankConnected,
         notificationsEnabled: true,
         budgetAlerts: true,
@@ -190,8 +226,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         nickname,
         avatarUri,
       };
-      
-      await AsyncStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(preferences));
+
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.USER_PREFERENCES,
+        JSON.stringify(preferences)
+      );
       console.log('SettingsContext: Preferences saved successfully');
     } catch (error) {
       console.error('SettingsContext: Error saving preferences:', error);
@@ -206,7 +245,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       // Save immediately to ensure persistence
       const preferences: UserPreferences = {
         theme: newTheme,
-        weekStartDay,
         isBankConnected,
         notificationsEnabled: true,
         budgetAlerts: true,
@@ -214,26 +252,22 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         nickname,
         avatarUri,
       };
-      await AsyncStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(preferences));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.USER_PREFERENCES,
+        JSON.stringify(preferences)
+      );
       console.log('SettingsContext: Theme saved successfully');
+      
+      // Log the effective theme after change
+      const effectiveTheme = newTheme === 'system' 
+        ? (Appearance.getColorScheme() || 'light')
+        : newTheme;
+      console.log('SettingsContext: Effective theme after change:', effectiveTheme);
     } catch (error) {
       console.error('SettingsContext: Error saving theme:', error);
       // Revert on error
       setThemeState(theme);
       throw new Error('Failed to save theme setting');
-    }
-  };
-
-  const setWeekStartDay = async (day: WeekStartDay) => {
-    try {
-      console.log('SettingsContext: Setting week start day to', day);
-      setWeekStartDayState(day);
-      await saveAllPreferences();
-    } catch (error) {
-      console.error('SettingsContext: Error saving week start day:', error);
-      // Revert on error
-      setWeekStartDayState(weekStartDay);
-      throw new Error('Failed to save week start day');
     }
   };
 
@@ -290,32 +324,102 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const resetData = async () => {
     try {
       console.log('SettingsContext: Resetting all app data...');
-      
+
       // Clear ALL app data - settings, financial data, notifications, etc.
       const allKeys = await AsyncStorage.getAllKeys();
-      console.log('SettingsContext: Found', allKeys.length, 'storage keys to clear');
-      
+      console.log(
+        'SettingsContext: Found',
+        allKeys.length,
+        'storage keys to clear'
+      );
+
       // Reset notifications first
       await NotificationService.resetAllData();
-      
+
       // Remove all stored data
       await AsyncStorage.multiRemove(allKeys);
-      
+
       // Reset state to defaults
       setThemeState(DEFAULT_PREFERENCES.theme);
-      setWeekStartDayState(DEFAULT_PREFERENCES.weekStartDay);
       setIsBankConnected(DEFAULT_PREFERENCES.isBankConnected);
       setNicknameState(DEFAULT_PREFERENCES.nickname);
       setAvatarUriState(DEFAULT_PREFERENCES.avatarUri);
-      
+
       // Save default preferences
-      await AsyncStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(DEFAULT_PREFERENCES));
-      await AsyncStorage.setItem(STORAGE_KEYS.SETTINGS_VERSION, CURRENT_SETTINGS_VERSION);
-      
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.USER_PREFERENCES,
+        JSON.stringify(DEFAULT_PREFERENCES)
+      );
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.SETTINGS_VERSION,
+        CURRENT_SETTINGS_VERSION
+      );
+
       console.log('SettingsContext: All app data reset successfully');
     } catch (error) {
       console.error('SettingsContext: Error resetting all data:', error);
       throw new Error('Failed to reset all data');
+    }
+  };
+
+  const resetDataSelective = async () => {
+    try {
+      console.log('SettingsContext: Resetting selective app data (preserving achievements)...');
+
+      // Get all storage keys
+      const allKeys = await AsyncStorage.getAllKeys();
+      
+      // Define keys to preserve (user achievements)
+      const keysToPreserve = [
+        'activeChallenges',
+        'userBadges', 
+        'financialScore',
+        'completedChallenges',
+        'activeMicroGoals',
+        // Add any other achievement-related keys here
+      ];
+
+      // Filter out keys to preserve
+      const keysToDelete = allKeys.filter(key => 
+        !keysToPreserve.some(preserveKey => key.includes(preserveKey))
+      );
+
+      console.log(
+        'SettingsContext: Preserving',
+        keysToPreserve.length,
+        'achievement keys, deleting',
+        keysToDelete.length,
+        'other keys'
+      );
+
+      // Reset notifications first
+      await NotificationService.resetAllData();
+
+      // Remove only non-achievement data
+      if (keysToDelete.length > 0) {
+        await AsyncStorage.multiRemove(keysToDelete);
+      }
+
+      // Reset state to defaults (but keep achievements)
+      setThemeState(DEFAULT_PREFERENCES.theme);
+      setIsBankConnected(DEFAULT_PREFERENCES.isBankConnected);
+      setNicknameState(DEFAULT_PREFERENCES.nickname);
+      setAvatarUriState(DEFAULT_PREFERENCES.avatarUri);
+
+      // Save default preferences
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.USER_PREFERENCES,
+        JSON.stringify(DEFAULT_PREFERENCES)
+      );
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.SETTINGS_VERSION,
+        CURRENT_SETTINGS_VERSION
+      );
+
+      console.log('SettingsContext: Selective data reset completed successfully');
+    } catch (error) {
+      console.error('SettingsContext: Error in selective reset:', error);
+      throw new Error('Failed to reset selective data');
     }
   };
 
@@ -324,12 +428,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       value={{
         theme,
         setTheme,
-        weekStartDay,
-        setWeekStartDay,
         isBankConnected,
         connectBank,
         disconnectBank,
         resetData,
+        resetDataSelective,
         isLoading,
         nickname,
         setNickname,
@@ -344,8 +447,5 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
 export function useSettings() {
   const context = useContext(SettingsContext);
-  if (context === undefined) {
-    throw new Error('useSettings must be used within a SettingsProvider');
-  }
   return context;
 }

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from './AuthContext';
 
 export interface SavingsGoal {
   id: string;
@@ -10,18 +11,15 @@ export interface SavingsGoal {
   createdAt: string;
 }
 
-const SAVINGS_GOALS_KEY = 'savings_goals';
-
 export const [SavingsProvider, useSavings] = createContextHook(() => {
+  const { user } = useAuth();
+  const userId = user?.id || 'anonymous';
+  const SAVINGS_GOALS_KEY = `savings_goals_${userId}`;
+  
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load savings goals from storage
-  useEffect(() => {
-    loadSavingsGoals();
-  }, []);
-
-  const loadSavingsGoals = async () => {
+  const loadSavingsGoals = useCallback(async () => {
     try {
       const stored = await AsyncStorage.getItem(SAVINGS_GOALS_KEY);
       if (stored) {
@@ -33,7 +31,12 @@ export const [SavingsProvider, useSavings] = createContextHook(() => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  // Load savings goals from storage
+  useEffect(() => {
+    loadSavingsGoals();
+  }, [loadSavingsGoals]);
 
   const saveSavingsGoals = async (goals: SavingsGoal[]) => {
     try {
