@@ -10,29 +10,21 @@ class PlaidService {
       const plaidEnv = process.env.PLAID_ENV || 'sandbox';
       console.log('[Plaid Backend]   Environment:', plaidEnv);
       
-      // Environment-aware redirect URI
-      // Only use redirect_uri for production/development environments, NOT for sandbox
-      // Sandbox doesn't require OAuth redirect URIs unless specifically testing OAuth flows
+      // Redirect URI is now required for all environments (including sandbox)
+      // It must be registered in the Plaid Dashboard under "Allowed redirect URIs"
       let redirectUri = null;
       if (customRedirectUri) {
         redirectUri = customRedirectUri;
       } else if (process.env.PLAID_REDIRECT_URI) {
-        // Only use if NOT in sandbox
-        if (plaidEnv !== 'sandbox') {
-          redirectUri = process.env.PLAID_REDIRECT_URI;
-        } else {
-          console.log('[Plaid Backend]   ⚠️  PLAID_REDIRECT_URI is set but ignored for sandbox environment');
-        }
-      } else if (plaidEnv === 'production' || plaidEnv === 'development') {
-        // Only set default redirect URI for non-sandbox environments
-        redirectUri = 'https://trilo-production.up.railway.app/api/plaid/redirect';
+        redirectUri = process.env.PLAID_REDIRECT_URI;
+      } else {
+        // Default redirect URI (must match the route in server.js: /plaid/redirect)
+        // Note: This must be registered in Plaid Dashboard
+        redirectUri = 'https://trilo-production.up.railway.app/plaid/redirect';
       }
       
-      if (redirectUri) {
-        console.log('[Plaid Backend]   Redirect URI:', redirectUri);
-      } else {
-        console.log('[Plaid Backend]   No redirect URI (sandbox mode - not required)');
-      }
+      console.log('[Plaid Backend]   Redirect URI:', redirectUri);
+      console.log('[Plaid Backend]   ⚠️  Ensure this URI is registered in Plaid Dashboard under "Allowed redirect URIs"');
 
       const request = {
         user: {
@@ -42,7 +34,7 @@ class PlaidService {
         products: ['transactions', 'auth'],
         country_codes: ['US'],
         language: 'en',
-        ...(redirectUri && { redirect_uri: redirectUri }),
+        redirect_uri: redirectUri, // Always include redirect_uri (required by Plaid)
       };
 
       console.log('[Plaid Backend]   Request:', JSON.stringify({
