@@ -240,6 +240,32 @@ class PlaidService {
     }
   }
 
+  // Helper method to save transactions to database
+  static async saveTransactions(accountId, transactions) {
+    // Transform transactions for database
+    const transactionData = transactions.map(transaction => ({
+      account_id: accountId,
+      transaction_id: transaction.transaction_id,
+      amount: transaction.amount,
+      date: transaction.date,
+      name: transaction.name,
+      merchant_name: transaction.merchant_name,
+      category: transaction.category ? transaction.category.join(', ') : null,
+      subcategory: transaction.subcategory ? transaction.subcategory.join(', ') : null,
+      account_owner: transaction.account_owner,
+      pending: transaction.pending,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }));
+
+    // Bulk insert transactions
+    if (transactionData.length > 0) {
+      await Transaction.bulkCreate(transactionData);
+    }
+
+    return transactionData.length;
+  }
+
   // Get transactions
   static async getTransactions(accessToken, startDate, endDate, accountIds = null) {
     try {
@@ -255,28 +281,31 @@ class PlaidService {
         request.account_ids = accountIds;
       }
 
-      console.log('[Plaid Backend]   Requesting transactions:', {
-        start_date: startDate,
-        end_date: endDate,
-        account_ids: accountIds?.length || 'all',
-      });
+      // Reduced logging to avoid Railway rate limits
+      // Only log key info, not full request object
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Plaid Backend]   Requesting transactions:', startDate, 'to', endDate);
+      }
 
       const response = await plaidClient.transactionsGet(request);
       
       const transactions = response.data.transactions || [];
-      console.log('[Plaid Backend]   Transactions received:', transactions.length);
       
-      // Log if no transactions found (helpful for debugging test credentials)
-      if (transactions.length === 0) {
+      // Only log if transactions found or if it's a significant issue
+      if (transactions.length > 0) {
+        console.log('[Plaid Backend]   ✅ Transactions received:', transactions.length);
+      } else if (process.env.NODE_ENV === 'development') {
+        // Only warn in dev mode to reduce log volume
         console.warn('[Plaid Backend]   ⚠️  No transactions found for date range:', startDate, 'to', endDate);
       }
       
       return transactions;
     } catch (error) {
-      console.error('[Plaid Backend] ❌ Error getting transactions:', error);
-      console.error('[Plaid Backend]   Error code:', error.response?.data?.error_code);
-      console.error('[Plaid Backend]   Error message:', error.response?.data?.error_message || error.message);
-      throw new Error(`Failed to get transactions: ${error.response?.data?.error_message || error.message}`);
+      // Always log errors, but keep them concise
+      const errorCode = error.response?.data?.error_code;
+      const errorMessage = error.response?.data?.error_message || error.message;
+      console.error('[Plaid Backend] ❌ Transaction fetch error:', errorCode || errorMessage);
+      throw new Error(`Failed to get transactions: ${errorMessage}`);
     }
   }
 
@@ -288,39 +317,44 @@ class PlaidService {
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 90); // Extended from 30 to 90 days
+      
+      // Format dates as YYYY-MM-DD (Plaid requires this format)
+      const endDateStr = endDate.toISOString().split('T')[0];
+      const startDateStr = startDate.toISOString().split('T')[0];
+      
+      // Validate dates are not in the future
+      const today = new Date().toISOString().split('T')[0];
+      if (endDateStr > today) {
+        console.warn('[Plaid Backend]   ⚠️  End date is in the future, using today instead');
+        const endDateFormatted = today;
+        const startDateFormatted = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        console.log('[Plaid Backend]   Fetching transactions from:', startDateFormatted, 'to', endDateFormatted);
+        
+        const transactions = await this.getTransactions(
+          accessToken,
+          startDateFormatted,
+          endDateFormatted
+        );
+        
+        console.log('[Plaid Backend]   Transactions fetched:', transactions?.length || 0);
+        
+        // Transform and save transactions
+        return await this.saveTransactions(accountId, transactions);
+      }
 
-      console.log('[Plaid Backend]   Fetching transactions from:', startDate.toISOString().split('T')[0], 'to', endDate.toISOString().split('T')[0]);
+      // Only log in dev mode to reduce Railway log volume
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Plaid Backend]   Fetching transactions from:', startDateStr, 'to', endDateStr);
+      }
 
       const transactions = await this.getTransactions(
         accessToken,
-        startDate.toISOString().split('T')[0],
-        endDate.toISOString().split('T')[0]
+        startDateStr,
+        endDateStr
       );
       
-      console.log('[Plaid Backend]   Transactions fetched:', transactions?.length || 0);
-
-      // Transform transactions for database
-      const transactionData = transactions.map(transaction => ({
-        account_id: accountId,
-        transaction_id: transaction.transaction_id,
-        amount: transaction.amount,
-        date: transaction.date,
-        name: transaction.name,
-        merchant_name: transaction.merchant_name,
-        category: transaction.category ? transaction.category.join(', ') : null,
-        subcategory: transaction.subcategory ? transaction.subcategory.join(', ') : null,
-        account_owner: transaction.account_owner,
-        pending: transaction.pending,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }));
-
-      // Bulk insert transactions
-      if (transactionData.length > 0) {
-        await Transaction.bulkCreate(transactionData);
-      }
-
-      return transactionData.length;
+      // Transform and save transactions
+      return await this.saveTransactions(accountId, transactions);
     } catch (error) {
       console.error('Error syncing transactions:', error);
       throw new Error('Failed to sync transactions');
