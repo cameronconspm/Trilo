@@ -301,12 +301,12 @@ class PlaidService {
   // Get transactions
   static async getTransactions(accessToken, startDate, endDate, accountIds = null) {
     try {
+      // Build request with only recognized fields
+      // Note: count and offset are not supported in transactionsGet - use transactionsSync for pagination
       const request = {
         access_token: accessToken,
         start_date: startDate,
         end_date: endDate,
-        count: 500,
-        offset: 0,
       };
 
       if (accountIds) {
