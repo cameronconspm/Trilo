@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const plaidRoutes = require('./routes/plaid');
+const webhookRoutes = require('./webhooks/revenuecat-webhook');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -100,13 +101,64 @@ app.get('/plaid/redirect', async (req, res) => {
 // API routes
 app.use('/api/plaid', plaidRoutes);
 
+// Webhook routes (must be before body parsing middleware to capture raw body if needed)
+app.use('/api/webhooks', webhookRoutes);
+
 // Error handling middleware
+// Only handle errors if response hasn't been sent yet
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(500).json({ 
+  // If response was already sent, don't override it
+  if (res.headersSent) {
+    return next(err);
+  }
+  
+  console.error('[Server] Unhandled error:', err);
+  console.error('[Server] Error code:', err?.code);
+  console.error('[Server] Error message:', err?.message);
+  
+  // Check if it's a PGRST116 error (account not found)
+  // PGRST116 means "0 rows" - for delete operations, this is success (account already deleted)
+  // Check ALL possible locations for PGRST116
+  const errorCode = err?.code || err?.error?.code || err?.details?.code || err?.error?.details?.code;
+  const errorMessage = err?.message || err?.error?.message || err?.details?.message || err?.error?.details?.message || String(err || '');
+  const errorDetails = err?.details || err?.error?.details || err?.details?.details;
+  
+  // Check for PGRST116 in code, message, and details
+  const hasPGRST116 = errorCode === 'PGRST116' || 
+                     errorMessage.includes('PGRST116') || 
+                     errorMessage.includes('0 rows') ||
+                     errorMessage.includes('Cannot coerce') ||
+                     errorMessage.includes('The result contains 0 rows') ||
+                     (errorDetails && (String(errorDetails).includes('PGRST116') || String(errorDetails).includes('0 rows')));
+  
+  if (hasPGRST116) {
+    console.log('[Server] ✅ PGRST116 detected in error middleware - treating as success');
+    console.log('[Server] Error code:', errorCode);
+    console.log('[Server] Error message:', errorMessage);
+    console.log('[Server] Error details:', errorDetails);
+    // Return success - account doesn't exist = success
+    return res.json({ 
+      success: true, 
+      message: 'Account not found (may have been already deleted)',
+      alreadyDeleted: true
+    });
+  }
+  
+  // Preserve detailed error information if available
+  const errorResponse = {
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
-  });
+  };
+  
+  // Include error details if available
+  if (err?.code) {
+    errorResponse.code = err.code;
+  }
+  if (err?.details) {
+    errorResponse.details = err.details;
+  }
+  
+  res.status(500).json(errorResponse);
 });
 
 // 404 handler
