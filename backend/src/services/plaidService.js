@@ -7,15 +7,32 @@ class PlaidService {
     try {
       console.log('[Plaid Backend] 🔗 Creating link token...');
       console.log('[Plaid Backend]   User ID:', userId);
-      console.log('[Plaid Backend]   Environment:', process.env.PLAID_ENV || 'sandbox');
+      const plaidEnv = process.env.PLAID_ENV || 'sandbox';
+      console.log('[Plaid Backend]   Environment:', plaidEnv);
       
       // Environment-aware redirect URI
-      // Only use redirect_uri for production, sandbox doesn't require it
-      const redirectUri = customRedirectUri || 
-        process.env.PLAID_REDIRECT_URI || 
-        (process.env.NODE_ENV === 'production' 
-          ? 'https://trilo-production.up.railway.app/api/plaid/redirect'
-          : null);
+      // Only use redirect_uri for production/development environments, NOT for sandbox
+      // Sandbox doesn't require OAuth redirect URIs unless specifically testing OAuth flows
+      let redirectUri = null;
+      if (customRedirectUri) {
+        redirectUri = customRedirectUri;
+      } else if (process.env.PLAID_REDIRECT_URI) {
+        // Only use if NOT in sandbox
+        if (plaidEnv !== 'sandbox') {
+          redirectUri = process.env.PLAID_REDIRECT_URI;
+        } else {
+          console.log('[Plaid Backend]   ⚠️  PLAID_REDIRECT_URI is set but ignored for sandbox environment');
+        }
+      } else if (plaidEnv === 'production' || plaidEnv === 'development') {
+        // Only set default redirect URI for non-sandbox environments
+        redirectUri = 'https://trilo-production.up.railway.app/api/plaid/redirect';
+      }
+      
+      if (redirectUri) {
+        console.log('[Plaid Backend]   Redirect URI:', redirectUri);
+      } else {
+        console.log('[Plaid Backend]   No redirect URI (sandbox mode - not required)');
+      }
 
       const request = {
         user: {
