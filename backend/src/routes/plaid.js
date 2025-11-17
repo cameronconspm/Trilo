@@ -25,19 +25,23 @@ router.post('/link/token', async (req, res) => {
 // Exchange public token
 router.post('/link/exchange', async (req, res) => {
   try {
-    const { public_token, userId } = req.body;
+    const { public_token, userId, selected_account_ids } = req.body;
     
     console.log('[Plaid Backend] 📥 Exchange request received');
     console.log('[Plaid Backend]   Has public_token:', !!public_token);
     console.log('[Plaid Backend]   Has userId:', !!userId);
     console.log('[Plaid Backend]   UserId value:', userId);
+    console.log('[Plaid Backend]   Selected account IDs:', selected_account_ids?.length || 0);
+    if (selected_account_ids && selected_account_ids.length > 0) {
+      console.log('[Plaid Backend]   Account IDs:', selected_account_ids);
+    }
     
     if (!public_token || !userId) {
       console.error('[Plaid Backend] ❌ Missing required fields');
       return res.status(400).json({ error: 'Public token and user ID are required' });
     }
 
-    const result = await PlaidService.exchangePublicToken(public_token, userId);
+    const result = await PlaidService.exchangePublicToken(public_token, userId, selected_account_ids);
     console.log('[Plaid Backend] ✅ Exchange completed successfully');
     res.json(result);
   } catch (error) {
