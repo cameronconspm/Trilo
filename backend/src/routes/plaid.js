@@ -9,15 +9,51 @@ router.post('/link/token', async (req, res) => {
   try {
     const { userId } = req.body;
     
+    console.log('[Plaid Backend] 📥 Link token request received');
+    console.log('[Plaid Backend]   User ID:', userId);
+    console.log('[Plaid Backend]   Has userId:', !!userId);
+    
     if (!userId) {
+      console.error('[Plaid Backend] ❌ Missing userId in request');
       return res.status(400).json({ error: 'User ID is required' });
     }
 
     const linkToken = await PlaidService.createLinkToken(userId);
+    console.log('[Plaid Backend] ✅ Link token created, returning to client');
     res.json({ link_token: linkToken });
   } catch (error) {
-    console.error('Error creating link token:', error);
-    res.status(500).json({ error: 'Failed to create link token' });
+    console.error('[Plaid Backend] ❌ ========== ERROR in link token route ==========');
+    console.error('[Plaid Backend]   Error type:', typeof error);
+    console.error('[Plaid Backend]   Error constructor:', error?.constructor?.name);
+    console.error('[Plaid Backend]   Error name:', error?.name);
+    console.error('[Plaid Backend]   Error message:', error?.message);
+    console.error('[Plaid Backend]   Error stack:', error?.stack);
+    
+    // Log Plaid API errors in detail
+    if (error?.response) {
+      console.error('[Plaid Backend]   Plaid API Error Status:', error.response.status);
+      console.error('[Plaid Backend]   Plaid API Error Data:', JSON.stringify(error.response.data, null, 2));
+    }
+    
+    // Check for missing environment variables
+    if (!process.env.PLAID_CLIENT_ID || !process.env.PLAID_SECRET) {
+      console.error('[Plaid Backend]   ⚠️  Missing Plaid credentials!');
+      console.error('[Plaid Backend]   PLAID_CLIENT_ID:', !!process.env.PLAID_CLIENT_ID);
+      console.error('[Plaid Backend]   PLAID_SECRET:', !!process.env.PLAID_SECRET);
+    }
+    
+    // Return detailed error in development, generic in production
+    const errorMessage = error?.message || 'Failed to create link token';
+    const errorResponse = {
+      error: 'Failed to create link token',
+      details: process.env.NODE_ENV === 'development' ? errorMessage : 'Internal server error',
+    };
+    
+    if (process.env.NODE_ENV === 'development' && error?.response?.data) {
+      errorResponse.plaidError = error.response.data;
+    }
+    
+    res.status(500).json(errorResponse);
   }
 });
 

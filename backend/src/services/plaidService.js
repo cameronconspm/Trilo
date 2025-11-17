@@ -44,20 +44,43 @@ class PlaidService {
       
       return response.data.link_token;
     } catch (error) {
-      console.error('[Plaid Backend] ❌ Error creating link token:', error);
+      console.error('[Plaid Backend] ❌ ========== ERROR creating link token ==========');
+      console.error('[Plaid Backend]   Error type:', typeof error);
+      console.error('[Plaid Backend]   Error constructor:', error?.constructor?.name);
+      console.error('[Plaid Backend]   Error name:', error?.name);
+      console.error('[Plaid Backend]   Error message:', error?.message);
+      console.error('[Plaid Backend]   Error stack:', error?.stack);
       
-      // Log detailed error information
+      // Log detailed Plaid API error information
       if (error.response) {
-        console.error('[Plaid Backend]   Plaid API Error:', {
-          status: error.response.status,
-          statusText: error.response.statusText,
-          data: error.response.data,
-        });
+        console.error('[Plaid Backend]   Plaid API Error Status:', error.response.status);
+        console.error('[Plaid Backend]   Plaid API Error Status Text:', error.response.statusText);
+        console.error('[Plaid Backend]   Plaid API Error Data:', JSON.stringify(error.response.data, null, 2));
+        
+        // Extract Plaid error code and message
+        const plaidErrorCode = error.response.data?.error_code;
+        const plaidErrorMessage = error.response.data?.error_message;
+        const plaidErrorType = error.response.data?.error_type;
+        
+        if (plaidErrorCode || plaidErrorMessage) {
+          console.error('[Plaid Backend]   Plaid Error Code:', plaidErrorCode);
+          console.error('[Plaid Backend]   Plaid Error Type:', plaidErrorType);
+          console.error('[Plaid Backend]   Plaid Error Message:', plaidErrorMessage);
+          
+          throw new Error(`Plaid API error: ${plaidErrorMessage || plaidErrorCode || 'Unknown Plaid error'}`);
+        }
       } else if (error.message) {
         console.error('[Plaid Backend]   Error Message:', error.message);
+      } else {
+        console.error('[Plaid Backend]   Full Error Object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
       }
       
-      throw new Error(`Failed to create link token: ${error.message || 'Unknown error'}`);
+      // Re-throw with more context
+      const errorMessage = error?.response?.data?.error_message || 
+                          error?.response?.data?.error_code || 
+                          error?.message || 
+                          'Unknown error';
+      throw new Error(`Failed to create link token: ${errorMessage}`);
     }
   }
 
