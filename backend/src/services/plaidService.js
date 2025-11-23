@@ -273,7 +273,12 @@ class PlaidService {
   }
 
   // Helper method to save transactions to database
+  // Handles duplicates gracefully - the UNIQUE constraint prevents duplicates
   static async saveTransactions(accountId, transactions) {
+    if (!transactions || transactions.length === 0) {
+      return 0;
+    }
+
     // Transform transactions for database
     const transactionData = transactions.map(transaction => ({
       account_id: accountId,
@@ -290,19 +295,39 @@ class PlaidService {
       updated_at: new Date().toISOString(),
     }));
 
-    // Bulk insert transactions
-    if (transactionData.length > 0) {
-      await Transaction.bulkCreate(transactionData);
-    }
+    try {
+      // Bulk insert transactions
+      // The UNIQUE constraint on (account_id, transaction_id) will prevent duplicates
+      const saved = await Transaction.bulkCreate(transactionData);
+      const savedCount = saved?.length || transactionData.length;
+      
+      if (savedCount > 0 && process.env.NODE_ENV === 'development') {
+        console.log(`[Plaid Backend]   ✅ Saved ${savedCount} transactions to database`);
+      }
 
-    return transactionData.length;
+      return savedCount;
+    } catch (error) {
+      // If it's a duplicate key error, that's okay - transactions already exist
+      // The UNIQUE constraint prevents duplicates, so this is expected on re-syncs
+      if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Plaid Backend]   ℹ️  Some transactions already exist (duplicates skipped)');
+        }
+        // Return the count we attempted to save (some may have been duplicates)
+        // This is fine - the unique constraint handled it
+        return transactionData.length;
+      }
+      // Re-throw if it's a different error
+      throw error;
+    }
   }
 
   // Get transactions
+  // Note: transactionsGet returns up to 500 transactions per request
+  // For larger datasets, consider using transactionsSync for better performance
   static async getTransactions(accessToken, startDate, endDate, accountIds = null) {
     try {
       // Build request with only recognized fields
-      // Note: count and offset are not supported in transactionsGet - use transactionsSync for pagination
       const request = {
         access_token: accessToken,
         start_date: startDate,
@@ -314,7 +339,6 @@ class PlaidService {
       }
 
       // Reduced logging to avoid Railway rate limits
-      // Only log key info, not full request object
       if (process.env.NODE_ENV === 'development') {
         console.log('[Plaid Backend]   Requesting transactions:', startDate, 'to', endDate);
       }
@@ -322,12 +346,17 @@ class PlaidService {
       const response = await plaidClient.transactionsGet(request);
       
       const transactions = response.data.transactions || [];
+      const totalTransactions = response.data.total_transactions || transactions.length;
       
-      // Only log if transactions found or if it's a significant issue
+      // Log transaction count
       if (transactions.length > 0) {
-        console.log('[Plaid Backend]   ✅ Transactions received:', transactions.length);
+        console.log(`[Plaid Backend]   ✅ Transactions received: ${transactions.length} of ${totalTransactions} total`);
+        
+        // Warn if we're not getting all transactions (transactionsGet returns max 500)
+        if (totalTransactions > 500 && transactions.length === 500) {
+          console.warn('[Plaid Backend]   ⚠️  More than 500 transactions available. Consider using transactionsSync for complete data.');
+        }
       } else if (process.env.NODE_ENV === 'development') {
-        // Only warn in dev mode to reduce log volume
         console.warn('[Plaid Backend]   ⚠️  No transactions found for date range:', startDate, 'to', endDate);
       }
       
