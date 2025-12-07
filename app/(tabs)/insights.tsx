@@ -288,7 +288,7 @@ export default function InsightsScreen() {
                   <Text
                     style={[
                       styles.welcomeSubtitle,
-                      typography.callout,
+                      typography.body,
                       { color: colors.textSecondary },
                     ]}
                   >
@@ -304,7 +304,7 @@ export default function InsightsScreen() {
                         strokeWidth={2}
                       />
                       <Text
-                        style={[styles.featureText, typography.callout, { color: colors.text }]}
+                        style={[styles.featureText, typography.bodyMedium, { color: colors.text }]}
                       >
                         Spending trends
                       </Text>
@@ -316,7 +316,7 @@ export default function InsightsScreen() {
                         strokeWidth={2}
                       />
                       <Text
-                        style={[styles.featureText, typography.callout, { color: colors.text }]}
+                        style={[styles.featureText, typography.bodyMedium, { color: colors.text }]}
                       >
                         Category analysis
                       </Text>
@@ -328,7 +328,7 @@ export default function InsightsScreen() {
                         strokeWidth={2}
                       />
                       <Text
-                        style={[styles.featureText, typography.callout, { color: colors.text }]}
+                        style={[styles.featureText, typography.bodyMedium, { color: colors.text }]}
                       >
                         Savings tracking
                       </Text>
@@ -461,7 +461,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   featureText: {
-    fontWeight: '500',
     marginLeft: 8,
   },
 });

@@ -64,6 +64,7 @@ The project is optimized for **Expo Go exclusively**:
 - **Error Boundaries**: Graceful error handling and recovery
 - **Theme Support**: Light/dark mode with automatic detection
 - **Accessibility**: Screen reader support and proper touch targets
+- **Security**: Multi-factor authentication (MFA) required for bank account access
 
 ## 🏗️ **Architecture**
 
@@ -110,10 +111,29 @@ Trilo/
 3. Check firewall settings
 4. Try switching between tunnel and local modes
 
+## 🔒 **Security**
+
+Trilo implements comprehensive security measures to protect user data:
+
+- **Multi-Factor Authentication (MFA)**: Required before accessing Plaid bank account features
+- **Encryption**: All data encrypted in transit (TLS 1.2+) and at rest (Supabase)
+- **Access Controls**: Row Level Security (RLS) ensures users can only access their own data
+- **Vulnerability Scanning**: Automated security scans via GitHub Actions
+- **Security Policy**: Comprehensive security policy document (see [Security Policy](./docs/SECURITY_POLICY.md))
+
+For detailed security information, see:
+- [Security Policy](./docs/SECURITY_POLICY.md)
+- [Security Implementation Guide](./docs/SECURITY_IMPLEMENTATION.md)
+- [Updated Privacy Policy](./docs/PRIVACY_POLICY_UPDATED.md)
+
+**Note**: Multi-factor authentication is required for Plaid production access to ensure the highest level of security for financial data.
+
 ## 📚 **Documentation**
 
 - [Expo Go Setup Guide](./docs/EXPO_GO_SETUP.md) - Detailed development setup
 - [Error Boundary Guide](./docs/ERROR_BOUNDARY.md) - Error handling documentation
+- [Security Policy](./docs/SECURITY_POLICY.md) - Security policies and procedures
+- [Security Implementation Guide](./docs/SECURITY_IMPLEMENTATION.md) - Security setup instructions
 
 ## �� **Contributing**
 

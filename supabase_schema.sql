@@ -53,7 +53,17 @@ CREATE TABLE IF NOT EXISTS user_settings (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 5. USER SUBSCRIPTIONS TABLE (NEW)
+-- 5. USER TUTORIAL STATUS TABLE (NEW)
+CREATE TABLE IF NOT EXISTS user_tutorial_status (
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  needs_tutorial BOOLEAN DEFAULT TRUE,
+  tutorial_completed BOOLEAN DEFAULT FALSE,
+  completed_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 6. USER SUBSCRIPTIONS TABLE (NEW)
 CREATE TABLE IF NOT EXISTS user_subscriptions (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   status TEXT NOT NULL DEFAULT 'trial', -- 'trial', 'active', 'expired', 'freeAccess'
@@ -71,6 +81,7 @@ CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON user_transactions(user_id
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON user_transactions(date DESC);
 CREATE INDEX IF NOT EXISTS idx_income_user_id ON user_income(user_id);
 CREATE INDEX IF NOT EXISTS idx_savings_user_id ON user_savings_goals(user_id);
+CREATE INDEX IF NOT EXISTS idx_tutorial_status_user_id ON user_tutorial_status(user_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON user_subscriptions(user_id);
 
 -- Enable Row Level Security
@@ -78,6 +89,7 @@ ALTER TABLE user_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_income ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_savings_goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_tutorial_status ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS Policies
@@ -130,6 +142,12 @@ CREATE POLICY "Users can manage own savings goals"
 CREATE POLICY "Users can manage own settings"
   ON user_settings FOR ALL
   USING (auth.uid() = user_id);
+
+-- Tutorial Status
+CREATE POLICY "Users can manage own tutorial status"
+  ON user_tutorial_status FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 -- Subscriptions (NEW POLICIES)
 CREATE POLICY "Users can view own subscription"

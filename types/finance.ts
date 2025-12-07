@@ -40,7 +40,8 @@ export interface PaySchedule {
 
 export interface GivenExpenseSchedule {
   frequency: GivenExpenseFrequency;
-  startDate: string; // ISO string
+  dayOfWeek: number; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  startDate: string; // ISO string (kept for backward compatibility and for once_a_month frequency)
 }
 
 export interface Transaction {
@@ -52,6 +53,7 @@ export interface Transaction {
   type: TransactionType;
   isRecurring: boolean;
   isPaid?: boolean; // Track if expense has been paid
+  logo_url?: string; // Merchant logo URL from Plaid
   // New pay schedule for income
   paySchedule?: PaySchedule;
   // Given expense schedule

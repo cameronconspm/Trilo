@@ -10,8 +10,15 @@ import {
   restorePurchases,
 } from '@/lib/revenuecat';
 import { PurchasesPackage, CustomerInfo } from 'react-native-purchases';
+import { SUBSCRIPTIONS_ENABLED } from '@/constants/features';
 
 export type SubscriptionStatus = 'loading' | 'trial' | 'active' | 'expired' | 'freeAccess';
+
+interface SubscriptionDetails {
+  renewalDate: Date | null;
+  price: string | null;
+  productId: string | null;
+}
 
 interface SubscriptionContextType {
   status: SubscriptionStatus;
@@ -20,6 +27,7 @@ interface SubscriptionContextType {
   isLoadingPackages: boolean;
   monthlyPackage: PurchasesPackage | null;
   annualPackage: PurchasesPackage | null;
+  subscriptionDetails: SubscriptionDetails;
   checkAccess: () => Promise<void>;
   purchaseSubscription: (pkg: PurchasesPackage) => Promise<void>;
   restoreSubscription: () => Promise<void>;
@@ -36,36 +44,131 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [isLoadingPackages, setIsLoadingPackages] = useState(false);
   const [monthlyPackage, setMonthlyPackage] = useState<PurchasesPackage | null>(null);
   const [annualPackage, setAnnualPackage] = useState<PurchasesPackage | null>(null);
+  const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionDetails>({
+    renewalDate: null,
+    price: null,
+    productId: null,
+  });
 
   // Check if user has access (trial, active, or free access)
-  const hasAccess = status === 'trial' || status === 'active' || status === 'freeAccess';
+  // When subscriptions are disabled, all users have access
+  const hasAccess = !SUBSCRIPTIONS_ENABLED || status === 'trial' || status === 'active' || status === 'freeAccess';
 
   /**
    * Initialize subscription packages for display
+   * Waits for RevenueCat initialization to complete before loading packages
+   * DISABLED when SUBSCRIPTIONS_ENABLED is false
    */
   useEffect(() => {
-    const loadPackages = async () => {
+    if (!SUBSCRIPTIONS_ENABLED) {
+      setIsLoadingPackages(false);
+      return;
+    }
+
+    const loadPackages = async (retryCount = 0) => {
       try {
         setIsLoadingPackages(true);
+        if (__DEV__) {
+          console.log('📦 Loading subscription packages from RevenueCat... (attempt ' + (retryCount + 1) + ')');
+        }
+        
+        // Import RevenueCat utilities
+        const revenueCat = await import('@/lib/revenuecat');
+        
+        // Wait for initialization with polling (check every 500ms, up to 10 seconds)
+        let attempts = 0;
+        const maxAttempts = 20; // 20 * 500ms = 10 seconds
+        
+        while (!revenueCat.isRevenueCatReady() && attempts < maxAttempts) {
+          if (__DEV__) {
+            console.warn('⚠️ RevenueCat not initialized yet, waiting... (' + (attempts + 1) + '/' + maxAttempts + ')');
+          }
+          await new Promise(resolve => setTimeout(resolve, 500));
+          attempts++;
+        }
+        
+        if (!revenueCat.isRevenueCatReady()) {
+          // Always log errors, even in production
+          console.error('❌ RevenueCat not initialized after waiting 10 seconds');
+          if (__DEV__) {
+            console.error('   This is expected in Expo Go. RevenueCat requires a TestFlight/production build.');
+          }
+          setIsLoadingPackages(false);
+          return;
+        }
+        
+        if (__DEV__) {
+          console.log('✅ RevenueCat is ready, loading packages...');
+        }
         const packages = await getSubscriptionPackages();
+        if (__DEV__) {
+          console.log('📦 Packages loaded:', {
+            hasMonthly: !!packages.monthly,
+            hasAnnual: !!packages.annual,
+            monthlyId: packages.monthly?.identifier,
+            annualId: packages.annual?.identifier,
+            totalPackages: packages.all.length,
+          });
+        }
         setMonthlyPackage(packages.monthly);
         setAnnualPackage(packages.annual);
-      } catch (error) {
-        console.error('Failed to load subscription packages:', error);
+        
+        if (!packages.monthly && !packages.annual && __DEV__) {
+          console.warn('⚠️ No subscription packages found. Possible issues:');
+          console.warn('   1. RevenueCat not initialized properly');
+          console.warn('   2. No offerings configured in RevenueCat dashboard');
+          console.warn('   3. Package identifiers not matching (monthly/annual/year)');
+          console.warn('   4. Offerings not set as "Current" in RevenueCat dashboard');
+          console.warn('   📋 Check RevenueCat dashboard: Products → Offerings → Ensure one is marked as "Current"');
+        }
+      } catch (error: any) {
+        // Always log errors, even in production
+        console.error('❌ Failed to load subscription packages:', error);
+        if (__DEV__) {
+          console.error('   Error details:', {
+            message: error?.message,
+            code: error?.code,
+          });
+        }
+        
+        // Retry once more after error (only for network/transient errors)
+        if (retryCount === 0 && error?.code !== 'REVENUECAT_NOT_INITIALIZED') {
+          if (__DEV__) {
+            console.log('🔄 Retrying package load after error...');
+          }
+          setTimeout(() => {
+            loadPackages(retryCount + 1);
+          }, 3000);
+          return;
+        }
       } finally {
         setIsLoadingPackages(false);
       }
     };
 
-    loadPackages();
+    // Wait a bit longer for initialization to complete
+    const timer = setTimeout(() => {
+      loadPackages();
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   /**
    * Check user's subscription status and access
+   * DISABLED: When subscriptions are disabled, all users get freeAccess
    */
   const checkAccess = async () => {
     if (!user) {
-      setStatus('expired');
+      setStatus(SUBSCRIPTIONS_ENABLED ? 'expired' : 'freeAccess');
+      setIsLoading(false);
+      return;
+    }
+
+    // If subscriptions are disabled, always grant free access
+    if (!SUBSCRIPTIONS_ENABLED) {
+      setStatus('freeAccess');
+      setTrialDaysRemaining(null);
       setIsLoading(false);
       return;
     }
@@ -98,24 +201,78 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       // Check if user has active RevenueCat entitlement
       const hasPremium = await hasPremiumAccess();
 
+      // Check if user is in trial period (even if they purchased during trial)
+      const now = new Date();
+      const trialEnd = subscription?.trial_end ? new Date(subscription.trial_end) : null;
+      const isInTrial = trialEnd && trialEnd > now;
+
       if (hasPremium && customerInfo) {
         // User has active paid subscription
-        setStatus('active');
+        // BUT: if they're still in trial period, keep showing trial status
+        // Subscription billing starts after trial ends (handled by Apple/Google)
+        if (isInTrial) {
+          // Still in trial - keep trial status even though they have active entitlement
+          const daysRemaining = Math.ceil((trialEnd!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          setStatus('trial');
+          setTrialDaysRemaining(daysRemaining);
+        } else {
+          // Trial ended - show as active subscription
+          setStatus('active');
+        }
+        
+        // Extract subscription details from RevenueCat
+        const entitlement = customerInfo.entitlements.active['premium_access'];
+        if (entitlement) {
+          const expirationDate = entitlement.expirationDate 
+            ? new Date(entitlement.expirationDate)
+            : null;
+          const productId = entitlement.productIdentifier || null;
+          
+          // Get price from active subscription product
+          let price: string | null = null;
+          
+          // Try to get price from active subscriptions in CustomerInfo
+          if (customerInfo.activeSubscriptions && customerInfo.activeSubscriptions.length > 0) {
+            const activeSubId = customerInfo.activeSubscriptions[0];
+            // Get price from packages based on product identifier
+            if (productId) {
+              const isAnnual = productId.includes('annual') || productId.includes('year');
+              price = isAnnual 
+                ? (annualPackage?.product.priceString || null)
+                : (monthlyPackage?.product.priceString || null);
+            }
+          }
+          
+          // Fallback: get price from Supabase subscription_product_id if available
+          if (!price && subscription?.subscription_product_id) {
+            const isAnnual = subscription.subscription_product_id.includes('annual') || 
+                            subscription.subscription_product_id.includes('year');
+            price = isAnnual 
+              ? (annualPackage?.product.priceString || null)
+              : (monthlyPackage?.product.priceString || null);
+          }
+          
+          setSubscriptionDetails({
+            renewalDate: expirationDate,
+            price,
+            productId: productId || subscription?.subscription_product_id || null,
+          });
+        }
         
         // Update Supabase if needed
-        if (!subscription || subscription.status !== 'active') {
+        if (!subscription || (subscription.status !== 'active' && subscription.status !== 'trial')) {
           await supabase
             .from('user_subscriptions')
             .upsert({
               user_id: user.id,
-              status: 'active',
+              status: isInTrial ? 'trial' : 'active',
               revenuecat_user_id: customerInfo.originalAppUserId,
+              subscription_expires_at: customerInfo.entitlements.active['premium_access']?.expirationDate,
               updated_at: new Date().toISOString(),
             });
         }
-      } else if (subscription?.status === 'trial') {
-        // User is in trial period
-        const now = new Date();
+      } else if (subscription?.status === 'trial' && !hasPremium) {
+        // User is in trial period (no purchase yet)
         const trialEnd = new Date(subscription.trial_end);
         const daysRemaining = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
 
@@ -152,10 +309,20 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         // Expired or no access
         setStatus('expired');
         setTrialDaysRemaining(0);
+        setSubscriptionDetails({
+          renewalDate: null,
+          price: null,
+          productId: null,
+        });
       }
     } catch (error) {
       console.error('Error checking access:', error);
       setStatus('expired');
+      setSubscriptionDetails({
+        renewalDate: null,
+        price: null,
+        productId: null,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -163,8 +330,15 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   /**
    * Initialize subscription check when user changes
+   * When subscriptions are disabled, immediately set freeAccess
    */
   useEffect(() => {
+    if (!SUBSCRIPTIONS_ENABLED && user) {
+      setStatus('freeAccess');
+      setTrialDaysRemaining(null);
+      setIsLoading(false);
+      return;
+    }
     checkAccess();
   }, [user]);
 
@@ -181,8 +355,13 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   /**
    * Purchase a subscription package
+   * If purchased during trial, subscription starts after trial ends
+   * DISABLED when subscriptions are disabled
    */
   const purchaseSubscription = async (pkg: PurchasesPackage) => {
+    if (!SUBSCRIPTIONS_ENABLED) {
+      throw new Error('Subscriptions are currently disabled');
+    }
     if (!user) throw new Error('Not authenticated');
 
     try {
@@ -191,20 +370,49 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       // Purchase via RevenueCat
       const customerInfo = await purchaseRevenueCatPackage(pkg);
       
-      // Update Supabase
+      // Get current subscription to check if user is in trial
+      const { data: currentSubscription } = await supabase
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      // Check if user has active RevenueCat entitlement
       if (customerInfo.entitlements.active['premium_access']) {
+        const now = new Date();
+        const trialEnd = currentSubscription?.trial_end 
+          ? new Date(currentSubscription.trial_end) 
+          : null;
+        
+        // If user is in trial and trial hasn't ended, keep trial status
+        // Subscription billing will start after trial ends (handled by Apple/Google)
+        const isInTrial = trialEnd && trialEnd > now;
+        
         await supabase
           .from('user_subscriptions')
           .upsert({
             user_id: user.id,
-            status: 'active',
+            status: isInTrial ? 'trial' : 'active', // Keep trial status if still in trial
             revenuecat_user_id: customerInfo.originalAppUserId,
             subscription_product_id: pkg.identifier,
             subscription_expires_at: customerInfo.entitlements.active['premium_access'].expirationDate,
+            // Preserve trial dates if still in trial
+            trial_start: currentSubscription?.trial_start || undefined,
+            trial_end: currentSubscription?.trial_end || undefined,
             updated_at: new Date().toISOString(),
           });
 
-        setStatus('active');
+        // Keep trial status until trial ends, even though they have active entitlement
+        if (isInTrial) {
+          const daysRemaining = Math.ceil((trialEnd!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          setStatus('trial');
+          setTrialDaysRemaining(daysRemaining);
+        } else {
+          setStatus('active');
+        }
+        
+        // Refresh subscription details after purchase
+        await checkAccess();
       }
     } catch (error) {
       console.error('Purchase failed:', error);
@@ -216,8 +424,12 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   /**
    * Restore previous purchases
+   * DISABLED when subscriptions are disabled
    */
   const restoreSubscription = async () => {
+    if (!SUBSCRIPTIONS_ENABLED) {
+      throw new Error('Subscriptions are currently disabled');
+    }
     if (!user) throw new Error('Not authenticated');
 
     try {
@@ -258,6 +470,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         isLoadingPackages,
         monthlyPackage,
         annualPackage,
+        subscriptionDetails,
         checkAccess,
         purchaseSubscription,
         restoreSubscription,

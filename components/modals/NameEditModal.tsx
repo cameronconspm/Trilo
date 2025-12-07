@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Modal,
   TextInput,
   Pressable,
   KeyboardAvoidingView,
@@ -12,7 +11,8 @@ import {
 import { X, Check } from 'lucide-react-native';
 import { useThemeColors } from '@/constants/colors';
 import { useSettings } from '@/context/SettingsContext';
-import { Spacing, BorderRadius } from '@/constants/spacing';
+import { Spacing, BorderRadius, Typography } from '@/constants/spacing';
+import { ModalWrapper } from './ModalWrapper';
 
 interface NameEditModalProps {
   visible: boolean;
@@ -54,17 +54,11 @@ export default function NameEditModal({
   const styles = createStyles(colors);
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType='fade'
-      onRequestClose={handleClose}
-    >
+    <ModalWrapper visible={visible} onClose={handleClose} animationType="fade">
       <KeyboardAvoidingView
-        style={styles.overlay}
+        style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <Pressable style={styles.backdrop} onPress={handleClose} />
         <View style={styles.modal}>
           <View style={styles.header}>
             <Text style={styles.title}>Edit Name</Text>
@@ -105,55 +99,48 @@ export default function NameEditModal({
           </View>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </ModalWrapper>
   );
 }
 
 // Create dynamic styles function
 function createStyles(colors: any) {
   return StyleSheet.create({
-    overlay: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    backdrop: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    keyboardView: {
+      width: '100%',
     },
     modal: {
       backgroundColor: colors.card,
-      borderRadius: BorderRadius.xl,
-      width: '90%',
+      width: '100%',
       maxWidth: 400,
       overflow: 'hidden',
+      position: 'relative',
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: Spacing.lg,
+      padding: Spacing.xl, // Standard modal padding (24px)
+      paddingTop: Spacing.lg + Spacing.md, // Extra top padding for close button
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
     title: {
-      fontSize: 18,
-      fontWeight: '600',
+      ...Typography.h3, // 20pt, semibold - matches app standards
       color: colors.text,
     },
     closeButton: {
+      position: 'absolute',
+      top: Spacing.md,
+      right: Spacing.md,
       padding: Spacing.xs,
+      zIndex: 10,
     },
     content: {
-      padding: Spacing.lg,
+      padding: Spacing.xl, // Standard modal padding (24px)
     },
     label: {
-      fontSize: 14,
-      fontWeight: '500',
+      ...Typography.label, // 13pt, medium - matches app standards
       color: colors.textSecondary,
       marginBottom: Spacing.sm,
     },
@@ -169,7 +156,7 @@ function createStyles(colors: any) {
     },
     actions: {
       flexDirection: 'row',
-      padding: Spacing.lg,
+      padding: Spacing.xl, // Standard modal padding (24px)
       gap: Spacing.md,
       borderTopWidth: 1,
       borderTopColor: colors.border,
@@ -178,14 +165,13 @@ function createStyles(colors: any) {
       flex: 1,
       paddingVertical: Spacing.md,
       paddingHorizontal: Spacing.lg,
-      borderRadius: BorderRadius.md,
+      borderRadius: BorderRadius.modern, // 12px - matches Button component
       backgroundColor: colors.background,
       alignItems: 'center',
       justifyContent: 'center',
     },
     cancelText: {
-      fontSize: 16,
-      fontWeight: '500',
+      ...Typography.bodyMedium, // 17pt, medium - matches app standards
       color: colors.textSecondary,
     },
     saveButton: {
@@ -193,7 +179,7 @@ function createStyles(colors: any) {
       flexDirection: 'row',
       paddingVertical: Spacing.md,
       paddingHorizontal: Spacing.lg,
-      borderRadius: BorderRadius.md,
+      borderRadius: BorderRadius.modern, // 12px - matches Button component
       backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
@@ -203,7 +189,7 @@ function createStyles(colors: any) {
       backgroundColor: colors.inactive,
     },
     saveText: {
-      fontSize: 16,
+      ...Typography.bodyMedium, // 17pt, medium - matches app standards
       fontWeight: '600',
       color: colors.card,
     },

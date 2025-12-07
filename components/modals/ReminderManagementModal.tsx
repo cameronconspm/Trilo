@@ -3,19 +3,29 @@ import {
   View,
   Text,
   StyleSheet,
-  Modal,
   TouchableOpacity,
   ScrollView,
-  TextInput,
 } from 'react-native';
-import { X, Bell, Clock, CheckCircle, Edit3, MoreHorizontal } from 'lucide-react-native';
+import { X, Bell, Clock, CheckCircle } from 'lucide-react-native';
 import { useThemeColors } from '@/constants/colors';
 import { useSettings } from '@/context/SettingsContext';
 import { useReminders } from '@/context/ReminderContext';
-import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
+import { Spacing, BorderRadius, Typography } from '@/constants/spacing';
 import { Reminder } from '@/types/finance';
 import categories from '@/constants/categories';
-import Button from '@/components/layout/Button';
+import { ModalWrapper } from './ModalWrapper';
+
+// Modal standards - consistent with app-wide modal design
+const MODAL_STANDARDS = {
+  paddingHorizontal: Spacing.xxl, // 24px - standard horizontal padding
+  paddingTop: Spacing.xxl + Spacing.md, // 32px - top padding with close button clearance
+  paddingBottom: Spacing.xxl, // 24px - base bottom padding
+  closeButtonTop: Spacing.md, // 12px from top
+  closeButtonRight: Spacing.md, // 12px from right
+  contentBottomMargin: Spacing.xxl, // 24px - spacing before buttons
+  buttonGap: Spacing.md, // 12px - horizontal gap between buttons
+  buttonBottomPadding: Spacing.xxl, // 24px - bottom padding for buttons
+} as const;
 
 interface ReminderManagementModalProps {
   visible: boolean;
@@ -140,26 +150,34 @@ export default function ReminderManagementModal({
         )}
 
         <View style={styles.reminderButtons}>
-          <Button
-            title="Mark Complete"
+          <TouchableOpacity
+            style={[styles.completeButton, { backgroundColor: colors.primary }]}
             onPress={() => handleCompleteReminder(reminder.id)}
-            variant="primary"
-            size="small"
-            style={styles.actionButton}
-          />
-          <Button
-            title="Snooze"
+          >
+            <Text style={[styles.buttonText, { color: colors.background }]}>
+              Complete
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.snoozeButton, 
+              { 
+                borderColor: colors.border,
+                opacity: reminder.snoozeCount >= reminder.maxSnoozes ? 0.5 : 1,
+              }
+            ]}
             onPress={() => handleSnoozeReminder(reminder.id)}
-            variant="outline"
-            size="small"
-            style={styles.actionButton}
             disabled={reminder.snoozeCount >= reminder.maxSnoozes}
-          />
+          >
+            <Text style={[styles.buttonText, { color: colors.text }]}>
+              Snooze
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleDeleteReminder(reminder.id)}
             style={[styles.deleteButton, { borderColor: colors.border }]}
           >
-            <X size={16} color={colors.error} strokeWidth={2} />
+            <X size={14} color={colors.error} strokeWidth={2} />
           </TouchableOpacity>
         </View>
       </View>
@@ -167,216 +185,212 @@ export default function ReminderManagementModal({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <TouchableOpacity style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.modal, { backgroundColor: colors.card }]}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.text }]}>
-              Reminders & Notifications
+    <ModalWrapper visible={visible} onClose={onClose} animationType="fade" maxWidth={500}>
+      <View style={[styles.modalContainer, { backgroundColor: colors.card }]}>
+        {/* Close button - positioned at top right */}
+        <TouchableOpacity
+          onPress={onClose}
+          style={[styles.closeButton, { backgroundColor: colors.cardSecondary }]}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <X size={20} color={colors.textSecondary} strokeWidth={2} />
+        </TouchableOpacity>
+
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Reminders & Notifications
+          </Text>
+        </View>
+
+        {/* Tabs */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === 'reminders' && { backgroundColor: colors.cardSecondary },
+            ]}
+            onPress={() => setActiveTab('reminders')}
+          >
+            <Bell size={16} color={activeTab === 'reminders' ? colors.primary : colors.textSecondary} />
+            <Text
+              style={[
+                styles.tabText,
+                {
+                  color: activeTab === 'reminders' ? colors.primary : colors.textSecondary,
+                  fontWeight: activeTab === 'reminders' ? '600' : '400',
+                },
+              ]}
+            >
+              Reminders ({activeReminders.length})
             </Text>
-            <TouchableOpacity
-              onPress={onClose}
-              style={[styles.closeButton, { backgroundColor: colors.cardSecondary }]}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <X size={20} color={colors.textSecondary} strokeWidth={2} />
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
 
-          {/* Tabs */}
-          <View style={styles.tabContainer}>
-            <TouchableOpacity
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === 'notifications' && { backgroundColor: colors.cardSecondary },
+            ]}
+            onPress={() => setActiveTab('notifications')}
+          >
+            <Clock size={16} color={activeTab === 'notifications' ? colors.primary : colors.textSecondary} />
+            <Text
               style={[
-                styles.tab,
-                activeTab === 'reminders' && { backgroundColor: colors.cardSecondary },
+                styles.tabText,
+                {
+                  color: activeTab === 'notifications' ? colors.primary : colors.textSecondary,
+                  fontWeight: activeTab === 'notifications' ? '600' : '400',
+                },
               ]}
-              onPress={() => setActiveTab('reminders')}
             >
-              <Bell size={16} color={activeTab === 'reminders' ? colors.primary : colors.textSecondary} />
-              <Text
-                style={[
-                  styles.tabText,
-                  {
-                    color: activeTab === 'reminders' ? colors.primary : colors.textSecondary,
-                    fontWeight: activeTab === 'reminders' ? '600' : '400',
-                  },
-                ]}
-              >
-                Reminders ({activeReminders.length})
-              </Text>
-            </TouchableOpacity>
+              System Notifications
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                activeTab === 'notifications' && { backgroundColor: colors.cardSecondary },
-              ]}
-              onPress={() => setActiveTab('notifications')}
-            >
-              <Clock size={16} color={activeTab === 'notifications' ? colors.primary : colors.textSecondary} />
-              <Text
-                style={[
-                  styles.tabText,
-                  {
-                    color: activeTab === 'notifications' ? colors.primary : colors.textSecondary,
-                    fontWeight: activeTab === 'notifications' ? '600' : '400',
-                  },
-                ]}
-              >
+        {/* Scrollable Content - expands to fill available space */}
+        <ScrollView 
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {activeTab === 'reminders' ? (
+            <View>
+              {activeReminders.length > 0 ? (
+                activeReminders.map(renderReminderItem)
+              ) : (
+                <View style={styles.emptyState}>
+                  <Bell size={48} color={colors.textSecondary} strokeWidth={1} />
+                  <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                    No Active Reminders
+                  </Text>
+                  <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+                    Swipe right on any expense to set a reminder
+                  </Text>
+                </View>
+              )}
+
+              {completedReminders.length > 0 && (
+                <View style={[styles.completedSection, { borderTopColor: colors.border }]}>
+                  <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+                    Completed ({completedReminders.length})
+                  </Text>
+                  {completedReminders.slice(0, 3).map(reminder => (
+                    <View
+                      key={reminder.id}
+                      style={[
+                        styles.completedItem,
+                        { backgroundColor: colors.cardSecondary, borderColor: colors.border },
+                      ]}
+                    >
+                      <CheckCircle size={16} color={colors.success} strokeWidth={2} />
+                      <Text style={[styles.completedText, { color: colors.textSecondary }]}>
+                        {reminder.transactionName}
+                      </Text>
+                    </View>
+                  ))}
+                  {completedReminders.length > 3 && (
+                    <Text style={[styles.moreText, { color: colors.textSecondary }]}>
+                      +{completedReminders.length - 3} more completed
+                    </Text>
+                  )}
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Clock size={48} color={colors.textSecondary} strokeWidth={1} />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>
                 System Notifications
               </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Content */}
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {activeTab === 'reminders' ? (
-              <View>
-                {activeReminders.length > 0 ? (
-                  activeReminders.map(renderReminderItem)
-                ) : (
-                  <View style={styles.emptyState}>
-                    <Bell size={48} color={colors.textSecondary} strokeWidth={1} />
-                    <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                      No Active Reminders
-                    </Text>
-                    <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-                      Swipe right on any expense to set a reminder
-                    </Text>
-                  </View>
-                )}
-
-                {completedReminders.length > 0 && (
-                  <View style={styles.completedSection}>
-                    <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-                      Completed ({completedReminders.length})
-                    </Text>
-                    {completedReminders.slice(0, 3).map(reminder => (
-                      <View
-                        key={reminder.id}
-                        style={[
-                          styles.completedItem,
-                          { backgroundColor: colors.cardSecondary, borderColor: colors.border },
-                        ]}
-                      >
-                        <CheckCircle size={16} color={colors.success} strokeWidth={2} />
-                        <Text style={[styles.completedText, { color: colors.textSecondary }]}>
-                          {reminder.transactionName}
-                        </Text>
-                      </View>
-                    ))}
-                    {completedReminders.length > 3 && (
-                      <Text style={[styles.moreText, { color: colors.textSecondary }]}>
-                        +{completedReminders.length - 3} more completed
-                      </Text>
-                    )}
-                  </View>
-                )}
-              </View>
-            ) : (
-              <View style={styles.emptyState}>
-                <Clock size={48} color={colors.textSecondary} strokeWidth={1} />
-                <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                  System Notifications
-                </Text>
-                <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-                  Weekly summaries and insights will appear here
-                </Text>
-              </View>
-            )}
-          </ScrollView>
-        </View>
+              <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+                Weekly summaries and insights will appear here
+              </Text>
+            </View>
+          )}
+        </ScrollView>
       </View>
-    </Modal>
+    </ModalWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.lg,
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  modal: {
-    borderRadius: BorderRadius.xxl,
+  // Modal container - follows app modal standards
+  modalContainer: {
     width: '100%',
-    maxWidth: 500,
-    maxHeight: '80%',
-    ...Shadow.heavy,
+    maxHeight: '100%',
+    position: 'relative',
+    paddingHorizontal: MODAL_STANDARDS.paddingHorizontal, // 24px
+    paddingTop: MODAL_STANDARDS.paddingTop, // 32px
+    paddingBottom: 0, // Content handles its own bottom padding
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.lg,
-    paddingBottom: Spacing.md,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    flex: 1,
-    marginRight: Spacing.md,
-    letterSpacing: -0.3,
-  },
+  
+  // Close button - top right, consistent with app standards
   closeButton: {
+    position: 'absolute',
+    top: MODAL_STANDARDS.closeButtonTop, // 12px
+    right: MODAL_STANDARDS.closeButtonRight, // 12px
     width: 32,
     height: 32,
     borderRadius: BorderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
   },
+  
+  // Header section
+  header: {
+    marginBottom: Spacing.md, // 12px spacing after title
+  },
+  title: {
+    ...Typography.h3, // 20pt, semibold - matches app standards
+    paddingRight: Spacing.xxxl, // 32px - clearance for close button
+  },
+  
+  // Tab container
   tabContainer: {
     flexDirection: 'row',
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
-    gap: Spacing.sm,
+    marginBottom: Spacing.lg, // 16px spacing before content
+    gap: Spacing.sm, // 8px gap between tabs
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    gap: Spacing.xs,
+    paddingVertical: Spacing.sm, // 8px
+    paddingHorizontal: Spacing.md, // 12px
+    borderRadius: BorderRadius.lg, // 16px
+    gap: Spacing.xs, // 4px gap between icon and text
+    minHeight: 44, // Apple HIG minimum touch target
   },
   tabText: {
-    fontSize: 14,
+    ...Typography.caption, // 12pt
     fontWeight: '500',
   },
-  content: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
+  
+  // Scrollable container - expands to fill available space
+  scrollContainer: {
+    flexGrow: 1,
+    flexShrink: 1,
+    minHeight: 200, // Minimum height to ensure scrollability
+  },
+  scrollContent: {
+    paddingBottom: Spacing.md, // Small padding at bottom of scroll content
   },
   reminderItem: {
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-    borderRadius: BorderRadius.lg,
+    padding: Spacing.md, // 12px - reduced for more compact design
+    marginBottom: Spacing.sm, // 8px - reduced spacing between items
+    borderRadius: BorderRadius.md, // 12px - slightly smaller radius
     borderWidth: 1,
-    borderLeftWidth: 4,
+    borderLeftWidth: 3, // Reduced from 4px
   },
   reminderHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.xs, // 4px - minimal spacing
   },
   reminderLeft: {
     flexDirection: 'row',
@@ -384,47 +398,69 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   categoryDot: {
-    width: 12,
-    height: 12,
+    width: 10, // Reduced from 12px
+    height: 10, // Reduced from 12px
     borderRadius: BorderRadius.full,
-    marginRight: Spacing.sm,
+    marginRight: Spacing.xs, // 4px - reduced spacing
   },
   reminderInfo: {
     flex: 1,
   },
   reminderTitle: {
-    fontSize: 16,
+    ...Typography.bodySmall, // 15pt - smaller for more compact design
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 1, // Minimal spacing
   },
   reminderReason: {
-    fontSize: 14,
+    ...Typography.caption, // 12pt - smaller font
     fontWeight: '400',
   },
   reminderActions: {
     alignItems: 'flex-end',
   },
   reminderDate: {
-    fontSize: 12,
+    ...Typography.captionSmall, // 11pt - smaller font
     fontWeight: '500',
   },
   reminderNote: {
-    fontSize: 14,
+    ...Typography.caption, // 12pt - smaller font
     fontStyle: 'italic',
-    marginBottom: Spacing.sm,
-    paddingLeft: Spacing.lg,
+    marginBottom: Spacing.xs, // 4px - reduced spacing
+    paddingLeft: Spacing.md, // 12px - reduced padding
+    marginTop: Spacing.xs, // 4px - minimal top spacing
   },
   reminderButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.xs, // 4px - reduced gap between buttons
+    marginTop: Spacing.xs, // 4px - minimal spacing from note/header
   },
-  actionButton: {
+  completeButton: {
     flex: 1,
+    paddingVertical: Spacing.xs, // 4px - compact vertical padding
+    paddingHorizontal: Spacing.sm, // 8px - compact horizontal padding
+    borderRadius: BorderRadius.md, // 12px
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 32, // Reduced from 44px - more compact
+  },
+  snoozeButton: {
+    flex: 1,
+    paddingVertical: Spacing.xs, // 4px - compact vertical padding
+    paddingHorizontal: Spacing.sm, // 8px - compact horizontal padding
+    borderRadius: BorderRadius.md, // 12px
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 32, // Reduced from 44px - more compact
+  },
+  buttonText: {
+    ...Typography.caption, // 12pt - smaller font
+    fontWeight: '600',
   },
   deleteButton: {
-    width: 32,
-    height: 32,
+    width: 32, // Reduced from 36px
+    height: 32, // Reduced from 36px
     borderRadius: BorderRadius.full,
     borderWidth: 1,
     alignItems: 'center',
@@ -432,47 +468,48 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: Spacing.xl,
+    paddingVertical: Spacing.xxl, // 24px - increased for better spacing
+    paddingHorizontal: Spacing.md, // 12px
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: Spacing.md,
-    marginBottom: Spacing.xs,
+    ...Typography.h3, // 20pt, semibold - matches app standards
+    marginTop: Spacing.md, // 12px
+    marginBottom: Spacing.xs, // 4px
   },
   emptySubtitle: {
-    fontSize: 14,
+    ...Typography.bodySmall, // 15pt
     textAlign: 'center',
     lineHeight: 20,
+    paddingHorizontal: Spacing.md, // 12px
   },
   completedSection: {
-    marginTop: Spacing.lg,
-    paddingTop: Spacing.lg,
+    marginTop: Spacing.xl, // 20px - increased spacing
+    paddingTop: Spacing.xl, // 20px - increased padding
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
   },
   sectionTitle: {
-    fontSize: 14,
+    ...Typography.label, // 13pt, medium - matches app standards
     fontWeight: '600',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md, // 12px - increased spacing
   },
   completedItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.sm,
-    marginBottom: Spacing.xs,
-    borderRadius: BorderRadius.md,
+    padding: Spacing.md, // 12px - increased padding
+    marginBottom: Spacing.sm, // 8px spacing between items
+    borderRadius: BorderRadius.md, // 12px
     borderWidth: 1,
-    gap: Spacing.sm,
+    gap: Spacing.sm, // 8px gap between icon and text
+    minHeight: 44, // Apple HIG minimum touch target
   },
   completedText: {
-    fontSize: 14,
+    ...Typography.bodySmall, // 15pt
     flex: 1,
   },
   moreText: {
-    fontSize: 12,
+    ...Typography.caption, // 12pt
     fontStyle: 'italic',
     textAlign: 'center',
-    marginTop: Spacing.sm,
+    marginTop: Spacing.md, // 12px - increased spacing
   },
 });

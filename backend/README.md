@@ -62,6 +62,10 @@ npm start
 - `POST /api/plaid/accounts/:accountId/sync` - Sync transactions
 - `DELETE /api/plaid/accounts/:accountId` - Remove bank account
 
+### MFA (SMS) Integration
+- `POST /api/mfa/send-code` - Send SMS verification code to phone number
+- `POST /api/mfa/verify-code` - Verify SMS code
+
 ### Health Check
 - `GET /health` - Server health status
 
@@ -111,6 +115,9 @@ backend/
 - **PORT**: Server port (default: 3001)
 - **JWT_SECRET**: Secret for JWT tokens
 - **CORS_ORIGIN**: Allowed CORS origin
+- **TWILIO_ACCOUNT_SID**: (Optional) Twilio Account SID for SMS MFA
+- **TWILIO_AUTH_TOKEN**: (Optional) Twilio Auth Token for SMS MFA
+- **TWILIO_PHONE_NUMBER**: (Optional) Twilio phone number for sending SMS
 
 ## 🚨 Security Notes
 

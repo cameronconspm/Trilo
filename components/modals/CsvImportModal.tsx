@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Alert, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { useSettings } from '@/context/SettingsContext';
 import { useThemeColors } from '@/constants/colors';
 import { useFinance } from '@/context/FinanceContext';
 import { TransactionType, CategoryType } from '@/types/finance';
-import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
+import { Spacing, BorderRadius, Shadow, Typography } from '@/constants/spacing';
+import { X } from 'lucide-react-native';
 import AlertModal from './AlertModal';
+import { ModalWrapper } from './ModalWrapper';
 import categories from '@/constants/categories';
 
 interface CsvImportModalProps {
@@ -321,15 +323,17 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
 
   return (
     <>
-      <Modal
-        visible={visible}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCancel}
-      >
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={handleCancel} />
+      <ModalWrapper visible={visible} onClose={handleCancel} animationType="fade" maxWidth={520}>
         <View style={[styles.content, { backgroundColor: colors.card }]}>
+          {/* Close button */}
+          <TouchableOpacity
+            onPress={handleCancel}
+            style={[styles.closeButton, { backgroundColor: colors.cardSecondary }]}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <X size={20} color={colors.textSecondary} strokeWidth={2} />
+          </TouchableOpacity>
+
           {/* Header */}
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.text }]}>
@@ -357,9 +361,8 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
           </View>
 
           {/* Content */}
-          <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-            {/* Step 1: Select File */}
-            {step === 'select' && (
+          {step === 'select' ? (
+            <View style={styles.body}>
               <View style={styles.selectContent}>
                 <View style={[styles.csvFormatHelp, { backgroundColor: colors.cardSecondary, borderColor: colors.border }]}>
                   <Text style={[styles.helpTitle, { color: colors.text }]}>Expected CSV Format:</Text>
@@ -371,78 +374,74 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
                   </Text>
                 </View>
               </View>
-            )}
+            </View>
+          ) : (
+            <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+              <View style={styles.previewContent}>
+                <View style={[styles.fileInfo, { backgroundColor: colors.cardSecondary, borderColor: colors.border }]}>
+                  <Text style={[styles.fileInfoText, { color: colors.textSecondary }]}>
+                    File: {selectedFile}
+                  </Text>
+                  <Text style={[styles.fileInfoText, { color: colors.textSecondary }]}>
+                    Found {parsedData.length - 1} expenses to import
+                  </Text>
+                </View>
 
-            {/* Step 2: Preview */}
-            {step === 'preview' && (
-              <ScrollView style={styles.previewScrollView} showsVerticalScrollIndicator={false}>
-                <View style={styles.previewContent}>
-                  <View style={[styles.fileInfo, { backgroundColor: colors.cardSecondary, borderColor: colors.border }]}>
-                    <Text style={[styles.fileInfoText, { color: colors.textSecondary }]}>
-                      File: {selectedFile}
-                    </Text>
-                    <Text style={[styles.fileInfoText, { color: colors.textSecondary }]}>
-                      Found {parsedData.length - 1} expenses to import
-                    </Text>
-                  </View>
-
-                  {/* Sample Entries Preview */}
-                  <View style={[styles.sampleSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <Text style={[styles.sampleSectionTitle, { color: colors.text }]}>
-                      Sample Entries:
-                    </Text>
-                    
-                    <View style={[styles.sampleEntriesContainer, { backgroundColor: colors.cardSecondary, borderColor: colors.border }]}>
-                      {parsedData.slice(1, 6).map((row, index) => {
-                        try {
-                          const expenseName = row[0]?.trim();
-                          const amountStr = row[1]?.trim();
-                          const categoryStr = row[2]?.trim();
-                          
-                          if (expenseName && amountStr && categoryStr) {
-                            const cleanAmount = amountStr.replace(/[$,]/g, '');
-                            const amount = parseFloat(cleanAmount);
-                            if (!isNaN(amount) && amount > 0) {
-                              const category = mapCategoryToAppCategory(categoryStr);
-                              const categoryInfo = categories.find(c => c.id === category) || categories[0];
-                              
-                              return (
-                                <View key={index} style={styles.sampleExpenseItem}>
-                                  <View style={styles.sampleExpenseLeft}>
-                                    <View style={[styles.sampleExpenseDot, { backgroundColor: categoryInfo.color }]} />
-                                    <View style={styles.sampleExpenseText}>
-                                      <Text style={[styles.sampleExpenseName, { color: colors.text }]} numberOfLines={1}>
-                                        {expenseName}
-                                      </Text>
-                                      <Text style={[styles.sampleExpenseCategory, { color: colors.textSecondary }]} numberOfLines={1}>
-                                        {categoryInfo.name}
-                                      </Text>
-                                    </View>
+                {/* Sample Entries Preview */}
+                <View style={[styles.sampleSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Text style={[styles.sampleSectionTitle, { color: colors.text }]}>
+                    Sample Entries:
+                  </Text>
+                  
+                  <View style={[styles.sampleEntriesContainer, { backgroundColor: colors.cardSecondary, borderColor: colors.border }]}>
+                    {parsedData.slice(1, 6).map((row, index) => {
+                      try {
+                        const expenseName = row[0]?.trim();
+                        const amountStr = row[1]?.trim();
+                        const categoryStr = row[2]?.trim();
+                        
+                        if (expenseName && amountStr && categoryStr) {
+                          const cleanAmount = amountStr.replace(/[$,]/g, '');
+                          const amount = parseFloat(cleanAmount);
+                          if (!isNaN(amount) && amount > 0) {
+                            const category = mapCategoryToAppCategory(categoryStr);
+                            const categoryInfo = categories.find(c => c.id === category) || categories[0];
+                            
+                            return (
+                              <View key={index} style={styles.sampleExpenseItem}>
+                                <View style={styles.sampleExpenseLeft}>
+                                  <View style={[styles.sampleExpenseDot, { backgroundColor: categoryInfo.color }]} />
+                                  <View style={styles.sampleExpenseText}>
+                                    <Text style={[styles.sampleExpenseName, { color: colors.text }]} numberOfLines={1}>
+                                      {expenseName}
+                                    </Text>
+                                    <Text style={[styles.sampleExpenseCategory, { color: colors.textSecondary }]} numberOfLines={1}>
+                                      {categoryInfo.name}
+                                    </Text>
                                   </View>
-                                  <Text style={[styles.sampleExpenseAmount, { color: colors.text }]}>
-                                    ${amount.toFixed(2)}
-                                  </Text>
                                 </View>
-                              );
-                            }
+                                <Text style={[styles.sampleExpenseAmount, { color: colors.text }]}>
+                                  ${amount.toFixed(2)}
+                                </Text>
+                              </View>
+                            );
                           }
-                        } catch (error) {
-                          // Skip invalid rows
                         }
-                        return null;
-                      }).filter(Boolean)}
-                      {parsedData.length > 6 && (
-                        <Text style={[styles.sampleMoreText, { color: colors.textSecondary }]}>
-                          ...and {parsedData.length - 6} more expenses
-                        </Text>
-                      )}
-                    </View>
+                      } catch (error) {
+                        // Skip invalid rows
+                      }
+                      return null;
+                    }).filter(Boolean)}
+                    {parsedData.length > 6 && (
+                      <Text style={[styles.sampleMoreText, { color: colors.textSecondary }]}>
+                        ...and {parsedData.length - 6} more expenses
+                      </Text>
+                    )}
                   </View>
                 </View>
-              </ScrollView>
-            )}
-
-          </ScrollView>
+              </View>
+            </ScrollView>
+          )}
 
           {/* Footer */}
           <View style={[styles.footer, { borderTopColor: colors.border }]}>
@@ -495,8 +494,7 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
             </View>
           </View>
         </View>
-      </View>
-    </Modal>
+      </ModalWrapper>
     
     {/* AlertModal outside the main Modal */}
     <AlertModal
@@ -522,33 +520,29 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
   content: {
-    borderRadius: 16,
     width: '100%',
-    maxWidth: 520,
-    maxHeight: '90%',
+    position: 'relative',
+    flexShrink: 1, // Allow modal to size based on content
+  },
+  closeButton: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
   header: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing.md,
+    padding: Spacing.xxl, // Standard modal padding (24px)
+    paddingTop: Spacing.lg + Spacing.md, // Extra top padding for close button clearance
+    paddingBottom: Spacing.md, // Standard bottom padding
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
+    ...Typography.h3, // 20pt, semibold - matches app standards
     marginBottom: Spacing.md,
   },
   stepIndicator: {
@@ -569,20 +563,20 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   instructionsText: {
-    fontSize: 15,
-    marginBottom: Spacing.md,
-    lineHeight: 22,
-    color: '#666',
+    ...Typography.subhead, // 15pt, regular - matches app standards
+    marginBottom: Spacing.sm, // Reduced margin for tighter spacing
   },
   body: {
-    paddingHorizontal: Spacing.lg,
-    maxHeight: 500,
+    paddingHorizontal: Spacing.xxl, // Standard modal padding (24px) - matches header/footer
+    paddingBottom: Spacing.md, // Add bottom padding for breathing room
+    flexShrink: 1, // Allow content to determine height
   },
   selectContent: {
     alignItems: 'center',
-    paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: 0, // Remove horizontal padding since body already has it
     width: '100%',
+    paddingBottom: Spacing.sm, // Small bottom padding for format section
   },
   uploadButton: {
     paddingVertical: Spacing.md,
@@ -607,8 +601,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   csvFormatHelp: {
-    marginTop: Spacing.sm,
+    marginTop: Spacing.xs, // Reduced top margin for tighter spacing
     padding: Spacing.lg,
+    paddingBottom: Spacing.lg, // Ensure full padding for last line visibility
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     width: '100%',
@@ -620,8 +615,7 @@ const styles = StyleSheet.create({
   },
   helpText: {
     fontSize: 13,
-    lineHeight: 18,
-    marginBottom: Spacing.sm,
+    lineHeight: 20, // Increased for better readability
   },
   confirmContent: {
     paddingVertical: Spacing.lg,
@@ -672,8 +666,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     borderTopWidth: 1,
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.xxl, // Standard modal padding (24px) - matches header
     paddingTop: Spacing.md,
+    paddingBottom: Spacing.xxl, // Standard bottom padding (24px) for consistency
   },
   footerButtons: {
     flexDirection: 'row',

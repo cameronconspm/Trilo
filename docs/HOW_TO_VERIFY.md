@@ -9,11 +9,13 @@ Click on your project: **raictkrsnejvfvpgqzcq**
 ### Look for These in the Dashboard:
 
 #### ✅ In "Table Editor"
-You should see these 4 tables:
+You should see these 6 tables:
 - `user_transactions` - Stores transactions per user
 - `user_income` - Stores income per user  
 - `user_savings_goals` - Stores savings goals per user
 - `user_settings` - Stores user settings
+- `user_tutorial_status` - Tracks onboarding completion state
+- `user_subscriptions` - Stores subscription status and trial data
 
 #### ✅ In "Authentication" → "Policies"
 You should see RLS policies for each table:
@@ -96,7 +98,7 @@ You should see:
 ## How to Know You Did It Right
 
 ✅ **In Supabase Dashboard:**
-- You see 4 tables
+- You see 6 tables
 - You see RLS policies
 - Authentication works
 - Tables are empty initially

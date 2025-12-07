@@ -14,6 +14,7 @@ import { useThemeColors } from '@/constants/colors';
 import { useSettings } from '@/context/SettingsContext';
 import { useChallengeTracking } from '@/context/ChallengeTrackingContext';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
+import { ModalWrapper } from './ModalWrapper';
 import Card from '@/components/layout/Card';
 import Button from '@/components/layout/Button';
 import { LevelBadge } from '@/components/badges';
@@ -328,14 +329,8 @@ export function WeeklyRecapModal({ visible, onClose, data }: WeeklyRecapModalPro
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="fade"
-      transparent
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <Animated.View style={[styles.container, animatedStyle]}>
+    <ModalWrapper visible={visible} onClose={onClose} animationType="fade" maxWidth={500}>
+      <Animated.View style={[styles.container, animatedStyle]}>
           <Card style={[styles.modalCard, { backgroundColor: colors.cardBackground }] as any}>
             {/* Header */}
             <View style={styles.header}>
@@ -469,30 +464,20 @@ export function WeeklyRecapModal({ visible, onClose, data }: WeeklyRecapModalPro
               />
             </View>
           </Card>
+          {/* Confetti Animation */}
+          {showConfetti && (
+            <View style={styles.confettiContainer}>
+              {confettiAnimations.map((_, index) => renderConfettiPiece(index))}
+            </View>
+          )}
         </Animated.View>
-
-        {/* Confetti Animation */}
-        {showConfetti && (
-          <View style={styles.confettiContainer}>
-            {confettiAnimations.map((_, index) => renderConfettiPiece(index))}
-          </View>
-        )}
-      </View>
-    </Modal>
+    </ModalWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.lg,
-  },
   container: {
     width: '100%',
-    maxWidth: 400,
     maxHeight: screenHeight * 0.9,
   },
   modalCard: {

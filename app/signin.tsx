@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,17 +20,30 @@ import Button from '@/components/layout/Button';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 import { useRouter } from 'expo-router';
 import { Mail, Lock, ArrowRight, Sparkles } from 'lucide-react-native';
+import MFAVerifyScreen from '@/components/auth/MFAVerifyScreen';
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showMFAVerification, setShowMFAVerification] = useState(false);
 
-  const { signIn } = useAuth();
+  const { signIn, mfaEnabled, mfaVerified, setMFAVerified } = useAuth();
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
   const router = useRouter();
+
+  // Check if MFA is required and verified
+  useEffect(() => {
+    if (mfaEnabled && mfaVerified) {
+      // MFA verified, navigate to app
+      router.replace('/(tabs)');
+    } else if (mfaEnabled && !mfaVerified && !showMFAVerification) {
+      // MFA is enabled but not verified, show verification screen
+      setShowMFAVerification(true);
+    }
+  }, [mfaEnabled, mfaVerified, showMFAVerification]);
 
   const handleSignIn = async () => {
     if (!email.trim() || !password.trim()) {
@@ -40,15 +53,31 @@ export default function SignInScreen() {
 
     setError('');
     setLoading(true);
+    setShowMFAVerification(false);
 
     try {
       await signIn(email.trim(), password);
+      // If MFA is enabled, signIn will return early and showMFAVerification will be set by useEffect
+      // If MFA is not enabled, navigation happens automatically via AuthContext
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in');
       Alert.alert('Sign In Failed', err instanceof Error ? err.message : 'Failed to sign in');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMFASuccess = () => {
+    setMFAVerified(true);
+    setShowMFAVerification(false);
+    router.replace('/(tabs)');
+  };
+
+  const handleMFACancel = () => {
+    setShowMFAVerification(false);
+    setMFAVerified(false);
+    // Clear password for security
+    setPassword('');
   };
 
   const handleSignUp = () => {
@@ -195,6 +224,16 @@ export default function SignInScreen() {
       color: colors.textTertiary,
     },
   });
+
+  // Show MFA verification screen if required
+  if (showMFAVerification && mfaEnabled) {
+    return (
+      <MFAVerifyScreen
+        onSuccess={handleMFASuccess}
+        onCancel={handleMFACancel}
+      />
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

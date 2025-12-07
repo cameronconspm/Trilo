@@ -2,12 +2,15 @@ import React from 'react';
 import { View, Modal, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useThemeColors } from '@/constants/colors';
 import { useSettings } from '@/context/SettingsContext';
+import { Spacing, BorderRadius } from '@/constants/spacing';
 
 interface ModalWrapperProps {
   visible: boolean;
   onClose?: () => void;
   children: React.ReactNode;
   animationType?: 'none' | 'slide' | 'fade';
+  maxWidth?: number; // Allow children to customize max width
+  disableBackdropPress?: boolean; // Prevent closing by tapping backdrop
 }
 
 export function ModalWrapper({
@@ -15,6 +18,8 @@ export function ModalWrapper({
   onClose,
   children,
   animationType = 'fade',
+  maxWidth = 400,
+  disableBackdropPress = false,
 }: ModalWrapperProps) {
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
@@ -24,21 +29,23 @@ export function ModalWrapper({
       visible={visible}
       transparent
       animationType={animationType}
-      onRequestClose={onClose}
+      onRequestClose={disableBackdropPress ? undefined : onClose}
     >
       <View style={[styles.overlay, { backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.4)' }]}>
-        <TouchableOpacity
-          style={styles.overlayTouch}
-          activeOpacity={1}
-          onPress={onClose}
-        >
-          <View />
-        </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.overlayTouch}
+        activeOpacity={1}
+        onPress={disableBackdropPress ? undefined : onClose}
+        disabled={disableBackdropPress}
+      >
+        <View />
+      </TouchableOpacity>
         <View
           style={[
             styles.modal,
             {
               backgroundColor: colors.card,
+              maxWidth: maxWidth, // Dynamic max width
               ...Platform.select({
                 ios: {
                   shadowColor: theme === 'dark' ? '#FFFFFF' : '#000000',
@@ -88,21 +95,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: Spacing.xl, // 24px - standard modal padding
   },
   overlayTouch: {
     ...StyleSheet.absoluteFillObject,
   },
   modal: {
     width: '100%',
-    maxWidth: 500,
-    borderRadius: 24,
-    padding: 24,
-    maxHeight: '90%',
+    borderRadius: BorderRadius.xxxl, // 28px - Apple's modern modal corner radius
+    padding: 0, // Let child components control padding for better consistency
+    maxHeight: '85%', // Slightly reduced to ensure buttons aren't at edge of screen
+    overflow: 'hidden', // Ensure content doesn't extend beyond rounded corners
+    alignSelf: 'center', // Center the modal
+    // Allow content to determine actual height
+    flexShrink: 1,
   },
   modalOutline: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 24,
+    borderRadius: BorderRadius.xxxl, // 28px - matches modal
     pointerEvents: 'none',
   },
 });

@@ -11,18 +11,20 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Edit3, Trash2, Plus } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
 import { useSettings } from '@/context/SettingsContext';
 import CategoryPicker from '@/components/forms/CategoryPicker';
 import DayPicker from '@/components/forms/DayPicker';
 import DatePicker from '@/components/forms/DatePicker';
+import WeekDayPicker from '@/components/forms/WeekDayPicker';
 import PayCadencePicker from '@/components/forms/PayCadencePicker';
 import MonthlyDaysPicker from '@/components/forms/MonthlyDaysPicker';
 import GivenExpenseFrequencyPicker from '@/components/forms/GivenExpenseFrequencyPicker';
+import { calculateNextGivenExpenseDate } from '@/utils/givenExpenseUtils';
 import Button from '@/components/layout/Button';
 import AlertModal from '@/components/modals/AlertModal';
 import { useAlert } from '@/hooks/useAlert';
@@ -52,6 +54,7 @@ interface DraftExpense {
   isRecurring: boolean;
   selectedDay: number;
   givenExpenseFrequency?: GivenExpenseFrequency;
+  givenExpenseDayOfWeek?: number;
   givenExpenseStartDate?: Date;
 }
 import { calculateNextPayDate } from '@/utils/payScheduleUtils';
@@ -96,6 +99,10 @@ export default function AddTransactionModal({
   // For given expenses
   const [givenExpenseFrequency, setGivenExpenseFrequency] =
     useState<GivenExpenseFrequency>('every_week');
+  const [givenExpenseDayOfWeek, setGivenExpenseDayOfWeek] = useState(
+    new Date().getDay() // Default to today's day of week
+  );
+  // Keep startDate for backward compatibility and once_a_month frequency
   const [givenExpenseStartDate, setGivenExpenseStartDate] = useState(
     new Date()
   );
@@ -138,6 +145,14 @@ export default function AddTransactionModal({
           setGivenExpenseFrequency(
             editTransaction.givenExpenseSchedule.frequency
           );
+          // Use dayOfWeek if available, otherwise extract from startDate for backward compatibility
+          if (editTransaction.givenExpenseSchedule.dayOfWeek !== undefined) {
+            setGivenExpenseDayOfWeek(editTransaction.givenExpenseSchedule.dayOfWeek);
+          } else {
+            // Extract day of week from startDate for backward compatibility
+            const startDate = new Date(editTransaction.givenExpenseSchedule.startDate);
+            setGivenExpenseDayOfWeek(startDate.getDay());
+          }
           setGivenExpenseStartDate(
             new Date(editTransaction.givenExpenseSchedule.startDate)
           );
@@ -158,7 +173,9 @@ export default function AddTransactionModal({
         setMonthlyDays([]);
         setCustomDays([]);
         setGivenExpenseFrequency('every_week');
-        setGivenExpenseStartDate(new Date());
+        const today = new Date();
+        setGivenExpenseDayOfWeek(today.getDay());
+        setGivenExpenseStartDate(today);
       }
       setIsLoading(false);
     }
@@ -255,13 +272,38 @@ export default function AddTransactionModal({
         transactionDate = lastPaidDate.toISOString();
       } else if (category === 'given_expenses') {
         // Handle given expenses with frequency schedule
-        givenExpenseSchedule = {
+        // Calculate the next occurrence date based on frequency and day of week
+        const tempSchedule: GivenExpenseSchedule = {
           frequency: givenExpenseFrequency,
-          startDate: givenExpenseStartDate.toISOString(),
+          dayOfWeek: givenExpenseDayOfWeek,
+          startDate: givenExpenseStartDate.toISOString(), // Keep for backward compatibility
         };
-
-        // Use the start date as the transaction date
-        transactionDate = givenExpenseStartDate.toISOString();
+        
+        // Calculate the actual next occurrence date
+        const nextDate = calculateNextGivenExpenseDate(tempSchedule);
+        
+        // For once_a_month, use the day of month from startDate
+        if (givenExpenseFrequency === 'once_a_month') {
+          const startDate = new Date(givenExpenseStartDate);
+          const dayOfMonth = startDate.getDate();
+          const today = new Date();
+          let expenseDate = new Date(today.getFullYear(), today.getMonth(), dayOfMonth);
+          
+          // If the date has passed this month, go to next month
+          if (expenseDate <= today) {
+            expenseDate.setMonth(expenseDate.getMonth() + 1);
+            // Handle edge case where day doesn't exist in next month
+            if (expenseDate.getDate() !== dayOfMonth) {
+              expenseDate.setDate(0); // Move to last day of previous month
+            }
+          }
+          transactionDate = expenseDate.toISOString();
+        } else {
+          // For weekly/bi-weekly, use the calculated next date
+          transactionDate = nextDate.toISOString();
+        }
+        
+        givenExpenseSchedule = tempSchedule;
       } else {
         // Use day of month for regular expenses - resolve to appropriate date
         const today = new Date();
@@ -271,8 +313,37 @@ export default function AddTransactionModal({
           selectedDay
         );
 
-        // For non-recurring expenses, try to place them in the most logical date
-        if (!isRecurring) {
+        // For savings category: always use current month regardless of whether day has passed
+        // For other categories with recurring: create monthly pay schedule
+        if (category === 'savings') {
+          // Always use current month for savings
+          expenseDate = new Date(
+            today.getFullYear(),
+            today.getMonth(),
+            selectedDay
+          );
+          
+          // If recurring, create a monthly pay schedule
+          if (isRecurring) {
+            paySchedule = {
+              cadence: 'monthly',
+              lastPaidDate: expenseDate.toISOString(),
+            };
+          }
+        } else if (isRecurring) {
+          // For other recurring expenses, use the selected day in the current month
+          // Create a monthly pay schedule
+          expenseDate = new Date(
+            today.getFullYear(),
+            today.getMonth(),
+            selectedDay
+          );
+          paySchedule = {
+            cadence: 'monthly',
+            lastPaidDate: expenseDate.toISOString(),
+          };
+        } else {
+          // For non-recurring expenses, try to place them in the most logical date
           // If the date is in the past for this month, try next month
           if (expenseDate < today) {
             const nextMonthDate = new Date(
@@ -282,14 +353,6 @@ export default function AddTransactionModal({
             );
             expenseDate = nextMonthDate;
           }
-        } else {
-          // For recurring expenses, use the selected day in the current month
-          // The pay period logic will handle the proper scheduling
-          expenseDate = new Date(
-            today.getFullYear(),
-            today.getMonth(),
-            selectedDay
-          );
         }
 
         transactionDate = expenseDate.toISOString();
@@ -1198,13 +1261,36 @@ export default function AddTransactionModal({
                     label='Apply to *'
                   />
 
-                  <DatePicker
-                    selectedDate={givenExpenseStartDate}
-                    onDateSelect={setGivenExpenseStartDate}
-                    label='Start Date'
-                    minimumDate={new Date()}
-                    variant='default'
-                  />
+                  {givenExpenseFrequency === 'once_a_month' ? (
+                    <DatePicker
+                      selectedDate={givenExpenseStartDate}
+                      onDateSelect={(date) => {
+                        setGivenExpenseStartDate(date);
+                        setGivenExpenseDayOfWeek(date.getDay());
+                      }}
+                      label='Date *'
+                      minimumDate={new Date()}
+                      variant='default'
+                    />
+                  ) : (
+                    <WeekDayPicker
+                      selectedDay={givenExpenseDayOfWeek}
+                      onDaySelect={(day) => {
+                        setGivenExpenseDayOfWeek(day);
+                        // Update startDate to next occurrence of selected day for reference
+                        const today = new Date();
+                        const currentDayOfWeek = today.getDay();
+                        let daysUntilNext = day - currentDayOfWeek;
+                        if (daysUntilNext <= 0) {
+                          daysUntilNext += 7;
+                        }
+                        const nextDate = new Date(today);
+                        nextDate.setDate(today.getDate() + daysUntilNext);
+                        setGivenExpenseStartDate(nextDate);
+                      }}
+                      label='Start Day *'
+                    />
+                  )}
                 </View>
               ) : (
                 <View style={dynamicStyles.formGroup}>

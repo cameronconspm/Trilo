@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
   ScrollView,
+  PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Calendar, Clock } from 'lucide-react-native';
@@ -77,7 +78,9 @@ export default function SavingsGoalModal({
   
   // Slider state
   const sliderWidth = useRef(0);
-  const [sliderPosition, setSliderPosition] = useState(0);
+  const sliderStartX = useRef(0);
+  const timeframeValueRef = useRef(timeframeValue);
+  const initialTouchX = useRef(0);
 
   useEffect(() => {
     if (editGoal) {
@@ -94,6 +97,11 @@ export default function SavingsGoalModal({
       setTimeframeValue(12);
     }
   }, [editGoal, visible]);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    timeframeValueRef.current = timeframeValue;
+  }, [timeframeValue]);
 
   const handleSave = () => {
     if (!title.trim()) {
@@ -147,18 +155,62 @@ export default function SavingsGoalModal({
     }
   };
 
-  // Simple tap handler for slider
-  const handleSliderTap = (event: any) => {
-    if (sliderWidth.current === 0) return;
-    
-    const { locationX } = event.nativeEvent;
+  // Calculate slider value from x position
+  const calculateValueFromPosition = (x: number) => {
     const maxValue = timeUnit === 'months' ? 60 : 26;
     const minValue = 1;
-    const normalizedValue = locationX / sliderWidth.current;
+    const trackWidth = sliderWidth.current;
+    if (trackWidth === 0) return timeframeValue;
+    
+    const clampedX = Math.max(0, Math.min(trackWidth, x));
+    const normalizedValue = clampedX / trackWidth;
     const newValue = Math.round(minValue + normalizedValue * (maxValue - minValue));
     
-    setTimeframeValue(newValue);
+    return Math.max(minValue, Math.min(maxValue, newValue));
   };
+
+  // PanResponder for drag gestures
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          // If moved more than 10 pixels, treat as drag
+          return Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10;
+        },
+        onPanResponderGrant: (event) => {
+          // Store the initial touch location for tap detection
+          initialTouchX.current = event.nativeEvent.locationX;
+          
+          // Store the starting thumb position based on current value
+          const maxValue = timeUnit === 'months' ? 60 : 26;
+          const minValue = 1;
+          if (sliderWidth.current === 0) return;
+          const normalizedPosition = (timeframeValueRef.current - minValue) / (maxValue - minValue);
+          sliderStartX.current = normalizedPosition * sliderWidth.current;
+        },
+        onPanResponderMove: (event, gestureState) => {
+          // Calculate new position: start position + translation
+          const newX = sliderStartX.current + gestureState.dx;
+          const newValue = calculateValueFromPosition(newX);
+          setTimeframeValue(newValue);
+        },
+        onPanResponderRelease: (event, gestureState) => {
+          // Check if it was a tap (little movement) or drag
+          if (Math.abs(gestureState.dx) < 10 && Math.abs(gestureState.dy) < 10) {
+            // It's a tap - use the initial touch location
+            const newValue = calculateValueFromPosition(initialTouchX.current);
+            setTimeframeValue(newValue);
+          } else {
+            // It's a drag - use final position
+            const newX = sliderStartX.current + gestureState.dx;
+            const newValue = calculateValueFromPosition(newX);
+            setTimeframeValue(newValue);
+          }
+        },
+      }),
+    [timeUnit]
+  );
 
   return (
     <Modal
@@ -292,13 +344,12 @@ export default function SavingsGoalModal({
                   </Text>
                 </View>
                 
-                <TouchableOpacity
+                <View
                   style={styles.sliderTrack}
                   onLayout={(event) => {
                     sliderWidth.current = event.nativeEvent.layout.width;
                   }}
-                  onPress={handleSliderTap}
-                  activeOpacity={1}
+                  {...panResponder.panHandlers}
                 >
                   <View 
                     style={[
@@ -318,7 +369,7 @@ export default function SavingsGoalModal({
                       }
                     ]}
                   />
-                </TouchableOpacity>
+                </View>
                 
                 {/* Slider Labels */}
                 <View style={styles.sliderLabels}>

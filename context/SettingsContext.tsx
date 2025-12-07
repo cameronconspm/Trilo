@@ -366,41 +366,73 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('SettingsContext: Resetting selective app data (preserving achievements)...');
 
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       // Get all storage keys
       const allKeys = await AsyncStorage.getAllKeys();
       
-      // Define keys to preserve (user achievements)
+      // Define keys to preserve (user achievements and goals) - these can be user-specific or global
       const keysToPreserve = [
         'activeChallenges',
         'userBadges', 
         'financialScore',
         'completedChallenges',
         'activeMicroGoals',
-        // Add any other achievement-related keys here
+        `savings_goals_${user.id}`, // Preserve savings goals
+        // Preserve any keys that contain these achievement-related strings
       ];
 
-      // Filter out keys to preserve
-      const keysToDelete = allKeys.filter(key => 
-        !keysToPreserve.some(preserveKey => key.includes(preserveKey))
-      );
+      // Filter keys: preserve achievement keys, but delete user-specific financial/settings/plaid keys
+      const keysToDelete = allKeys.filter(key => {
+        // Don't delete if it's an achievement or goal key
+        if (keysToPreserve.some(preserveKey => key === preserveKey || key.includes(preserveKey))) {
+          return false;
+        }
+        // Delete if it's user-specific financial, plaid, or settings data for this user
+        if (key.includes(`_${user.id}`) || key.includes(`${user.id}_`)) {
+          // Delete Plaid keys
+          if (key.startsWith('plaid_')) {
+            return true;
+          }
+          // Delete Finance keys (except milestones which might be achievements-related)
+          if (key.startsWith('finance_')) {
+            // Don't delete if it's related to achievements/milestones
+            if (key.includes('milestones')) {
+              return false;
+            }
+            return true;
+          }
+          // Delete Settings keys
+          if (key.startsWith('settings_')) {
+            return true;
+          }
+        }
+        // Delete global finance backup key
+        if (key === 'finance_auto_backup') {
+          return true;
+        }
+        // Don't delete other keys (achievements, goals, etc.)
+        return false;
+      });
 
       console.log(
-        'SettingsContext: Preserving',
-        keysToPreserve.length,
-        'achievement keys, deleting',
+        'SettingsContext: Preserving achievement keys, deleting',
         keysToDelete.length,
-        'other keys'
+        'financial/settings keys for user',
+        user.id
       );
 
       // Reset notifications first
       await NotificationService.resetAllData();
 
-      // Remove only non-achievement data
+      // Remove user-specific financial and settings data
       if (keysToDelete.length > 0) {
         await AsyncStorage.multiRemove(keysToDelete);
       }
 
-      // Reset state to defaults (but keep achievements)
+      // Reset state to defaults (but keep achievements in their own context)
       setThemeState(DEFAULT_PREFERENCES.theme);
       setIsBankConnected(DEFAULT_PREFERENCES.isBankConnected);
       setNicknameState(DEFAULT_PREFERENCES.nickname);

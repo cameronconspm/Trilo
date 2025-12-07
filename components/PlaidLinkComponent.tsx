@@ -1,17 +1,99 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Alert, Platform } from 'react-native';
+import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePlaid, PlaidLinkMetadata } from '@/context/PlaidContext';
 
-// Import Plaid SDK with proper error handling
-let PlaidLink: any = null;
-let PlaidLinkError: any = null;
+// Import the new Plaid SDK API (v11.6.0+)
+import { create, open, destroy, dismissLink, usePlaidEmitter, LinkIOSPresentationStyle, LinkLogLevel } from 'react-native-plaid-link-sdk';
+import type { LinkSuccess, LinkExit, LinkEvent } from 'react-native-plaid-link-sdk';
+
+// Diagnostic storage key
+const DIAGNOSTICS_STORAGE_KEY = '@trilo:plaid_diagnostics';
+
+// SDK availability check
+let SDKAvailable = false;
+let SDKLoadError: Error | null = null;
 
 try {
-  const PlaidSDK = require('react-native-plaid-link-sdk');
-  PlaidLink = PlaidSDK.PlaidLink;
-  PlaidLinkError = PlaidSDK.PlaidLinkError;
+  // Try to import the SDK to check if it's available
+  require('react-native-plaid-link-sdk');
+  SDKAvailable = true;
+  console.log('[Plaid] ✅ Plaid SDK module is available');
 } catch (error) {
-  console.warn('Plaid SDK not available in current environment:', (error as Error).message);
+  SDKAvailable = false;
+  SDKLoadError = error as Error;
+  console.error('[Plaid] ❌ Plaid SDK module not available:', error);
+}
+
+/**
+ * Check if we're running in Expo Go (which doesn't support native modules)
+ */
+function isRunningInExpoGoEarly(): boolean {
+  return (
+    Constants.executionEnvironment === 'storeClient' ||
+    Constants.appOwnership === 'expo'
+  );
+}
+
+/**
+ * Capture and store diagnostic information
+ */
+async function storeDiagnostics(diagnostics: any): Promise<void> {
+  try {
+    const timestamp = new Date().toISOString();
+    const diagnosticData = {
+      timestamp,
+      ...diagnostics,
+    };
+    await AsyncStorage.setItem(DIAGNOSTICS_STORAGE_KEY, JSON.stringify(diagnosticData));
+    console.log('[Plaid] 📊 Diagnostics stored');
+  } catch (error) {
+    console.error('[Plaid] Failed to store diagnostics:', error);
+  }
+}
+
+/**
+ * Get stored diagnostic information
+ */
+export async function getStoredDiagnostics(): Promise<any | null> {
+  try {
+    const data = await AsyncStorage.getItem(DIAGNOSTICS_STORAGE_KEY);
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.error('[Plaid] Failed to get diagnostics:', error);
+    return null;
+  }
+}
+
+/**
+ * Log comprehensive diagnostic information
+ * Always logs in production for troubleshooting
+ */
+function logDiagnostics(additionalInfo?: any): void {
+  const diagnostics = {
+    platform: Platform.OS,
+    executionEnvironment: Constants.executionEnvironment,
+    appOwnership: Constants.appOwnership,
+    isDevice: Constants.isDevice,
+    isDev: __DEV__,
+    sdkAvailable: SDKAvailable,
+    sdkLoadError: SDKLoadError ? {
+      message: SDKLoadError.message,
+      name: SDKLoadError.name,
+    } : null,
+    isExpoGo: isRunningInExpoGoEarly(),
+    reactNativeVersion: Platform.constants?.reactNativeVersion
+      ? `${Platform.constants.reactNativeVersion.major}.${Platform.constants.reactNativeVersion.minor}.${Platform.constants.reactNativeVersion.patch}`
+      : 'Unknown',
+    ...additionalInfo,
+  };
+
+  // Always log diagnostics
+  console.log('[Plaid] 📊 Diagnostics:', JSON.stringify(diagnostics, null, 2));
+  
+  // Store diagnostics for later retrieval
+  storeDiagnostics(diagnostics);
 }
 
 interface PlaidLinkComponentProps {
@@ -20,41 +102,113 @@ interface PlaidLinkComponentProps {
   onEvent?: (event: any) => void;
 }
 
-export function PlaidLinkComponent({ 
-  onSuccess, 
-  onExit, 
-  onEvent 
+export function PlaidLinkComponent({
+  onSuccess,
+  onExit,
+  onEvent,
 }: PlaidLinkComponentProps) {
   const { state, handlePlaidSuccess, handlePlaidExit, dispatch } = usePlaid();
-  const linkRef = useRef<any>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const linkCreatedRef = useRef(false);
+
+  // Use Plaid event emitter for onEvent callbacks
+  usePlaidEmitter((event: LinkEvent) => {
+    console.log('[Plaid] 📊 Link Event:', JSON.stringify(event, null, 2));
+    onEvent?.(event);
+  });
 
   // Handle Plaid Link success
-  const handleSuccess = async (publicToken: string, metadata: PlaidLinkMetadata) => {
+  const handleSuccess = useCallback(async (success: LinkSuccess) => {
     try {
       // Clear timeout
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      
-      console.log('🎉 Plaid Link Success:', { publicToken, metadata });
-      
-      // Call context handler
-      await handlePlaidSuccess(publicToken, metadata);
-      
+
+      console.log('[Plaid] 🎉 Link Success');
+      console.log('[Plaid]   Public Token:', success.publicToken?.substring(0, 20) + '...');
+      console.log('[Plaid]   Institution:', success.metadata?.institution?.name || 'Unknown');
+      console.log('[Plaid]   Institution ID:', success.metadata?.institution?.institution_id || 'Unknown');
+      console.log('[Plaid]   Accounts:', success.metadata?.accounts?.length || 0);
+
+      if (success.metadata?.accounts) {
+        success.metadata.accounts.forEach((account, index) => {
+          console.log(`[Plaid]   Account ${index + 1}:`, {
+            id: account.id,
+            name: account.name,
+            type: account.type,
+            subtype: account.subtype,
+            mask: account.mask,
+          });
+        });
+      }
+
+      // Convert LinkSuccess to our PlaidLinkMetadata format
+      const metadata: PlaidLinkMetadata = {
+        institution: success.metadata?.institution ? {
+          name: success.metadata.institution.name,
+          institution_id: success.metadata.institution.institution_id,
+        } : undefined,
+        accounts: success.metadata?.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          type: account.type,
+          subtype: account.subtype,
+          mask: account.mask,
+        })),
+      };
+
+      // Store success diagnostics
+      await storeDiagnostics({
+        lastSuccess: {
+          timestamp: new Date().toISOString(),
+          institution: metadata.institution?.name,
+          institutionId: metadata.institution?.institution_id,
+          accountCount: metadata.accounts?.length || 0,
+        },
+      });
+
+      // Call context handler with public token
+      if (success.publicToken) {
+        await handlePlaidSuccess(success.publicToken, metadata);
+      } else {
+        throw new Error('Public token not found in success response');
+      }
+
       // Call optional callback
-      onSuccess?.(publicToken, metadata);
-      
+      if (success.publicToken) {
+        onSuccess?.(success.publicToken, metadata);
+      }
+
       // Show success message
       Alert.alert(
         'Success!',
         `Successfully connected ${metadata.accounts?.length || 1} account(s). Your financial data will now sync automatically.`,
         [{ text: 'OK' }]
       );
-      
     } catch (error) {
-      console.error('❌ Failed to process Plaid success:', error);
+      // Always log errors
+      console.error('[Plaid] ❌ Failed to process success:', error);
+      
+      const errorDetails = error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      } : { error: String(error) };
+
+      console.error('[Plaid]   Error Details:', JSON.stringify(errorDetails, null, 2));
+
+      // Store error diagnostics
+      await storeDiagnostics({
+        lastError: {
+          timestamp: new Date().toISOString(),
+          type: 'success_processing',
+          ...errorDetails,
+        },
+      });
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       Alert.alert(
         'Error',
@@ -62,53 +216,73 @@ export function PlaidLinkComponent({
         [{ text: 'OK' }]
       );
     }
-  };
+  }, [handlePlaidSuccess, onSuccess]);
 
   // Handle Plaid Link exit
-  const handleExit = (error: any) => {
+  const handleExit = useCallback((exit: LinkExit) => {
     // Clear timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-    
-    console.log('🚪 Plaid Link Exit:', error);
-    
+
+    console.log('[Plaid] 🚪 Link Exit');
+    if (exit.error) {
+      console.log('[Plaid]   Exit Error:', JSON.stringify(exit.error, null, 2));
+    } else {
+      console.log('[Plaid]   User cancelled connection');
+    }
+
+    // Store exit diagnostics
+    storeDiagnostics({
+      lastExit: {
+        timestamp: new Date().toISOString(),
+        error: exit.error ? {
+          error_message: exit.error.errorMessage,
+          error_code: exit.error.errorCode,
+          display_message: exit.error.displayMessage,
+        } : null,
+      },
+    });
+
     // Call context handler
-    handlePlaidExit(error);
-    
+    handlePlaidExit(exit.error ? {
+      error_message: exit.error.errorMessage || exit.error.displayMessage,
+      display_message: exit.error.displayMessage,
+      error_code: exit.error.errorCode,
+    } : null);
+
     // Call optional callback
-    onExit?.(error);
-    
+    onExit?.(exit);
+
     // Show appropriate message
-    if (error) {
+    if (exit.error) {
       Alert.alert(
         'Connection Cancelled',
-        error.error_message || 'Bank connection was cancelled.',
+        exit.error.displayMessage || exit.error.errorMessage || 'Bank connection was cancelled.',
         [{ text: 'OK' }]
       );
     }
-  };
+  }, [handlePlaidExit, onExit]);
 
-  // Handle Plaid Link events
-  const handleEvent = (event: any) => {
-    console.log('📊 Plaid Link Event:', event);
-    onEvent?.(event);
-  };
-
-  // Open Plaid Link when linkToken is available and connecting
+  // Initialize and open Plaid Link when linkToken is available and connecting
   useEffect(() => {
     if (state.linkToken && state.isConnecting) {
-      // Set a timeout to prevent infinite loading
-      timeoutRef.current = setTimeout(() => {
-        console.warn('⚠️ Plaid connection timeout');
-        handleExit({ error_message: 'Connection timeout' });
-      }, 10000) as any; // 10 second timeout
+      console.log('[Plaid] 🔄 Link token and connecting state detected');
+      console.log('[Plaid]   SDK Available:', SDKAvailable);
+      console.log('[Plaid]   Link Token:', state.linkToken.substring(0, 20) + '...');
       
-      // Always attempt to open Plaid Link
+      // Set a timeout to prevent infinite loading
+      // Increased to 2 minutes to allow users time to complete bank connection flow
+      timeoutRef.current = setTimeout(() => {
+        console.warn('[Plaid] ⚠️ Connection timeout (2 minutes elapsed)');
+        handleExit({ error: { errorMessage: 'Connection timeout - please try again' } });
+      }, 120000) as any; // 2 minute timeout (120 seconds)
+
+      // Initialize and open Plaid Link
       openPlaidLink();
     }
-    
+
     // Cleanup timeout on unmount or when connecting state changes
     return () => {
       if (timeoutRef.current) {
@@ -118,59 +292,176 @@ export function PlaidLinkComponent({
     };
   }, [state.linkToken, state.isConnecting]);
 
-  // Removed fallback options - Plaid Link should open directly
-
-  const openPlaidLink = async () => {
+  const openPlaidLink = useCallback(async () => {
     try {
-      if (!PlaidLink) {
-        throw new Error('Plaid SDK not available - requires development build');
+      console.log('[Plaid] 🚀 Opening Plaid Link...');
+      console.log('[Plaid]   State:', {
+        hasLinkToken: !!state.linkToken,
+        isConnecting: state.isConnecting,
+        sdkAvailable: SDKAvailable,
+      });
+
+      // Check if SDK is available
+      if (!SDKAvailable) {
+        const isExpoGoEnv = isRunningInExpoGoEarly();
+        if (isExpoGoEnv) {
+          throw new Error(
+            'Plaid SDK requires a development or production build. This feature is not available in Expo Go. ' +
+            'Please use a development build or TestFlight version to connect your bank accounts.'
+          );
+        } else {
+          throw new Error(
+            'Bank connection feature is temporarily unavailable. ' +
+            'Please ensure you have the latest version of the app installed, or contact support if the issue persists.'
+          );
+        }
       }
 
+      // Check link token availability
       if (!state.linkToken) {
-        throw new Error('No link token available');
+        console.error('[Plaid] ❌ Link token not available');
+        throw new Error('Unable to connect to bank services. Please check your internet connection and try again.');
       }
 
-      console.log('🚀 Opening Plaid Link...');
+      // Log diagnostics
+      logDiagnostics({
+        action: 'open_link',
+        hasLinkToken: !!state.linkToken,
+        isConnecting: state.isConnecting,
+        sdkAvailable: SDKAvailable,
+      });
 
-      // Configure Plaid Link
-      const config = {
+      console.log('[Plaid]   Platform:', Platform.OS);
+      console.log('[Plaid]   Link Token:', state.linkToken.substring(0, 20) + '...');
+
+      // Step 1: (Re)create Plaid Link session with latest token
+      // Plaid requires create() to be called before each open() session.
+      // If a previous session exists, destroy it first.
+      if (linkCreatedRef.current) {
+        console.log('[Plaid] 🔄 Destroying previous Plaid Link session before creating a new one...');
+        try {
+          await destroy();
+        } catch (e) {
+          console.warn('[Plaid] Warning destroying previous session (safe to continue):', e);
+        }
+        linkCreatedRef.current = false;
+        setIsInitialized(false);
+      }
+
+      console.log('[Plaid] 📦 Creating Plaid Link session...');
+      create({
         token: state.linkToken,
+        noLoadingState: false,
+        logLevel: LinkLogLevel.ERROR,
+      });
+      linkCreatedRef.current = true;
+      setIsInitialized(true);
+      console.log('[Plaid] ✅ Plaid Link session created');
+
+      // Step 2: Open Plaid Link
+      console.log('[Plaid] 🚪 Opening Plaid Link modal...');
+      open({
         onSuccess: handleSuccess,
         onExit: handleExit,
-        onEvent: handleEvent,
-      };
+        iOSPresentationStyle: LinkIOSPresentationStyle.MODAL,
+      });
+      
+      console.log('[Plaid] ✅ Plaid Link open() called successfully');
 
-      // Create and open Plaid Link
-      linkRef.current = new PlaidLink(config);
-      await linkRef.current.open();
+      // Store success diagnostics
+      await storeDiagnostics({
+        lastOpenSuccess: {
+          timestamp: new Date().toISOString(),
+          platform: Platform.OS,
+        },
+      });
 
     } catch (error) {
-      console.error('❌ Failed to open Plaid Link:', error);
-      
-      // Enhanced error handling
-      if (error instanceof Error) {
-        Alert.alert(
-          'Connection Error', 
-          `Failed to open bank connection: ${error.message}`,
-          [
-            { text: 'Cancel', style: 'cancel', onPress: () => handleExit({ error_message: error.message }) },
-            { text: 'Try Again', onPress: () => openPlaidLink() }
-          ]
-        );
-      } else {
-        Alert.alert(
-          'Connection Error', 
-          'Failed to open bank connection. Please try again.',
-          [
-            { text: 'Cancel', style: 'cancel', onPress: () => handleExit({ error_message: 'Unknown error' }) },
-            { text: 'Try Again', onPress: () => openPlaidLink() }
-          ]
-        );
-      }
-    }
-  };
+      // Always log errors
+      console.error('[Plaid] ❌ Failed to open Plaid Link:', error);
 
-  // Mock functionality removed - using real Plaid sandbox only
+      const errorDetails = error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      } : { error: String(error) };
+
+      console.error('[Plaid]   Error Details:', JSON.stringify(errorDetails, null, 2));
+
+      // Store error diagnostics
+      await storeDiagnostics({
+        lastOpenError: {
+          timestamp: new Date().toISOString(),
+          ...errorDetails,
+          sdkAvailable: SDKAvailable,
+          hasLinkToken: !!state.linkToken,
+          isExpoGo: isRunningInExpoGoEarly(),
+        },
+      });
+
+      // Enhanced error handling with user-friendly messages
+      let errorMessage = 'Failed to open bank connection. Please try again.';
+      let showRetry = true;
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Don't show retry for Expo Go errors
+        if (error.message.includes('Expo Go')) {
+          showRetry = false;
+        }
+        
+        // Don't show retry for SDK not available errors
+        if (error.message.includes('not available') || error.message.includes('temporarily unavailable')) {
+          showRetry = false;
+        }
+      }
+
+      // Always show error to user - don't silently fail
+      console.error('[Plaid] ⚠️ Showing error alert to user');
+      
+      Alert.alert(
+        'Connection Error',
+        errorMessage,
+        showRetry
+          ? [
+              {
+                text: 'Cancel',
+                style: 'cancel',
+                onPress: () => {
+                  console.log('[Plaid] User cancelled after error');
+                  handleExit({ error: { errorMessage: errorMessage } });
+                },
+              },
+              {
+                text: 'Try Again',
+                onPress: async () => {
+                  console.log('[Plaid] User chose to retry');
+                  // Clean up previous session
+                  try {
+                    await destroy();
+                    linkCreatedRef.current = false;
+                    setIsInitialized(false);
+                  } catch (e) {
+                    console.warn('[Plaid] Error destroying previous session:', e);
+                  }
+                  // Retry opening link
+                  openPlaidLink();
+                },
+              },
+            ]
+          : [
+              {
+                text: 'OK',
+                onPress: () => {
+                  console.log('[Plaid] User dismissed error');
+                  handleExit({ error: { errorMessage: errorMessage } });
+                },
+              },
+            ]
+      );
+    }
+  }, [state.linkToken, state.isConnecting, handleSuccess, handleExit]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -180,14 +471,18 @@ export function PlaidLinkComponent({
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      
-      // Cleanup Plaid Link
-      if (linkRef.current) {
+
+      // Cleanup Plaid Link session
+      if (linkCreatedRef.current) {
         try {
-          linkRef.current.destroy?.();
+          destroy().catch((error) => {
+            console.warn('[Plaid] Error destroying Plaid Link session:', error);
+          });
+          dismissLink();
         } catch (error) {
-          console.warn('Error destroying Plaid Link:', error);
+          console.warn('[Plaid] Error cleaning up Plaid Link:', error);
         }
+        linkCreatedRef.current = false;
       }
     };
   }, []);
@@ -202,9 +497,57 @@ export function usePlaidLink() {
 
   const openLink = async () => {
     try {
+      console.log('[Plaid] 🔗 Initiating Plaid Link connection...');
+      console.log('[Plaid]   Current State:', {
+        isConnecting: state.isConnecting,
+        hasLinkToken: !!state.linkToken,
+        connectionError: state.connectionError,
+      });
+
+      // Check if already connecting
+      if (state.isConnecting) {
+        console.log('[Plaid] ⚠️ Already connecting, ignoring duplicate request');
+        return;
+      }
+
       await connectBank();
+
+      console.log('[Plaid] ✅ Link token created successfully');
+      console.log('[Plaid]   Link Token:', state.linkToken?.substring(0, 20) + '...');
+      
+      // Note: The PlaidLinkComponent will automatically open when linkToken and isConnecting are set
     } catch (error) {
-      console.error('Failed to prepare Plaid Link:', error);
+      // Always log errors
+      console.error('[Plaid] ❌ Failed to prepare Plaid Link:', error);
+      
+      if (error instanceof Error) {
+        const errorDetails = {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        };
+        console.error('[Plaid]   Error Details:', JSON.stringify(errorDetails, null, 2));
+      }
+      
+      // Show error to user - don't silently fail
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to start bank connection. Please try again.';
+      
+      Alert.alert(
+        'Connection Error',
+        errorMessage,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              console.log('[Plaid] User dismissed connection error');
+            },
+          },
+        ]
+      );
+      
+      // Re-throw so calling code can handle if needed
       throw error;
     }
   };
@@ -218,4 +561,3 @@ export function usePlaidLink() {
 
 // Export the component as default
 export default PlaidLinkComponent;
-

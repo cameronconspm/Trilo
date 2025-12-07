@@ -13,9 +13,11 @@ import {
   Linking,
   TouchableOpacity,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import Header from '@/components/layout/Header';
 import Card from '@/components/layout/Card';
 import SettingsItem from '@/components/SettingsItem';
@@ -27,8 +29,16 @@ import { useNotifications } from '@/context/NotificationContext';
 import { useFinance } from '@/context/FinanceContext';
 import { useChallengeTracking } from '@/context/ChallengeTrackingContext';
 import { useAuth } from '@/context/AuthContext';
+import { useSubscription } from '@/context/SubscriptionContext';
+import { usePlaid } from '@/context/PlaidContext';
+import { useTutorial } from '@/context/TutorialContext';
+import MFASetupScreen from '@/components/auth/MFASetupScreen';
+import { isMFAEnabled, disableMFA, getMFAPhoneNumber } from '@/services/mfaService';
+import { showManageSubscriptions } from '@/lib/revenuecat';
+import { SUBSCRIPTIONS_ENABLED } from '@/constants/features';
 import { useAlert } from '@/hooks/useAlert';
 import { useThemeColors } from '@/constants/colors';
+import { error as logError } from '@/utils/logger';
 import {
   Spacing,
   SpacingValues,
@@ -48,10 +58,13 @@ import {
   ChevronRight,
   Trophy,
   LogOut,
+  Play,
 } from 'lucide-react-native';
 import NameEditModal from '@/components/modals/NameEditModal';
 import { ModalWrapper } from '@/components/modals/ModalWrapper';
+import { PaywallModal } from '@/components/modals/PaywallModal';
 import { Transaction, CategoryType } from '@/types/finance';
+import { diagnoseRevenueCat, formatDiagnostics } from '@/lib/revenuecat-diagnostics';
 
 export default function ProfileScreen() {
   const {
@@ -72,13 +85,17 @@ export default function ProfileScreen() {
   
   const challengeTracking = useChallengeTracking();
 
+  const router = useRouter();
+  const { restartTutorial, isLoading: tutorialLoading } = useTutorial();
+
   const {
     clearAllData: clearFinanceData,
     reloadData: reloadFinanceData,
     addTransaction,
   } = useFinance();
 
-  const { signOut, deleteAccount, user } = useAuth();
+  const { state: plaidState, disconnectBank, dispatch: plaidDispatch } = usePlaid();
+  const { signOut, deleteAccount, user, checkMFAStatus } = useAuth();
 
   const { alertState, showAlert, hideAlert } = useAlert();
   const [showThemeModal, setShowThemeModal] = useState(false);
@@ -86,6 +103,17 @@ export default function ProfileScreen() {
   const [showCsvImport, setShowCsvImport] = useState(false);
   const [notificationsExpanded, setNotificationsExpanded] = useState(false);
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
+  const [subscriptionExpanded, setSubscriptionExpanded] = useState(false);
+  const [isChangingPlan, setIsChangingPlan] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [diagnosticsResult, setDiagnosticsResult] = useState<string>('');
+  const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
+  const [showMFASetup, setShowMFASetup] = useState(false);
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState<string>('');
+
+  const { status, subscriptionDetails, trialDaysRemaining, monthlyPackage, annualPackage, purchaseSubscription, checkAccess } = useSubscription();
 
   // Get theme-aware colors
   const colors = useThemeColors(theme);
@@ -99,6 +127,70 @@ export default function ProfileScreen() {
     };
   }, []);
 
+  // Check MFA status on mount and when user changes
+  useEffect(() => {
+    if (user?.id) {
+      checkMFAStatus().then((enabled) => {
+        setMfaEnabled(enabled);
+      });
+      // Also load phone number if MFA is enabled
+      import('@/services/mfaService').then(({ getMFAPhoneNumber }) => {
+        getMFAPhoneNumber(user.id).then((phone) => {
+          if (phone) setPhoneNumber(phone);
+        });
+      });
+    }
+  }, [user?.id]);
+
+  const handleEnableMFA = () => {
+    setShowMFASetup(true);
+  };
+
+  const handleMFASetupComplete = async () => {
+    setShowMFASetup(false);
+    const enabled = await checkMFAStatus();
+    setMfaEnabled(enabled);
+  };
+
+  const handleMFASetupCancel = () => {
+    setShowMFASetup(false);
+  };
+
+  const handleDisableMFA = () => {
+    Alert.alert(
+      'Disable Two-Factor Authentication',
+      'Are you sure you want to disable two-factor authentication? This will make your account less secure.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disable',
+          style: 'destructive',
+          onPress: async () => {
+            if (user?.id) {
+              try {
+                await disableMFA(user.id);
+                setMfaEnabled(false);
+                showAlert({
+                  title: 'MFA Disabled',
+                  message: 'Two-factor authentication has been disabled for your account.',
+                  type: 'success',
+                  actions: [{ text: 'OK', onPress: () => {} }],
+                });
+              } catch (error) {
+                showAlert({
+                  title: 'Error',
+                  message: 'Failed to disable MFA. Please try again.',
+                  type: 'error',
+                  actions: [{ text: 'OK', onPress: () => {} }],
+                });
+              }
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleAvatarPress = async () => {
     if (Platform.OS === 'web') {
       // For web, show a simple alert
@@ -110,92 +202,191 @@ export default function ProfileScreen() {
       return;
     }
 
-    // Request both camera and media library permissions
-    const [mediaLibraryStatus, cameraStatus] = await Promise.all([
-      ImagePicker.requestMediaLibraryPermissionsAsync(),
-      ImagePicker.requestCameraPermissionsAsync(),
-    ]);
+    try {
+      // Request both camera and media library permissions
+      const [mediaLibraryStatus, cameraStatus] = await Promise.all([
+        ImagePicker.requestMediaLibraryPermissionsAsync(),
+        ImagePicker.requestCameraPermissionsAsync(),
+      ]);
 
-    if (
-      mediaLibraryStatus.status !== 'granted' &&
-      cameraStatus.status !== 'granted'
-    ) {
+      if (
+        mediaLibraryStatus.status !== 'granted' &&
+        cameraStatus.status !== 'granted'
+      ) {
+        Alert.alert(
+          'Permission Required',
+          'Please grant permission to access your camera or photo library to update your avatar.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      const options: {
+        text: string;
+        style?: 'default' | 'cancel' | 'destructive';
+        onPress?: () => void;
+      }[] = [{ text: 'Cancel', style: 'cancel' }];
+
+      if (cameraStatus.status === 'granted') {
+        options.push({ text: 'Camera', onPress: () => openCamera() });
+      }
+
+      if (mediaLibraryStatus.status === 'granted') {
+        options.push({ text: 'Photo Library', onPress: () => openImagePicker() });
+      }
+
+      if (avatarUri) {
+        options.push({
+          text: 'Remove Photo',
+          style: 'destructive',
+          onPress: () => removeAvatar(),
+        });
+      }
+
       Alert.alert(
-        'Permission Required',
-        'Please grant permission to access your camera or photo library to update your avatar.',
+        'Update Avatar',
+        "Choose how you'd like to update your profile picture",
+        options
+      );
+    } catch (error) {
+      logError('Error requesting permissions:', error);
+      Alert.alert(
+        'Error',
+        'Failed to request permissions. Please try again.',
         [{ text: 'OK' }]
       );
-      return;
     }
-
-    const options: {
-      text: string;
-      style?: 'default' | 'cancel' | 'destructive';
-      onPress?: () => void;
-    }[] = [{ text: 'Cancel', style: 'cancel' }];
-
-    if (cameraStatus.status === 'granted') {
-      options.push({ text: 'Camera', onPress: () => openCamera() });
-    }
-
-    if (mediaLibraryStatus.status === 'granted') {
-      options.push({ text: 'Photo Library', onPress: () => openImagePicker() });
-    }
-
-    if (avatarUri) {
-      options.push({
-        text: 'Remove Photo',
-        style: 'destructive',
-        onPress: () => removeAvatar(),
-      });
-    }
-
-    Alert.alert(
-      'Update Avatar',
-      "Choose how you'd like to update your profile picture",
-      options
-    );
   };
 
   const openCamera = async () => {
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    try {
+      // Double-check camera permission before launching
+      const cameraPermission = await ImagePicker.getCameraPermissionsAsync();
+      if (cameraPermission.status !== 'granted') {
+        const requestResult = await ImagePicker.requestCameraPermissionsAsync();
+        if (requestResult.status !== 'granted') {
+          Alert.alert(
+            'Permission Required',
+            'Camera permission is required to take photos. Please enable it in Settings.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+      }
 
-    if (!result.canceled && result.assets[0]) {
-      await setAvatarUri(result.assets[0].uri);
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0]) {
+        await setAvatarUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      logError('Error opening camera:', error);
+      Alert.alert(
+        'Error',
+        'Failed to open camera. Please check that camera permissions are granted in Settings.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
   const openImagePicker = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    try {
+      // Double-check media library permission before launching
+      const mediaPermission = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (mediaPermission.status !== 'granted') {
+        const requestResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (requestResult.status !== 'granted') {
+          Alert.alert(
+            'Permission Required',
+            'Photo library permission is required to select photos. Please enable it in Settings.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+      }
 
-    if (!result.canceled && result.assets[0]) {
-      await setAvatarUri(result.assets[0].uri);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0]) {
+        await setAvatarUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      logError('Error opening image picker:', error);
+      Alert.alert(
+        'Error',
+        'Failed to open photo library. Please check that photo library permissions are granted in Settings.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
   const removeAvatar = async () => {
-    await setAvatarUri(null);
+    try {
+      await setAvatarUri(null);
+    } catch (error) {
+      logError('Error removing avatar:', error);
+      Alert.alert(
+        'Error',
+        'Failed to remove photo. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const handleNameSave = async (name: string) => {
     await setNickname(name);
   };
 
-  const handleResetData = () => {
+  const handleShowTutorial = async () => {
+    try {
+      await restartTutorial();
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.error('ProfileScreen: Failed to restart tutorial', error);
+      showAlert({
+        title: 'Unable to start tutorial',
+        message: 'Please try again shortly.',
+        type: 'error',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
+    }
+  };
+
+  const handleTestOnboarding = async () => {
+    try {
+      // Clear setup completion flag if user exists
+      if (user) {
+        await AsyncStorage.removeItem(`@trilo:setup_completed_${user.id}`);
+      }
+      
+      // Navigate to setup flow (username, profile, income, expense)
+      router.replace('/setup');
+    } catch (error) {
+      console.error('ProfileScreen: Failed to reset setup', error);
+      showAlert({
+        title: 'Error',
+        message: 'Failed to reset setup. Please try again.',
+        type: 'error',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
+    }
+  };
+
+  const handleResetPersonalData = () => {
     showAlert({
       title: 'Reset Personal Data',
       message:
-        'This will reset your bank connections, transactions, and preferences. Your achievements, badges, and progress will be preserved.',
+        'This will remove all your transactions, income, expenses, and bank connections. Your achievements, badges, challenges, and goals will be preserved.',
       type: 'warning',
       actions: [
         { text: 'Cancel', style: 'cancel', onPress: () => {} },
@@ -204,7 +395,20 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Clear financial data (transactions, budgets, bank connections)
+              // Disconnect all Plaid bank accounts first
+              for (const account of plaidState.accounts) {
+                try {
+                  await disconnectBank(account.id);
+                } catch (error) {
+                  // Continue even if individual account disconnect fails
+                  logError('Error disconnecting account:', error);
+                }
+              }
+
+              // Reset Plaid state to clear in-memory data
+              plaidDispatch({ type: 'RESET_STATE' });
+
+              // Clear financial data (transactions, income, expenses)
               await clearFinanceData();
 
               // Clear settings and preferences (but preserve achievements)
@@ -216,7 +420,7 @@ export default function ProfileScreen() {
               showAlert({
                 title: 'Data Reset Complete',
                 message:
-                  'Personal data has been reset. Your achievements and progress have been preserved.',
+                  'Personal data has been reset. Your achievements, badges, and goals have been preserved.',
                 type: 'success',
                 actions: [
                   {
@@ -231,7 +435,7 @@ export default function ProfileScreen() {
                 ],
               });
             } catch (error) {
-              console.error('Reset data error:', error);
+              logError('Reset data error:', error);
               showAlert({
                 title: 'Reset Failed',
                 message:
@@ -280,6 +484,127 @@ export default function ProfileScreen() {
         'Email Not Available',
         'Please send an email to support@thetriloapp.com'
       );
+    }
+  };
+
+  const handleOpenSubscriptionSettings = async () => {
+    try {
+      await showManageSubscriptions();
+    } catch (error) {
+      // Fallback to browser if native method fails
+      try {
+        if (Platform.OS === 'ios') {
+          const url = 'https://apps.apple.com/account/subscriptions';
+          await Linking.openURL(url);
+        } else if (Platform.OS === 'android') {
+          const url = 'https://play.google.com/store/account/subscriptions';
+          await Linking.openURL(url);
+        }
+      } catch (linkError) {
+        Alert.alert(
+          'Unable to Open',
+          Platform.OS === 'ios'
+            ? 'Please go to Settings > Apple ID > Subscriptions to manage your subscription.'
+            : 'Please go to Google Play Store > Subscriptions to manage your subscription.'
+        );
+      }
+    }
+  };
+
+  const formatRenewalDate = (date: Date | null): string => {
+    if (!date) return 'N/A';
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const handleCancelSubscription = () => {
+    Alert.alert(
+      'Cancel Subscription',
+      'To cancel your subscription, please use the subscription management settings. Your subscription will remain active until the end of the current billing period.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Manage Subscription', 
+          onPress: handleOpenSubscriptionSettings 
+        },
+      ]
+    );
+  };
+
+  const handleChangePlan = async (newPlan: 'monthly' | 'annual') => {
+    if (!monthlyPackage || !annualPackage) {
+      Alert.alert('Error', 'Subscription packages not available. Please try again later.');
+      return;
+    }
+
+    try {
+      setIsChangingPlan(true);
+      const targetPackage = newPlan === 'annual' ? annualPackage : monthlyPackage;
+      await purchaseSubscription(targetPackage);
+      
+      // Refresh subscription details
+      await checkAccess();
+      
+      Alert.alert(
+        'Plan Changed',
+        `Your subscription has been changed to ${newPlan === 'annual' ? 'annual' : 'monthly'}. The change will take effect at the end of your current billing period.`
+      );
+    } catch (error) {
+      console.error('Plan change error:', error);
+      Alert.alert(
+        'Error',
+        'Unable to change plan. Please try again or manage your subscription in settings.'
+      );
+    } finally {
+      setIsChangingPlan(false);
+    }
+  };
+
+  const handleUpgradeToAnnual = () => {
+    if (!subscriptionDetails.productId?.includes('annual')) {
+      handleChangePlan('annual');
+    } else {
+      Alert.alert('Already Annual', 'You are already subscribed to the annual plan.');
+    }
+  };
+
+  const handleDowngradeToMonthly = () => {
+    if (!subscriptionDetails.productId?.includes('monthly') && !subscriptionDetails.productId?.includes('month')) {
+      Alert.alert(
+        'Switch to Monthly',
+        'Are you sure you want to switch to the monthly plan?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Switch', onPress: () => handleChangePlan('monthly') },
+        ]
+      );
+    } else {
+      Alert.alert('Already Monthly', 'You are already subscribed to the monthly plan.');
+    }
+  };
+
+  const handleShowSubscriptionBanner = () => {
+    // Show paywall modal instead of just restoring banner
+    setShowPaywall(true);
+  };
+
+  const handleRunRevenueCatDiagnostics = async () => {
+    setIsRunningDiagnostics(true);
+    setDiagnosticsResult('');
+    
+    try {
+      const diagnostics = await diagnoseRevenueCat();
+      const formatted = formatDiagnostics(diagnostics);
+      setDiagnosticsResult(formatted);
+      setShowDiagnostics(true);
+    } catch (error: any) {
+      setDiagnosticsResult(`❌ Error running diagnostics:\n${error?.message || 'Unknown error'}`);
+      setShowDiagnostics(true);
+    } finally {
+      setIsRunningDiagnostics(false);
     }
   };
 
@@ -407,6 +732,21 @@ export default function ProfileScreen() {
               title='Theme'
               value={theme.charAt(0).toUpperCase() + theme.slice(1)}
               onPress={() => setShowThemeModal(true)}
+              isLast
+            />
+          </Card>
+
+          {/* Guides */}
+          <Card style={[styles.card, { backgroundColor: colors.card }] as any}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
+              Guides
+            </Text>
+            <SettingsItem
+              title='How Trilo Works'
+              subtitle='Replay the onboarding walkthrough'
+              icon={<RefreshCw size={18} color={colors.primary} />}
+              onPress={handleShowTutorial}
+              disabled={tutorialLoading}
               isLast
             />
           </Card>
@@ -644,16 +984,28 @@ export default function ProfileScreen() {
               onPress={() => setShowCsvImport(true)}
             />
             <SettingsItem
-              title='Reset Personal Data'
-              icon={<RefreshCw size={18} color={colors.warning} />}
-              onPress={handleResetData}
+              title='Test Setup Flow'
+              icon={<Play size={18} color={colors.primary} />}
+              onPress={handleTestOnboarding}
+              subtitle='Reset and replay username, profile, income, and expense setup'
             />
             <SettingsItem
-              title='Reset All App Data'
+              title='Reset Personal Data'
               icon={<RefreshCw size={18} color={colors.warning} />}
-              onPress={handleResetData}
-              isLast
+              onPress={handleResetPersonalData}
+              isLast={!SUBSCRIPTIONS_ENABLED}
             />
+            {/* Test RevenueCat Products - DISABLED when subscriptions are disabled */}
+            {SUBSCRIPTIONS_ENABLED && (
+              <SettingsItem
+                title='Test RevenueCat Products'
+                icon={<RefreshCw size={18} color={colors.primary} />}
+                onPress={handleRunRevenueCatDiagnostics}
+                disabled={isRunningDiagnostics}
+                subtitle={isRunningDiagnostics ? 'Running diagnostics...' : 'Verify product configuration'}
+                isLast
+              />
+            )}
           </Card>
 
           {/* Account Management */}
@@ -668,6 +1020,126 @@ export default function ProfileScreen() {
                 icon={<Mail size={18} color={colors.primary} />}
                 disabled={true}
               />
+              
+              {/* Subscription Section - DISABLED when subscriptions are disabled */}
+              {SUBSCRIPTIONS_ENABLED && (status === 'active' || status === 'trial' || status === 'expired') && (
+                <>
+                  <TouchableOpacity
+                    onPress={() => setSubscriptionExpanded(!subscriptionExpanded)}
+                    style={styles.subscriptionHeaderItem}
+                  >
+                    <Text style={[styles.subscriptionHeaderTitle, { color: colors.text }]}>
+                      Subscription
+                    </Text>
+                    {subscriptionExpanded ? (
+                      <ChevronDown size={18} color={colors.textSecondary} />
+                    ) : (
+                      <ChevronRight size={18} color={colors.textSecondary} />
+                    )}
+                  </TouchableOpacity>
+                  
+                  {subscriptionExpanded && (
+                    <View style={[styles.subscriptionContent, { borderTopColor: colors.textSecondary + '20' }]}>
+                      {status === 'trial' && trialDaysRemaining !== null && (
+                        <View style={styles.subscriptionRow}>
+                          <Text style={[styles.subscriptionLabel, { color: colors.textSecondary }]}>
+                            Trial Status
+                          </Text>
+                          <Text style={[styles.subscriptionValue, { color: colors.text }]}>
+                            {trialDaysRemaining} days remaining
+                          </Text>
+                        </View>
+                      )}
+                      
+                      {status === 'active' && subscriptionDetails.renewalDate && (
+                        <View style={styles.subscriptionRow}>
+                          <Text style={[styles.subscriptionLabel, { color: colors.textSecondary }]}>
+                            Renews On
+                          </Text>
+                          <Text style={[styles.subscriptionValue, { color: colors.text }]}>
+                            {formatRenewalDate(subscriptionDetails.renewalDate)}
+                          </Text>
+                        </View>
+                      )}
+                      
+                      {subscriptionDetails.price && (
+                        <View style={styles.subscriptionRow}>
+                          <Text style={[styles.subscriptionLabel, { color: colors.textSecondary }]}>
+                            Price
+                          </Text>
+                          <Text style={[styles.subscriptionValue, { color: colors.text }]}>
+                            {subscriptionDetails.price}
+                            {subscriptionDetails.productId?.includes('annual') || subscriptionDetails.productId?.includes('year') ? ' / year' : ' / month'}
+                          </Text>
+                        </View>
+                      )}
+                      
+                      {/* Plan Management Actions */}
+                      {status === 'active' && (
+                        <View style={styles.subscriptionActions}>
+                          {subscriptionDetails.productId && 
+                           !subscriptionDetails.productId.includes('annual') && 
+                           !subscriptionDetails.productId.includes('year') && (
+                            <TouchableOpacity
+                              onPress={handleUpgradeToAnnual}
+                              disabled={isChangingPlan}
+                              style={[styles.subscriptionActionButton, { backgroundColor: colors.primary }]}
+                            >
+                              <Text style={styles.subscriptionActionButtonText}>
+                                Upgrade to Annual
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                          
+                          {subscriptionDetails.productId && 
+                           (subscriptionDetails.productId.includes('annual') || subscriptionDetails.productId.includes('year')) && (
+                            <TouchableOpacity
+                              onPress={handleDowngradeToMonthly}
+                              disabled={isChangingPlan}
+                              style={[styles.subscriptionActionButton, { borderColor: colors.primary, borderWidth: 1 }]}
+                            >
+                              <Text style={[styles.subscriptionActionButtonText, { color: colors.primary }]}>
+                                Switch to Monthly
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                          
+                          <TouchableOpacity
+                            onPress={handleCancelSubscription}
+                            style={[styles.subscriptionActionButton, { borderColor: colors.error, borderWidth: 1 }]}
+                          >
+                            <Text style={[styles.subscriptionActionButtonText, { color: colors.error }]}>
+                              Cancel Subscription
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                      
+                      <TouchableOpacity
+                        onPress={handleOpenSubscriptionSettings}
+                        style={[styles.subscriptionButton, { borderColor: colors.primary }]}
+                      >
+                        <Text style={[styles.subscriptionButtonText, { color: colors.primary }]}>
+                          Manage in Settings
+                        </Text>
+                        <ExternalLink size={16} color={colors.primary} />
+                      </TouchableOpacity>
+                      
+                      {/* Show Banner Again Option - allow restoring banner if dismissed */}
+                      <TouchableOpacity
+                        onPress={handleShowSubscriptionBanner}
+                        style={[styles.subscriptionActionButton, { borderColor: colors.textSecondary + '40', borderWidth: 1, marginTop: Spacing.sm }]}
+                      >
+                        <Text style={[styles.subscriptionActionButtonText, { color: colors.textSecondary }]}>
+                          Show Plans
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  <View style={[styles.subscriptionDivider, { backgroundColor: colors.textSecondary + '20' }]} />
+                </>
+              )}
+              
               <SettingsItem
                 title='Sign Out'
                 icon={<LogOut size={18} color={colors.textSecondary} />}
@@ -677,8 +1149,41 @@ export default function ProfileScreen() {
                 title='Delete Account'
                 icon={<Shield size={18} color={colors.error} />}
                 onPress={handleDeleteAccount}
-                isLast
               />
+            </Card>
+          )}
+
+          {/* Security */}
+          {user && (
+            <Card style={[styles.card, { backgroundColor: colors.card }] as any}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>
+                Security
+              </Text>
+              {!mfaEnabled ? (
+                <SettingsItem
+                  title='Enable Two-Factor Authentication'
+                  subtitle='Add an extra layer of security via SMS'
+                  icon={<Shield size={18} color={colors.primary} />}
+                  onPress={handleEnableMFA}
+                  isLast
+                />
+              ) : (
+                <>
+                  <SettingsItem
+                    title='Two-Factor Authentication'
+                    subtitle={phoneNumber ? `Enabled - ${phoneNumber}` : 'Enabled - Your account is protected'}
+                    icon={<Shield size={18} color={colors.success || colors.primary} />}
+                    disabled={true}
+                  />
+                  <SettingsItem
+                    title='Disable Two-Factor Authentication'
+                    subtitle='Remove SMS verification from your account'
+                    icon={<Shield size={18} color={colors.error} />}
+                    onPress={handleDisableMFA}
+                    isLast
+                  />
+                </>
+              )}
             </Card>
           )}
 
@@ -708,6 +1213,20 @@ export default function ProfileScreen() {
 
       <AlertModal {...alertState} onClose={hideAlert} />
 
+      {showMFASetup && (
+        <Modal
+          visible={showMFASetup}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={handleMFASetupCancel}
+        >
+          <MFASetupScreen
+            onComplete={handleMFASetupComplete}
+            onCancel={handleMFASetupCancel}
+          />
+        </Modal>
+      )}
+
       <NameEditModal
         visible={showNameEditModal}
         currentName={nickname}
@@ -723,39 +1242,45 @@ export default function ProfileScreen() {
         visible={showThemeModal}
         onClose={() => setShowThemeModal(false)}
         animationType='fade'
+        maxWidth={400}
       >
-        <Text style={[styles.modalTitle, { color: colors.text }]}>
-          Choose Theme
-        </Text>
-        {(['system', 'light', 'dark'] as const).map(themeOption => (
-          <Pressable
-            key={themeOption}
-            style={[
-              styles.modalOption,
-              theme === themeOption && [
-                styles.modalOptionSelected,
-                { backgroundColor: colors.primary },
-              ],
-            ]}
-            onPress={async () => {
-              await setTheme(themeOption);
-              setShowThemeModal(false);
-            }}
-          >
-            <Text
-              style={[
-                styles.modalOptionText,
-                { color: colors.text },
-                theme === themeOption && [
-                  styles.modalOptionTextSelected,
-                  { color: colors.card },
-                ],
-              ]}
-            >
-              {themeOption.charAt(0).toUpperCase() + themeOption.slice(1)}
-            </Text>
-          </Pressable>
-        ))}
+        <View style={[styles.themeModalContent, { backgroundColor: colors.card }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>
+            Choose Theme
+          </Text>
+          <View style={styles.themeOptions}>
+            {(['system', 'light', 'dark'] as const).map((themeOption, index) => (
+              <Pressable
+                key={themeOption}
+                style={[
+                  styles.modalOption,
+                  theme === themeOption && [
+                    styles.modalOptionSelected,
+                    { backgroundColor: colors.primary },
+                  ],
+                  index < 2 && styles.modalOptionSpacing, // Add spacing between options
+                ]}
+                onPress={async () => {
+                  await setTheme(themeOption);
+                  setShowThemeModal(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.modalOptionText,
+                    { color: colors.text },
+                    theme === themeOption && [
+                      styles.modalOptionTextSelected,
+                      { color: colors.card },
+                    ],
+                  ]}
+                >
+                  {themeOption.charAt(0).toUpperCase() + themeOption.slice(1)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
       </ModalWrapper>
       
       {/* Badge Gallery Modal */}
@@ -763,6 +1288,37 @@ export default function ProfileScreen() {
         visible={showBadgeGallery}
         onClose={() => setShowBadgeGallery(false)}
       />
+      <PaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+      />
+      
+      {/* RevenueCat Diagnostics Modal */}
+      <ModalWrapper
+        visible={showDiagnostics}
+        onClose={() => setShowDiagnostics(false)}
+        animationType="slide"
+      >
+        <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>
+            RevenueCat Diagnostics
+          </Text>
+          <ScrollView 
+            style={styles.diagnosticsScroll}
+            showsVerticalScrollIndicator={true}
+          >
+            <Text style={[styles.diagnosticsText, { color: colors.text }]}>
+              {diagnosticsResult || 'Running diagnostics...'}
+            </Text>
+          </ScrollView>
+          <TouchableOpacity
+            style={[styles.modalButton, { backgroundColor: colors.primary }]}
+            onPress={() => setShowDiagnostics(false)}
+          >
+            <Text style={styles.modalButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </ModalWrapper>
     </>
   );
 }
@@ -879,30 +1435,42 @@ const styles = StyleSheet.create({
     ...Typography.caption, // Using new typography system
     paddingVertical: Spacing.xl,
   },
+  themeModalContent: {
+    width: '100%',
+    paddingHorizontal: Spacing.xxl, // 24px horizontal padding - standard modal padding
+    paddingTop: Spacing.xxl, // 24px top padding - matches modal standards
+    paddingBottom: Spacing.xxl, // 24px bottom padding - matches modal standards
+  },
   modalTitle: {
-    ...Typography.h3, // Using new typography system
-    marginBottom: Spacing.lg,
+    ...Typography.h3, // 20pt - Apple HIG standard for modal titles
+    marginBottom: Spacing.xl, // 20px spacing before options - standard content spacing
     textAlign: 'center',
-    position: 'relative',
-    zIndex: 1,
+  },
+  themeOptions: {
+    gap: Spacing.md, // 12px gap between options - standard spacing (matches Apple HIG minimum)
+    width: '100%',
   },
   modalOption: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.xs,
-    position: 'relative',
-    zIndex: 1,
+    paddingVertical: Spacing.md + Spacing.sm, // 14px vertical padding - comfortable touch target
+    paddingHorizontal: Spacing.xl, // 20px horizontal padding - standard button padding
+    borderRadius: BorderRadius.modern, // 12px - modern iOS style
+    backgroundColor: 'transparent',
+    minHeight: SpacingValues.minTouchTarget, // 44px minimum touch target (Apple HIG standard)
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalOptionSelected: {
     // backgroundColor will be set dynamically
   },
+  modalOptionSpacing: {
+    marginBottom: 0, // Spacing handled by parent gap
+  },
   modalOptionText: {
-    ...Typography.body, // Using new typography system
+    ...Typography.bodyMedium, // 17pt, medium weight - Apple HIG standard
     textAlign: 'center',
   },
   modalOptionTextSelected: {
-    fontWeight: '600',
+    fontWeight: '600', // Semibold for selected state
   },
   // Badge section styles
   badgeHeaderLeft: {
@@ -973,5 +1541,104 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '400',
     textAlign: 'center',
+  },
+  subscriptionDivider: {
+    height: 1,
+    marginVertical: Spacing.xs,
+  },
+  subscriptionHeaderItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    marginHorizontal: -Spacing.md,
+  },
+  subscriptionHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  subscriptionContent: {
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    marginHorizontal: -Spacing.md,
+    borderTopWidth: 1,
+  },
+  subscriptionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  subscriptionLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  subscriptionValue: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  subscriptionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginTop: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  subscriptionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  subscriptionActions: {
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  subscriptionActionButton: {
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subscriptionActionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  modalContent: {
+    padding: Spacing.lg,
+    minHeight: 300,
+    maxHeight: 600,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+  },
+  diagnosticsScroll: {
+    maxHeight: 400,
+    marginBottom: Spacing.md,
+  },
+  diagnosticsText: {
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    lineHeight: 18,
+  },
+  modalButton: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

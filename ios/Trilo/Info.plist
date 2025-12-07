@@ -50,6 +50,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Trilo needs access to your camera to take profile pictures.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Trilo needs access to your photo library to select profile pictures.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Trilo needs access to save photos to your photo library.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -58,6 +64,8 @@
 	<array>
 		<string>arm64</string>
 	</array>
+	<key>UIStatusBarHidden</key>
+	<false/>
 	<key>UIStatusBarStyle</key>
 	<string>UIStatusBarStyleDefault</string>
 	<key>UISupportedInterfaceOrientations</key>

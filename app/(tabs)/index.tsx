@@ -20,7 +20,7 @@ import { Transaction } from '@/types/finance';
 import { SubscriptionBanner } from '@/components';
 
 export default function OverviewScreen() {
-  const { weeklyOverview, isLoading } = useFinance();
+  const { weeklyOverview, isLoading, transactions } = useFinance();
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
   const { spacing, typography } = useResponsiveDesign();
@@ -28,6 +28,11 @@ export default function OverviewScreen() {
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
   const { weekIncome, remainingBalance, utilization, contributions, upcomingExpenses, pastExpenses, currentPayPeriod } = weeklyOverview;
+  
+  // Show data even if calculations are incomplete
+  // If we have transactions, always show them - don't wait for calculations
+  const hasTransactions = transactions.length > 0;
+  const showLoadingState = isLoading && !hasTransactions; // Only show loading if no data exists
 
   // Get current month and year
   const today = new Date();
@@ -163,7 +168,7 @@ export default function OverviewScreen() {
     },
   });
   
-  if (isLoading) {
+  if (showLoadingState) {
     return (
       <>
         <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
@@ -199,7 +204,7 @@ export default function OverviewScreen() {
   
   return (
     <>
-      <StatusBar style="auto" />
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} hidden={false} />
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <ScrollView 
           style={[styles.scrollView, { backgroundColor: colors.background }]} 
@@ -231,7 +236,7 @@ export default function OverviewScreen() {
               <View style={styles.incomeTextContainer}>
                 <Text style={[styles.incomeLabel, { color: colors.textSecondary }]}>Pay period income</Text>
                 <Text style={[styles.incomeValue, { color: colors.text }]}>
-                  ${weekIncome > 0 ? weekIncome.toFixed(2) : '0.00'}
+                  ${weekIncome > 0 ? weekIncome.toFixed(2) : hasTransactions ? 'Calculating...' : '0.00'}
                 </Text>
                 <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>Remaining balance</Text>
                 <Text style={[
@@ -239,16 +244,41 @@ export default function OverviewScreen() {
                   { color: colors.text },
                   remainingBalance < 0 && { color: colors.error }
                 ]}>
-                  ${remainingBalance.toFixed(2)}
+                  ${hasTransactions && weekIncome === 0 ? 'Calculating...' : remainingBalance.toFixed(2)}
                 </Text>
               </View>
               <CircularProgress 
-                percentage={utilization} 
+                percentage={utilization > 0 ? utilization : 0} 
                 size={100} 
                 color={utilization > 90 ? colors.warning : colors.primary}
               />
             </View>
           </Card>
+          
+          {/* Show all transactions if we have them, even if calculations aren't done */}
+          {hasTransactions && (weekIncome === 0 || currentPayPeriod === undefined) && (
+            <Card variant="default" style={{ marginBottom: Spacing.lg }}>
+              <Text style={[styles.sectionTitleInHeader, { color: colors.text, marginBottom: Spacing.md }]}>
+                All Transactions
+              </Text>
+              {transactions.slice(0, 10).map((transaction, index) => (
+                <TransactionItem 
+                  key={transaction.id} 
+                  transaction={transaction}
+                  isLast={index === transactions.slice(0, 10).length - 1}
+                  onEdit={handleEditTransaction}
+                  enableSwipeActions={true}
+                  enableLeftSwipe={true}
+                  dateFormat="overview"
+                />
+              ))}
+              {transactions.length > 10 && (
+                <Text style={[styles.subtitle, { color: colors.textSecondary, marginTop: Spacing.md, textAlign: 'center' }]}>
+                  And {transactions.length - 10} more transactions
+                </Text>
+              )}
+            </Card>
+          )}
           
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitleInHeader, { color: colors.text }]}>Expense Breakdown</Text>

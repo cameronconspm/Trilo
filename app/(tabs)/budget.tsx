@@ -25,6 +25,8 @@ import AlertModal from '@/components/modals/AlertModal';
 import Toggle, { ToggleOption } from '@/components/shared/Toggle';
 import { FilterDropdown, FilterOption } from '@/components/shared/FilterDropdown';
 import { filterAndSortBySmartDateLimits } from '@/utils/dateUtils';
+import { getPayDatesInRange } from '@/utils/payScheduleUtils';
+import { calculateNextGivenExpenseDate } from '@/utils/givenExpenseUtils';
 import {
   Spacing,
   SpacingValues,
@@ -108,12 +110,18 @@ export default function BudgetScreen() {
   const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
   const incomeTransactions = transactions.filter(t => {
+    if (t.type !== 'income') return false;
+
+    // For recurring income with pay schedule, check if there are any pay dates in the current month
+    if (t.isRecurring && t.paySchedule) {
+      const payDates = getPayDatesInRange(t.paySchedule, startOfMonth, endOfMonth);
+      // Include if there are any pay dates in the current month
+      return payDates.length > 0;
+    }
+
+    // For non-recurring income or income without pay schedule, check the transaction date
     const transactionDate = new Date(t.date);
-    return (
-      t.type === 'income' &&
-      transactionDate >= startOfMonth &&
-      transactionDate <= endOfMonth
-    );
+    return transactionDate >= startOfMonth && transactionDate <= endOfMonth;
   });
 
 
@@ -130,9 +138,19 @@ export default function BudgetScreen() {
   );
 
   // Given expenses (including recurring ones) - these are essential expenses
-  const givenExpenses = filterAndSortBySmartDateLimits(
-    transactions.filter(t => t.type === 'expense' && t.category === 'given_expenses')
-  );
+  // Recalculate dates for given expenses based on their schedule
+  const givenExpensesWithUpdatedDates = transactions
+    .filter(t => t.type === 'expense' && t.category === 'given_expenses')
+    .map(t => {
+      if (t.givenExpenseSchedule) {
+        // Calculate next occurrence date based on schedule
+        const nextDate = calculateNextGivenExpenseDate(t.givenExpenseSchedule);
+        return { ...t, date: nextDate.toISOString() };
+      }
+      return t;
+    });
+  
+  const givenExpenses = filterAndSortBySmartDateLimits(givenExpensesWithUpdatedDates);
 
   // Recurring expenses (excluding given expenses which have their own section)
   const recurringExpenses = transactions

@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "build": "echo 'No build step required'",
-    "test": "jest"
+    "test": "jest",
+    "security:audit": "npm audit --production"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.76.1",

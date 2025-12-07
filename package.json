@@ -3,9 +3,9 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "expo start --tunnel",
-    "start:go": "expo start --tunnel",
-    "start:local": "expo start",
+    "start": "expo start --tunnel --go",
+    "start:go": "expo start --tunnel --go",
+    "start:local": "expo start --go",
     "start-web": "expo start --web --tunnel",
     "start-web-dev": "DEBUG=expo* expo start --web --tunnel",
     "clean": "rm -rf node_modules .expo .cache && npm install",
@@ -19,8 +19,15 @@
     "test:ci": "jest --ci --coverage --watchAll=false",
     "type-check": "tsc --noEmit",
     "quality": "npm run type-check && npm run lint && npm run format:check && npm run test:ci",
+    "security:audit": "npm audit --production",
+    "security:audit:fix": "npm audit fix --production",
+    "security:audit:backend": "cd backend && npm audit --production",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "build:ios": "eas build --platform ios --profile production",
+    "build:ios:clean": "eas build --platform ios --profile production --clear-cache",
+    "build:ios:submit": "eas build --platform ios --profile production --clear-cache --auto-submit",
+    "submit:ios": "eas submit --platform ios"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

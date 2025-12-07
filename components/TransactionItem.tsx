@@ -16,9 +16,10 @@ import { useFinance } from '@/context/FinanceContext';
 import { useReminders } from '@/context/ReminderContext';
 import { useAlert } from '@/hooks/useAlert';
 import AlertModal from '@/components/modals/AlertModal';
-import { ReminderReasonModal } from '@/components/modals';
+import ReminderReasonModal from '@/components/modals/ReminderReasonModal';
 import categories from '@/constants/categories';
 import { formatPaySchedule } from '@/utils/payScheduleUtils';
+import { formatGivenExpenseSchedule } from '@/utils/givenExpenseUtils';
 
 // Helper function to get day suffix (1st, 2nd, 3rd, etc.)
 const getDaySuffix = (day: number): string => {
@@ -73,6 +74,7 @@ export default function TransactionItem({
     isRecurring,
     type,
     paySchedule,
+    givenExpenseSchedule,
     weekDay,
     weekNumber,
   } = transaction;
@@ -81,9 +83,40 @@ export default function TransactionItem({
   // Format date
   const transactionDate = new Date(date);
   const today = new Date();
-  const isToday = transactionDate.toDateString() === today.toDateString();
-  const isFuture = transactionDate > today;
-  const isPast = transactionDate < today && !isToday;
+  today.setHours(0, 0, 0, 0);
+  
+  // For recurring expenses in Budget tab, check if the day of month has passed in CURRENT month
+  // instead of checking if the stored date has passed
+  let isPast: boolean;
+  let isFuture: boolean;
+  let isToday: boolean;
+  
+  if (isRecurring && type === 'expense' && dateFormat !== 'overview') {
+    // For recurring expenses showing "Xth of the month", check current month
+    const dayOfMonth = transactionDate.getDate();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const currentDay = today.getDate();
+    
+    // Create a date in the current month for this day
+    const currentMonthDate = new Date(currentYear, currentMonth, dayOfMonth);
+    
+    // If day doesn't exist in current month (e.g., Feb 30), use last day of month
+    if (currentMonthDate.getMonth() !== currentMonth) {
+      currentMonthDate.setDate(0); // Last day of previous month (which is current month)
+    }
+    
+    isToday = currentMonthDate.getDate() === currentDay && 
+              currentMonthDate.getMonth() === currentMonth;
+    isPast = currentMonthDate < today && !isToday;
+    isFuture = currentMonthDate > today;
+  } else {
+    // For non-recurring expenses or when showing actual dates, use standard comparison
+    transactionDate.setHours(0, 0, 0, 0);
+    isToday = transactionDate.getTime() === today.getTime();
+    isFuture = transactionDate > today;
+    isPast = transactionDate < today && !isToday;
+  }
 
   let formattedDate;
 
@@ -94,6 +127,18 @@ export default function TransactionItem({
     // Legacy format
     const capitalizedDay = weekDay.charAt(0).toUpperCase() + weekDay.slice(1);
     formattedDate = `Week ${weekNumber} ${capitalizedDay}`;
+  } else if (category === 'given_expenses' && givenExpenseSchedule) {
+    // Given expenses: show schedule in Budget tab, actual date in Overview tab
+    if (dateFormat === 'overview') {
+      // Overview tab: show actual date "Thu 11/6"
+      const dayOfWeek = transactionDate.toLocaleDateString('en-US', { weekday: 'short' });
+      const month = transactionDate.getMonth() + 1;
+      const day = transactionDate.getDate();
+      formattedDate = `${dayOfWeek} ${month}/${day}`;
+    } else {
+      // Budget tab: show schedule like "every Thurs"
+      formattedDate = formatGivenExpenseSchedule(givenExpenseSchedule);
+    }
   } else if (dateFormat === 'overview') {
     // Overview tab format: "Mon 9/12" for all expenses
     const dayOfWeek = transactionDate.toLocaleDateString('en-US', { weekday: 'short' });
@@ -278,7 +323,9 @@ export default function TransactionItem({
               style={[
                 styles.name, 
                 { 
-                  color: isPast ? colors.textSecondary : colors.text 
+                  color: type === 'income' 
+                    ? colors.text 
+                    : (isPast ? colors.textSecondary : colors.text)
                 }
               ]}
               numberOfLines={1}

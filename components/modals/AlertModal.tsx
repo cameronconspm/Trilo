@@ -3,16 +3,16 @@ import {
   View,
   Text,
   StyleSheet,
-  Modal,
   TouchableOpacity,
   Animated,
-  Dimensions,
+  Platform,
 } from 'react-native';
 import { X, AlertTriangle, CheckCircle, Info } from 'lucide-react-native';
 import Button from '@/components/layout/Button';
 import { useThemeColors } from '@/constants/colors';
 import { useSettings } from '@/context/SettingsContext';
-import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
+import { Spacing, BorderRadius, Shadow, Typography } from '@/constants/spacing';
+import { ModalWrapper } from './ModalWrapper';
 
 interface AlertAction {
   text: string;
@@ -29,7 +29,33 @@ interface AlertModalProps {
   onClose: () => void;
 }
 
-const { width: screenWidth } = Dimensions.get('window');
+// Standardized modal spacing constants - consistent across all modals
+const MODAL_STANDARDS = {
+  // Container padding - all sides have consistent spacing
+  paddingHorizontal: Spacing.xxl, // 24px - standard horizontal padding
+  paddingTop: Spacing.xxl + Spacing.md, // 32px - top padding with close button clearance
+  paddingBottom: Spacing.xxl, // 24px - base bottom padding
+  
+  // Close button positioning
+  closeButtonTop: Spacing.md, // 12px from top
+  closeButtonRight: Spacing.md, // 12px from right
+  
+  // Icon section spacing
+  iconTopMargin: Spacing.md, // 12px - clearance from close button
+  iconBottomMargin: Spacing.xl, // 20px - spacing before title
+  
+  // Content spacing
+  contentBottomMargin: Spacing.xxl, // 24px - spacing before buttons
+  titleMessageGap: Spacing.md, // 12px - gap between title and message
+  
+  // Button section spacing
+  buttonGap: Spacing.md, // 12px - horizontal gap between buttons
+  buttonBottomPadding: Spacing.xxl, // 24px - bottom padding for buttons
+  
+  // Destructive button clearance
+  destructiveBottomPadding: Spacing.xxl + Spacing.lg, // 40px - extra for border clearance
+} as const;
+
 
 export default function AlertModal({
   visible,
@@ -94,167 +120,263 @@ export default function AlertModal({
     return null;
   }
 
+  // Determine if this is a confirmation modal (has destructive action)
+  const hasDestructiveButton = actions.some(action => action.style === 'destructive');
+  
+  // Separate cancel and action buttons for horizontal layout
+  // Cancel button: explicitly marked as 'cancel', or first non-destructive button
+  // Action button: destructive (red) or default/primary (blue)
+  const cancelAction = actions.find(action => action.style === 'cancel') || 
+    actions.find(action => action.style !== 'destructive' && action.style !== 'default');
+  
+  const primaryAction = actions.find(action => action.style === 'destructive') || 
+    actions.find(action => action.style === 'default') ||
+    actions.find(action => !cancelAction || action !== cancelAction);
+  
+  const otherActions = actions.filter(action => 
+    action !== cancelAction && action !== primaryAction
+  );
+  
+  // Calculate bottom padding - extra clearance for destructive buttons with borders
+  const bottomPadding = hasDestructiveButton 
+    ? MODAL_STANDARDS.destructiveBottomPadding 
+    : MODAL_STANDARDS.buttonBottomPadding;
+
+  // Modal width based on action type
+  // Confirmation modals (with destructive): 320px - compact confirmation style
+  // Standard modals: 400px - comfortable width for content
+  const modalMaxWidth = hasDestructiveButton ? 320 : 400;
+
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType='none'
-      onRequestClose={onClose}
-      statusBarTranslucent={true}
-    >
-      <Animated.View style={[styles.overlay, { opacity: opacityAnim }]}>
+    <ModalWrapper visible={visible} onClose={onClose} animationType="fade" maxWidth={modalMaxWidth}>
+      <Animated.View
+        style={[
+          styles.modalContainer,
+          {
+            backgroundColor: colors.card,
+            transform: [{ scale: scaleAnim }],
+            paddingBottom: bottomPadding,
+          },
+        ]}
+      >
+        {/* Close button in top-right corner */}
         <TouchableOpacity
-          style={styles.backdrop}
-          activeOpacity={1}
           onPress={onClose}
-        />
-
-        <Animated.View
           style={[
-            styles.modalContainer,
-            { backgroundColor: colors.card, transform: [{ scale: scaleAnim }] },
+            styles.closeButton,
+            { backgroundColor: colors.cardSecondary },
           ]}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <View style={styles.header}>
-            <View
-              style={[styles.iconContainer, { backgroundColor: `${color}15` }]}
-            >
-              <Icon size={24} color={color} strokeWidth={2} />
-            </View>
-            <TouchableOpacity
-              onPress={onClose}
-              style={[
-                styles.closeButton,
-                { backgroundColor: colors.cardSecondary },
-              ]}
-              activeOpacity={0.7}
-            >
-              <X size={20} color={colors.textSecondary} strokeWidth={2} />
-            </TouchableOpacity>
-          </View>
+          <X size={20} color={colors.textSecondary} strokeWidth={2} />
+        </TouchableOpacity>
 
-          <View style={styles.content}>
-            <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-            {message && (
-              <Text style={[styles.message, { color: colors.textSecondary }]}>
-                {message}
-              </Text>
-            )}
+        {/* Icon centered at top */}
+        <View style={styles.iconSection}>
+          <View
+            style={[styles.iconContainer, { backgroundColor: `${color}15` }]}
+          >
+            <Icon size={28} color={color} strokeWidth={2.5} />
           </View>
+        </View>
 
-          <View style={styles.actions}>
-            {actions.map((action, index) => {
-              console.log('AlertModal: Rendering button with text:', action.text);
-              return (
+        {/* Content with consistent alignment */}
+        <View style={styles.content}>
+          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+          {message && (
+            <Text style={[styles.message, { color: colors.textSecondary }]}>
+              {message}
+            </Text>
+          )}
+        </View>
+
+        {/* Actions - Standardized layout: Cancel (left) + Action (right) */}
+        <View style={styles.actionsWrapper}>
+          {/* Primary button row: Cancel (left) + Action (right) */}
+          {(cancelAction || primaryAction) && (
+            <View style={styles.actionsContainer}>
+              {/* Cancel button on the left */}
+              {cancelAction && (
                 <Button
-                  key={index}
+                  title={cancelAction.text}
+                  onPress={() => {
+                    cancelAction.onPress?.();
+                    onClose();
+                  }}
+                  variant="ghost"
+                  size="medium"
+                  style={[
+                    styles.cancelButton,
+                    !primaryAction ? styles.singleButton : undefined, // Full width if no action button
+                  ].filter(Boolean) as any}
+                  textStyle={{ color: colors.textSecondary }}
+                />
+              )}
+              
+              {/* Primary action button on the right - Blue for proceed, Red for caution */}
+              {primaryAction && (
+                <Button
+                  title={primaryAction.text}
+                  onPress={() => {
+                    primaryAction.onPress?.();
+                    onClose();
+                  }}
+                  variant={primaryAction.style === 'destructive' ? 'outline' : 'primary'}
+                  size="medium"
+                  style={[
+                    styles.actionButton,
+                    !cancelAction ? styles.singleButton : undefined, // Full width if no cancel button
+                    primaryAction.style === 'destructive' ? {
+                      borderColor: colors.error,
+                      borderWidth: 1.5,
+                    } : undefined,
+                  ].filter(Boolean) as any}
+                  textStyle={
+                    primaryAction.style === 'destructive'
+                      ? { color: colors.error }
+                      : undefined
+                  }
+                />
+              )}
+            </View>
+          )}
+          
+          {/* Additional actions (if any) - stacked below, full width */}
+          {otherActions.length > 0 && (
+            <View style={styles.additionalActionsContainer}>
+              {otherActions.map((action, index) => (
+                <Button
+                  key={`other-${index}`}
                   title={action.text}
                   onPress={() => {
                     action.onPress?.();
                     onClose();
                   }}
-                  variant={
-                    action.style === 'destructive'
-                      ? 'outline'
-                      : action.style === 'cancel'
-                        ? 'ghost'
-                        : 'primary'
-                  }
-                  size='medium'
-                  fullWidth={actions.length === 1} // Full width for single action
-                  style={
-                    [
-                      action.style === 'destructive' && {
-                        borderColor: colors.error,
-                      },
-                      index < actions.length - 1 && styles.actionButtonSpacing,
-                    ] as any
-                  }
+                  variant={action.style === 'destructive' ? 'outline' : 'primary'}
+                  size="medium"
+                  fullWidth
+                  style={[
+                    styles.additionalButton,
+                    action.style === 'destructive' && {
+                      borderColor: colors.error,
+                      borderWidth: 1.5,
+                    },
+                  ] as any}
                   textStyle={
                     action.style === 'destructive'
                       ? { color: colors.error }
                       : undefined
                   }
                 />
-              );
-            })}
-          </View>
-        </Animated.View>
+              ))}
+            </View>
+          )}
+        </View>
       </Animated.View>
-    </Modal>
+    </ModalWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.lg,
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
+  // Standardized modal container - consistent spacing on all sides
   modalContainer: {
-    borderRadius: BorderRadius.xxxl, // Apple's 28px corner radius
-    width: Math.min(screenWidth * 0.9, 400),
-    maxWidth: '100%',
-    minHeight: 280, // Increased minimum height for better spacing
-    ...Shadow.heavy,
+    width: '100%',
+    paddingHorizontal: MODAL_STANDARDS.paddingHorizontal, // 24px - standard horizontal padding
+    paddingTop: MODAL_STANDARDS.paddingTop, // 32px - top padding with close button clearance
+    paddingBottom: MODAL_STANDARDS.paddingBottom, // 24px - base bottom (overridden dynamically)
+    position: 'relative',
+    minHeight: 'auto',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.lg,
-    paddingBottom: Spacing.md,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  
+  // Close button - top right, consistent positioning
   closeButton: {
+    position: 'absolute',
+    top: MODAL_STANDARDS.closeButtonTop, // 12px from top
+    right: MODAL_STANDARDS.closeButtonRight, // 12px from right
     width: 32,
     height: 32,
     borderRadius: BorderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
   },
+  
+  // Icon section - centered, standardized spacing
+  iconSection: {
+    alignItems: 'center',
+    marginTop: MODAL_STANDARDS.iconTopMargin, // 12px - clearance from close button
+    marginBottom: MODAL_STANDARDS.iconBottomMargin, // 20px - spacing before title
+  },
+  iconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: BorderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  // Content section - centered alignment, standardized spacing
   content: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-    gap: Spacing.sm,
+    alignItems: 'center',
+    marginBottom: MODAL_STANDARDS.contentBottomMargin, // 24px - spacing before buttons
+    gap: MODAL_STANDARDS.titleMessageGap, // 12px - gap between title and message
+    paddingHorizontal: 0, // No extra padding - container handles it
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: Spacing.sm,
-    letterSpacing: -0.3,
+    ...Typography.h3, // 20pt - Apple HIG standard
+    textAlign: 'center',
+    marginBottom: 0, // Gap handles spacing
   },
   message: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '500',
+    ...Typography.body, // 17pt - Apple HIG standard
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: Spacing.xs, // 4px - minimal padding for very long text
   },
-  actions: {
-    flexDirection: 'column',
-    paddingHorizontal: Spacing.lg, // Consistent with content padding
-    paddingVertical: Spacing.lg, // Consistent vertical padding
-    paddingTop: Spacing.md, // Top padding to separate from content
-    gap: Spacing.md, // Consistent gap between buttons
+  
+  // Actions wrapper - contains button row and any additional buttons
+  actionsWrapper: {
+    width: '100%',
+    marginTop: 0, // Content marginBottom handles spacing
   },
+  
+  // Primary actions container - horizontal layout: Cancel (left) + Action (right)
+  actionsContainer: {
+    flexDirection: 'row',
+    gap: MODAL_STANDARDS.buttonGap, // 12px - horizontal gap between buttons
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  
+  // Cancel button (left side) - ghost style, secondary text color
+  cancelButton: {
+    flex: 1, // Takes available space, shares with action button
+    minWidth: 0, // Allows flex to work properly
+  },
+  
+  // Action button (right side) - primary (blue) or destructive (red outline)
   actionButton: {
-    flex: 1, // Use flex instead of fixed width
+    flex: 1, // Takes available space, shares with cancel button
+    minWidth: 0, // Allows flex to work properly
   },
-  actionButtonSpacing: {
-    marginBottom: 0,
+  
+  // Additional actions container - for stacked buttons below primary row
+  additionalActionsContainer: {
+    width: '100%',
+    marginTop: MODAL_STANDARDS.buttonGap, // 12px - spacing from button row above
+    gap: MODAL_STANDARDS.buttonGap, // 12px - gap between additional buttons
+  },
+  
+  // Additional buttons - full width, stacked
+  additionalButton: {
+    width: '100%',
+  },
+  
+  // Single button style - when only one button in row, make it full width
+  singleButton: {
+    flex: 1,
+    width: '100%',
   },
 });

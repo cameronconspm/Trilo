@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+import { isMFAEnabled } from '@/services/mfaService';
+import { useAuth } from './AuthContext';
 
 // Types
 export interface BankAccount {
@@ -199,6 +202,7 @@ interface PlaidContextType {
   // Actions
   connectBank: () => Promise<void>;
   disconnectBank: (accountId: string) => Promise<void>;
+  reorderAccounts: (orderedIds: string[]) => Promise<void>;
   refreshData: () => Promise<void>;
   toggleBalances: () => void;
   clearError: () => void;
@@ -223,8 +227,26 @@ const getStorageKeys = (userId: string) => ({
   FIRST_TIME: `plaid_first_time_${userId}`,
 });
 
-// API Base URL - Production Railway deployment
-const API_BASE_URL = 'https://trilo-production.up.railway.app/api/plaid';
+// Environment-aware API Base URL
+// Priority: EXPO_PUBLIC env var > app.json extra > fallback
+const getApiBaseUrl = (): string => {
+  // Check environment variable first
+  if (process.env.EXPO_PUBLIC_PLAID_API_URL) {
+    return process.env.EXPO_PUBLIC_PLAID_API_URL;
+  }
+  
+  // Check app.json extra config
+  const apiUrl = Constants.expoConfig?.extra?.plaidApiUrl;
+  if (apiUrl) {
+    return apiUrl;
+  }
+  
+  // Fallback: use production URL
+  // For TestFlight/testing, you can override via EXPO_PUBLIC_PLAID_API_URL
+  return 'https://trilo-production.up.railway.app/api/plaid';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Provider component
 interface PlaidProviderProps {
@@ -237,28 +259,6 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
 
   // Get user-specific storage keys for this component instance
   const storageKeys = getStorageKeys(userId);
-
-  // Load persisted state on mount
-  useEffect(() => {
-    loadPersistedState();
-  }, [loadPersistedState, userId]); // Reload when user changes
-
-  // Automatic sync every 15 minutes
-  useEffect(() => {
-    if (!state.hasAccounts) return;
-
-    const syncInterval = setInterval(async () => {
-      try {
-        console.log('Auto-syncing bank data...');
-        await refreshData();
-      } catch (error) {
-        console.error('Auto-sync failed:', error);
-      }
-    }, 15 * 60 * 1000); // 15 minutes
-
-    // Cleanup interval on unmount or when accounts change
-    return () => clearInterval(syncInterval);
-  }, [state.hasAccounts]);
 
   // Load persisted state from AsyncStorage
   const loadPersistedState = useCallback(async () => {
@@ -298,6 +298,13 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
     }
   }, [userId]);
 
+  // Load persisted state on mount
+  useEffect(() => {
+    loadPersistedState();
+  }, [loadPersistedState]); // Reload when user changes
+
+  // Automatic sync effect will be added after refreshData is defined
+
   // Persist state to AsyncStorage
   const persistState = useCallback(async (key: string, data: any) => {
     try {
@@ -308,8 +315,15 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
   }, []);
 
   // API functions
-  const createLinkToken = async (): Promise<string> => {
+  const createLinkToken = async (retryCount = 0): Promise<string> => {
+    const maxRetries = 2;
+    
     try {
+      console.log('[Plaid] 🔗 Creating link token...');
+      console.log('[Plaid]   API Base URL:', API_BASE_URL);
+      console.log('[Plaid]   User ID:', userId);
+      console.log('[Plaid]   Retry attempt:', retryCount);
+      
       const response = await fetch(`${API_BASE_URL}/link/token`, {
         method: 'POST',
         headers: {
@@ -318,71 +332,192 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
         body: JSON.stringify({ userId }),
       });
       
+      console.log('[Plaid]   Response Status:', response.status);
+      console.log('[Plaid]   Response OK:', response.ok);
+      
       if (!response.ok) {
-        throw new Error('Failed to create link token');
+        const errorText = await response.text();
+        console.error('[Plaid] ❌ Link token creation failed');
+        console.error('[Plaid]   Status:', response.status);
+        console.error('[Plaid]   Status Text:', response.statusText);
+        console.error('[Plaid]   Response Body:', errorText);
+        
+        // Retry on server errors (5xx) or network issues
+        if ((response.status >= 500 || response.status === 0) && retryCount < maxRetries) {
+          console.log(`[Plaid]   Retrying... (${retryCount + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Exponential backoff
+          return createLinkToken(retryCount + 1);
+        }
+        
+        throw new Error(`Failed to create link token: ${response.status} ${response.statusText}`);
       }
       
       const data = await response.json();
+      
+      if (!data.link_token) {
+        throw new Error('Invalid response: link_token not found');
+      }
+      
+      console.log('[Plaid] ✅ Link token created successfully');
+      console.log('[Plaid]   Link Token:', data.link_token.substring(0, 20) + '...');
+      
       return data.link_token;
     } catch (error) {
-      console.error('Error creating link token:', error);
+      // Always log errors
+      console.error('[Plaid] ❌ Error creating link token:', error);
+      
+      if (error instanceof Error) {
+        const errorDetails = {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+          retryCount,
+        };
+        console.error('[Plaid]   Error Details:', JSON.stringify(errorDetails, null, 2));
+        
+        // Retry on network errors
+        if ((error.message.includes('fetch') || error.message.includes('Network') || error.message.includes('Failed to fetch')) && retryCount < maxRetries) {
+          console.log(`[Plaid]   Retrying due to network error... (${retryCount + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Exponential backoff
+          return createLinkToken(retryCount + 1);
+        }
+      }
+      
       throw error;
     }
   };
 
   const fetchAccounts = async (): Promise<BankAccount[]> => {
     try {
+      console.log('[Plaid] 📥 Fetching accounts...');
       const response = await fetch(`${API_BASE_URL}/accounts/${userId}`);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch accounts');
+        const errorText = await response.text();
+        console.error('[Plaid] ❌ Failed to fetch accounts');
+        console.error('[Plaid]   Status:', response.status);
+        console.error('[Plaid]   Response:', errorText);
+        throw new Error(`Failed to fetch accounts: ${response.status} ${response.statusText}`);
       }
       
       const accounts = await response.json();
+      console.log('[Plaid] ✅ Accounts fetched:', accounts.length);
       return accounts;
     } catch (error) {
-      console.error('Error fetching accounts:', error);
+      console.error('[Plaid] ❌ Error fetching accounts:', error);
+      if (error instanceof Error) {
+        console.error('[Plaid]   Error Details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        });
+      }
       throw error;
     }
   };
 
   const fetchTransactions = async (): Promise<Transaction[]> => {
     try {
+      console.log('[Plaid] 📥 Fetching transactions...');
       const response = await fetch(`${API_BASE_URL}/transactions/${userId}?limit=50`);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch transactions');
+        const errorText = await response.text();
+        console.error('[Plaid] ❌ Failed to fetch transactions');
+        console.error('[Plaid]   Status:', response.status);
+        console.error('[Plaid]   Response:', errorText);
+        throw new Error(`Failed to fetch transactions: ${response.status} ${response.statusText}`);
       }
       
       const transactions = await response.json();
+      console.log('[Plaid] ✅ Transactions fetched:', transactions.length);
       return transactions;
     } catch (error) {
-      console.error('Error fetching transactions:', error);
+      console.error('[Plaid] ❌ Error fetching transactions:', error);
+      if (error instanceof Error) {
+        console.error('[Plaid]   Error Details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        });
+      }
       throw error;
     }
   };
 
-  const exchangePublicToken = async (publicToken: string): Promise<void> => {
+  const exchangePublicToken = async (publicToken: string, selectedAccountIds?: string[]): Promise<void> => {
     try {
+      console.log('[Plaid] 🔄 Exchanging public token for access token...');
+      console.log('[Plaid]   Public Token:', publicToken.substring(0, 20) + '...');
+      console.log('[Plaid]   User ID:', userId);
+      console.log('[Plaid]   Selected Account IDs:', selectedAccountIds?.length || 0);
+      if (selectedAccountIds && selectedAccountIds.length > 0) {
+        console.log('[Plaid]   Account IDs:', selectedAccountIds);
+      }
+      
+      const requestBody = {
+        public_token: publicToken,
+        userId: userId, // Backend expects camelCase 'userId', not snake_case 'user_id'
+        selected_account_ids: selectedAccountIds, // Pass selected account IDs to backend
+      };
+      
+      console.log('[Plaid]   Request Body:', JSON.stringify({
+        public_token: requestBody.public_token.substring(0, 20) + '...',
+        userId: requestBody.userId,
+      }));
+      
       const response = await fetch(`${API_BASE_URL}/link/exchange`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          public_token: publicToken,
-          user_id: userId,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('[Plaid]   Response Status:', response.status);
+      console.log('[Plaid]   Response OK:', response.ok);
+
       if (!response.ok) {
-        throw new Error(`Exchange failed: ${response.status}`);
+        let errorData;
+        try {
+          const errorText = await response.text();
+          console.error('[Plaid] ❌ Token exchange failed');
+          console.error('[Plaid]   Status:', response.status);
+          console.error('[Plaid]   Status Text:', response.statusText);
+          console.error('[Plaid]   Response Body:', errorText);
+          
+          // Try to parse error response for more details
+          try {
+            errorData = JSON.parse(errorText);
+            console.error('[Plaid]   Error Details:', JSON.stringify(errorData, null, 2));
+          } catch (e) {
+            // If not JSON, use the text as is
+            errorData = { error: errorText };
+          }
+        } catch (parseError) {
+          console.error('[Plaid]   Failed to parse error response:', parseError);
+          errorData = { error: 'Unknown error occurred' };
+        }
+        
+        // Use detailed error message if available
+        const errorMessage = errorData?.details || errorData?.error || `Exchange failed: ${response.status}`;
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
-      console.log('✅ Token exchange successful:', data);
+      console.log('[Plaid] ✅ Token exchange successful');
+      console.log('[Plaid]   Exchange Result:', JSON.stringify(data, null, 2));
     } catch (error) {
-      console.error('❌ Token exchange failed:', error);
+      // Always log errors
+      console.error('[Plaid] ❌ Token exchange failed:', error);
+      if (error instanceof Error) {
+        const errorDetails = {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        };
+        console.error('[Plaid]   Error Details:', JSON.stringify(errorDetails, null, 2));
+      }
       throw error;
     }
   };
@@ -390,34 +525,66 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
   // Actions
   const connectBank = async (): Promise<void> => {
     try {
+      console.log('[Plaid] 🔗 Starting bank connection...');
       dispatch({ type: 'SET_CONNECTING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
+      // MFA verification check is done in the banking screen component before calling connectBank
+      // This ensures users must verify MFA before accessing Plaid Link
+
       // Get link token
       const token = await createLinkToken();
+      
+      if (!token) {
+        throw new Error('Link token is empty or invalid');
+      }
+      
       dispatch({ type: 'SET_LINK_TOKEN', payload: token });
+      console.log('[Plaid] ✅ Link token received and stored');
 
       // The actual Plaid Link will be handled by the PlaidLink component
       // This function just prepares the state
     } catch (error) {
+      console.error('[Plaid] ❌ Failed to connect bank:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (error instanceof Error) {
+        console.error('[Plaid]   Error Details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        });
+      }
+      
       dispatch({ type: 'SET_CONNECTION_ERROR', payload: errorMessage });
+      dispatch({ type: 'SET_CONNECTING', payload: false });
       throw error;
     }
   };
 
   const handlePlaidSuccess = async (publicToken: string, metadata: PlaidLinkMetadata): Promise<void> => {
     try {
-      console.log('🔄 Processing successful Plaid connection...');
+      console.log('[Plaid] 🔄 Processing successful Plaid connection...');
+      console.log('[Plaid]   Institution:', metadata.institution?.name || 'Unknown');
+      console.log('[Plaid]   Account Count:', metadata.accounts?.length || 0);
       
-      // Exchange public token for access token
-      await exchangePublicToken(publicToken);
+      // Extract selected account IDs from metadata
+      const selectedAccountIds = metadata.accounts?.map(account => account.id) || [];
+      console.log('[Plaid]   Selected Account IDs:', selectedAccountIds);
+      
+      // Exchange public token for access token, passing selected account IDs
+      await exchangePublicToken(publicToken, selectedAccountIds);
       
       // Fetch updated accounts and transactions
+      console.log('[Plaid] 📥 Fetching accounts and transactions...');
       const [accounts, transactions] = await Promise.all([
         fetchAccounts(),
         fetchTransactions(),
       ]);
+      
+      console.log('[Plaid] ✅ Connection complete');
+      console.log('[Plaid]   Accounts:', accounts.length);
+      console.log('[Plaid]   Transactions:', transactions.length);
       
       // Update state
       dispatch({ type: 'SET_ACCOUNTS', payload: accounts });
@@ -433,55 +600,152 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
         persistState(storageKeys.FIRST_TIME, false),
       ]);
       
+      console.log('[Plaid] ✅ State persisted successfully');
+      
     } catch (error) {
+      console.error('[Plaid] ❌ Failed to process Plaid success:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (error instanceof Error) {
+        console.error('[Plaid]   Error Details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        });
+      }
+      
       dispatch({ type: 'SET_CONNECTION_ERROR', payload: errorMessage });
       throw error;
     }
   };
 
   const handlePlaidExit = (error: any): void => {
-    console.log('🚪 Plaid Link exited:', error);
-    dispatch({ type: 'SET_CONNECTING', payload: false });
-    
+    console.log('[Plaid] 🚪 Plaid Link exited');
     if (error) {
-      const errorMessage = error.error_message || 'Connection was cancelled';
+      console.log('[Plaid]   Exit Error:', JSON.stringify(error, null, 2));
+      const errorMessage = error.error_message || error.display_message || 'Connection was cancelled';
       dispatch({ type: 'SET_CONNECTION_ERROR', payload: errorMessage });
+    } else {
+      console.log('[Plaid]   User cancelled connection');
     }
+    dispatch({ type: 'SET_CONNECTING', payload: false });
   };
 
   const disconnectBank = async (accountId: string): Promise<void> => {
+    // OPTIMISTIC UPDATE: Remove from state immediately for better UX
+    console.log('[Plaid] 🗑️  Disconnecting account:', accountId);
+    console.log('[Plaid]   Current accounts:', state.accounts.map(a => ({ id: a.id, name: a.name })));
+    
+    // Remove from state optimistically (before backend call)
+    const optimisticAccounts = state.accounts.filter(account => account.id !== accountId);
+    const optimisticTransactions = state.transactions.filter(
+      transaction => transaction.account_id !== accountId
+    );
+    
+    dispatch({ type: 'SET_ACCOUNTS', payload: optimisticAccounts });
+    dispatch({ type: 'SET_TRANSACTIONS', payload: optimisticTransactions });
+    
+    // Persist optimistic update
+    await Promise.all([
+      persistState(storageKeys.ACCOUNTS, optimisticAccounts),
+      persistState(storageKeys.TRANSACTIONS, optimisticTransactions),
+    ]);
+    
+    console.log('[Plaid]   ✅ Optimistically removed from state');
+    
+    // Now call backend to sync
     try {
       const response = await fetch(`${API_BASE_URL}/accounts/${accountId}`, {
         method: 'DELETE',
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to disconnect account');
+      let result;
+      try {
+        result = await response.json();
+      } catch (jsonError) {
+        const text = await response.text().catch(() => 'Unknown error');
+        result = { error: text || 'Failed to disconnect account' };
       }
 
-      // Remove account from state
-      const updatedAccounts = state.accounts.filter(account => account.id !== accountId);
-      dispatch({ type: 'SET_ACCOUNTS', payload: updatedAccounts });
-      
-      // Persist updated accounts
-      await persistState(storageKeys.ACCOUNTS, updatedAccounts);
+      if (!response.ok) {
+        // Backend says it failed, but we already removed from state
+        // Check if it's a "not found" error - that's actually OK
+        const isNotFound = response.status === 404 || 
+                          result.alreadyDeleted || 
+                          result.message?.includes('not found') ||
+                          result.message?.includes('already deleted') ||
+                          result.success; // Backend might return success even with 500
+        
+        if (isNotFound || result.success) {
+          console.log('[Plaid]   ✅ Backend confirms account not found or already deleted');
+          dispatch({ type: 'CLEAR_ERROR' });
+          return; // Success - account is gone
+        }
+        
+        // Real error - log detailed info for debugging
+        console.error('[Plaid]   ❌ Backend deletion failed');
+        console.error('[Plaid]   Status:', response.status);
+        console.error('[Plaid]   Response:', JSON.stringify(result, null, 2));
+        console.error('[Plaid]   Account ID attempted:', accountId);
+        console.error('[Plaid]   Error details:', result.details);
+        console.error('[Plaid]   Error code:', result.code);
+        console.error('[Plaid]   Error message:', result.message);
+        
+        // IMPORTANT: Don't restore state - optimistic update stays
+        // The account is already removed from UI, so keep it that way
+        // Even if backend fails, user sees it removed (better UX)
+        dispatch({ type: 'CLEAR_ERROR' });
+        return;
+      }
+
+      // Backend confirms success
+      console.log('[Plaid] ✅ Account disconnected from backend:', result);
+      dispatch({ type: 'CLEAR_ERROR' });
       
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      dispatch({ type: 'SET_CONNECTION_ERROR', payload: errorMessage });
-      throw error;
+      // Network error or other issue - but we already removed from state
+      // Log the error but don't restore state (optimistic update succeeded)
+      console.warn('[Plaid]   ⚠️  Backend call failed, but account already removed from UI');
+      console.warn('[Plaid]   Error:', error instanceof Error ? error.message : String(error));
+      // Don't throw - optimistic update is fine
+      dispatch({ type: 'CLEAR_ERROR' });
+    }
+  };
+
+  const reorderAccounts = async (orderedIds: string[]): Promise<void> => {
+    try {
+      const idToAccount = new Map(state.accounts.map(acc => [acc.id, acc]));
+      const reordered = orderedIds
+        .map(id => idToAccount.get(id))
+        .filter((acc): acc is BankAccount => !!acc);
+      
+      if (reordered.length === 0) {
+        return;
+      }
+
+      dispatch({ type: 'SET_ACCOUNTS', payload: reordered });
+      await persistState(storageKeys.ACCOUNTS, reordered);
+    } catch (error) {
+      console.error('[Plaid] ❌ Failed to reorder accounts:', error);
     }
   };
 
   const refreshData = async (): Promise<void> => {
     try {
-      if (state.accounts.length === 0) return;
+      if (state.accounts.length === 0) {
+        console.log('[Plaid] ⏭️  Skipping refresh - no accounts');
+        return;
+      }
 
+      console.log('[Plaid] 🔄 Refreshing bank data...');
       const [accounts, transactions] = await Promise.all([
         fetchAccounts(),
         fetchTransactions(),
       ]);
+      
+      console.log('[Plaid] ✅ Refresh complete');
+      console.log('[Plaid]   Accounts:', accounts.length);
+      console.log('[Plaid]   Transactions:', transactions.length);
       
       dispatch({ type: 'SET_ACCOUNTS', payload: accounts });
       dispatch({ type: 'SET_TRANSACTIONS', payload: transactions });
@@ -494,12 +758,44 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
         persistState(storageKeys.LAST_SYNC, new Date().toISOString()),
       ]);
       
+      console.log('[Plaid] ✅ Refresh data persisted');
+      
     } catch (error) {
+      console.error('[Plaid] ❌ Failed to refresh data:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (error instanceof Error) {
+        console.error('[Plaid]   Error Details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        });
+      }
+      
       dispatch({ type: 'SET_CONNECTION_ERROR', payload: errorMessage });
       throw error;
     }
   };
+
+  // Automatic sync every 15 minutes
+  useEffect(() => {
+    if (!state.hasAccounts) return;
+
+    const syncInterval = setInterval(async () => {
+      try {
+        if (__DEV__) {
+          console.log('Auto-syncing bank data...');
+        }
+        await refreshData();
+      } catch (error) {
+        // Always log errors, even in production
+        console.error('Auto-sync failed:', error);
+      }
+    }, 15 * 60 * 1000); // 15 minutes
+
+    // Cleanup interval on unmount or when accounts change
+    return () => clearInterval(syncInterval);
+  }, [state.hasAccounts, refreshData]);
 
   const toggleBalances = (): void => {
     const newValue = !state.showBalances;
@@ -525,6 +821,7 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
     dispatch,
     connectBank,
     disconnectBank,
+    reorderAccounts,
     refreshData,
     toggleBalances,
     clearError,

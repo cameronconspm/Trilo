@@ -15,9 +15,13 @@ import {
 } from '@/utils/payScheduleUtils';
 import { getCurrentPayPeriod } from '@/utils/payPeriodUtils';
 import { sortByClosestDateWithFuturePriority, filterAndSortBySmartDateLimits } from '@/utils/dateUtils';
+import { getGivenExpenseDateForPayPeriod, calculateNextGivenExpenseDate } from '@/utils/givenExpenseUtils';
 import NotificationService from '@/services/NotificationService';
 import { useAuth } from './AuthContext';
 import { SyncService } from '@/services/SyncService';
+import { WidgetSyncService } from '@/services/WidgetSyncService';
+import { log, warn, error as logError } from '@/utils/logger';
+import { generateUUID } from '@/utils/uuidUtils';
 
 interface Milestone {
   id: string;
@@ -144,10 +148,19 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     },
   });
 
-  // Load data from AsyncStorage on mount
+  // Load data from AsyncStorage on mount and when user changes
   useEffect(() => {
+    log(`FinanceContext: Loading data for user: ${userId}`);
     loadAllData();
-  }, []);
+  }, [userId]);
+
+  // Also reload when user object changes (handles test account case)
+  useEffect(() => {
+    if (user?.id) {
+      log(`FinanceContext: User changed, reloading data for: ${user.id}`);
+      loadAllData();
+    }
+  }, [user?.id]);
 
   // Check for external data clearing (like reset data)
   useEffect(() => {
@@ -162,14 +175,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
         // If both are missing and we have transactions in state, data was externally cleared
         if (!storedTransactions && !storedVersion && transactions.length > 0) {
-          console.log(
+          log(
             'FinanceContext: External data reset detected, clearing state'
           );
           setTransactions([]);
           setMilestones([]);
         }
       } catch (error) {
-        console.error('FinanceContext: Error checking for data reset:', error);
+        logError('FinanceContext: Error checking for data reset:', error);
       }
     };
 
@@ -180,15 +193,42 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   // Calculate insights whenever transactions change - real-time sync
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && transactions.length >= 0) {
       // Immediate calculation for real-time updates
-      calculateWeeklyOverview();
-      calculateMonthlyInsights();
-      calculateBudget();
-      // Auto-backup every time data changes
-      autoBackup();
+      log(`FinanceContext: Recalculating insights for ${transactions.length} transactions`);
+      // Use a small delay to ensure state is stable
+      const timeoutId = setTimeout(() => {
+        calculateWeeklyOverview();
+        calculateMonthlyInsights();
+        calculateBudget();
+        // Auto-backup every time data changes
+        autoBackup();
+      }, 50);
+      return () => clearTimeout(timeoutId);
     }
-  }, [transactions, isLoading]);
+  }, [transactions.length, isLoading]);
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
+    const syncWidget = async () => {
+      try {
+        if (weeklyOverview.upcomingExpenses.length === 0) {
+          await WidgetSyncService.clearUpcomingExpenses();
+        } else {
+          await WidgetSyncService.updateUpcomingExpenses(
+            weeklyOverview.upcomingExpenses
+          );
+        }
+      } catch (syncError) {
+        logError('FinanceContext: Failed to sync widget data:', syncError);
+      }
+    };
+
+    syncWidget();
+  }, [isLoading, weeklyOverview.upcomingExpenses]);
 
   // Additional effect to ensure immediate UI updates when transactions are modified
   useEffect(() => {
@@ -204,28 +244,51 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     }
   }, [transactions.length, isLoading]);
 
+  // Ensure calculations run when loading completes (initial load fix)
+  // This effect ensures the UI updates on initial app load when data finishes loading
+  useEffect(() => {
+    if (!isLoading && transactions.length >= 0) {
+      // Run calculations immediately when loading completes
+      // The transactions.length >= 0 check ensures this runs even with empty transactions
+      calculateWeeklyOverview();
+      calculateMonthlyInsights();
+      calculateBudget();
+    }
+  }, [isLoading, transactions.length]);
+
   const loadAllData = async () => {
     try {
       setIsLoading(true);
-      console.log('FinanceContext: Loading data from cloud...');
+      log('FinanceContext: Loading data from cloud...');
       
       // Initialize sync service
       const syncService = new SyncService(userId);
       
-      // Try to load from cloud first
+      // Try to load from cloud first (only for UUID users)
+      // For test accounts, this will return empty array and we'll load from local
       try {
         const cloudTransactions = await syncService.loadFromCloud();
         if (cloudTransactions && cloudTransactions.length > 0) {
-          console.log(`FinanceContext: Loaded ${cloudTransactions.length} transactions from cloud`);
+          log(`FinanceContext: Loaded ${cloudTransactions.length} transactions from cloud`);
           setTransactions(cloudTransactions);
-          setIsLoading(false);
+          // Calculate immediately after setting transactions, then mark as loaded
+          // Use setTimeout to ensure state has updated before calculations
+          setTimeout(() => {
+            calculateWeeklyOverview();
+            calculateMonthlyInsights();
+            calculateBudget();
+            setIsLoading(false);
+            log('FinanceContext: Cloud data calculations completed');
+          }, 100);
           return;
+        } else {
+          log('FinanceContext: No cloud data (or test account), loading from local storage');
         }
       } catch (error) {
-        console.log('FinanceContext: No cloud data, falling back to local storage');
+        log('FinanceContext: Error loading from cloud, falling back to local storage:', error);
       }
       
-      console.log('FinanceContext: Loading data from local storage...');
+      log('FinanceContext: Loading data from local storage...');
 
       // Check app version for migration if needed
       const storedVersion = await AsyncStorage.getItem(
@@ -237,7 +300,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           STORAGE_KEYS.APP_VERSION,
           CURRENT_APP_VERSION
         );
-        console.log(
+        log(
           'FinanceContext: First app launch, version set to',
           CURRENT_APP_VERSION
         );
@@ -247,33 +310,49 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       const storedTransactions = await AsyncStorage.getItem(
         STORAGE_KEYS.TRANSACTIONS
       );
+      log(`FinanceContext: Loading from storage key: ${STORAGE_KEYS.TRANSACTIONS}`);
+      log(`FinanceContext: Storage key exists: ${!!storedTransactions}`);
+      
       if (storedTransactions) {
         try {
           const parsedTransactions = JSON.parse(storedTransactions);
+          log(`FinanceContext: Parsed ${parsedTransactions.length} transactions from storage`);
+          
           if (Array.isArray(parsedTransactions)) {
             // Validate and clean data
             const validTransactions =
               parsedTransactions.filter(validateTransaction);
-            console.log(
-              `FinanceContext: Loaded ${validTransactions.length} valid transactions`
+            log(
+              `FinanceContext: Loaded ${validTransactions.length} valid transactions (${parsedTransactions.length - validTransactions.length} invalid filtered out)`
             );
+            
+            // Log transaction details for debugging
+            if (validTransactions.length > 0) {
+              log('FinanceContext: Sample transactions:', validTransactions.slice(0, 3).map(t => ({
+                name: t.name,
+                type: t.type,
+                amount: t.amount,
+                date: t.date
+              })));
+            }
+            
             setTransactions(validTransactions);
 
             // If some transactions were invalid, save the cleaned data
             if (validTransactions.length !== parsedTransactions.length) {
-              console.log(
+              log(
                 'FinanceContext: Cleaned invalid transactions, saving updated data'
               );
               await saveTransactions(validTransactions);
             }
           } else {
-            console.warn(
+            warn(
               'FinanceContext: Stored transactions is not an array, resetting to empty'
             );
             setTransactions([]);
           }
         } catch (parseError) {
-          console.error(
+          logError(
             'FinanceContext: Error parsing stored transactions:',
             parseError
           );
@@ -281,23 +360,44 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           await recoverFromBackup();
         }
       } else {
-        console.log(
-          'FinanceContext: No stored transactions found, starting fresh'
+        log(
+          `FinanceContext: No stored transactions found at key ${STORAGE_KEYS.TRANSACTIONS}, starting fresh`
         );
         setTransactions([]);
       }
+      
+      // Get the current transaction count from state for logging
+      // We'll use transactions.length in the calculations which reads from state
+      const transactionCount = transactions.length;
+      
+      // Ensure calculations run before marking as loaded
+      // Use setTimeout to ensure state has updated
+      setTimeout(() => {
+        // Use transactions from state (via closure) - it will have the updated value
+        log(`FinanceContext: Running calculations for transactions`);
+        calculateWeeklyOverview();
+        calculateMonthlyInsights();
+        calculateBudget();
+        setIsLoading(false);
+        log('FinanceContext: Calculations completed, loading state cleared');
+      }, 100); // Increased delay to ensure state is fully updated
     } catch (error) {
-      console.error('FinanceContext: Error loading financial data:', error);
+      logError('FinanceContext: Error loading financial data:', error);
       // Try to recover from backup
       await recoverFromBackup();
-    } finally {
-      setIsLoading(false);
+      // Even on error, ensure loading state is cleared
+      setTimeout(() => {
+        calculateWeeklyOverview();
+        calculateMonthlyInsights();
+        calculateBudget();
+        setIsLoading(false);
+      }, 0);
     }
   };
 
   const recoverFromBackup = async () => {
     try {
-      console.log('FinanceContext: Attempting to recover from backup...');
+      log('FinanceContext: Attempting to recover from backup...');
       const backupData = await AsyncStorage.getItem('finance_auto_backup');
       if (backupData) {
         const parsedBackup = JSON.parse(backupData);
@@ -307,7 +407,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         ) {
           const validTransactions =
             parsedBackup.transactions.filter(validateTransaction);
-          console.log(
+          log(
             `FinanceContext: Recovered ${validTransactions.length} transactions from backup`
           );
           setTransactions(validTransactions);
@@ -315,12 +415,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           return;
         }
       }
-      console.log(
+      log(
         'FinanceContext: No valid backup found, starting with empty data'
       );
       setTransactions([]);
     } catch (error) {
-      console.error('FinanceContext: Error recovering from backup:', error);
+      logError('FinanceContext: Error recovering from backup:', error);
       setTransactions([]);
     }
   };
@@ -350,14 +450,72 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const saveTransactions = async (newTransactions: Transaction[]) => {
     try {
+      console.log(`[SETUP DEBUG] saveTransactions called with ${newTransactions.length} transactions`);
+      console.log(`[SETUP DEBUG] Using storage key: ${STORAGE_KEYS.TRANSACTIONS}`);
+      console.log(`[SETUP DEBUG] UserId in context: ${userId}`);
+      log(`FinanceContext: saveTransactions called with ${newTransactions.length} transactions`);
+      log(`FinanceContext: Using storage key: ${STORAGE_KEYS.TRANSACTIONS}`);
+      
+      if (!newTransactions || newTransactions.length === 0) {
+        console.warn('[SETUP DEBUG] Warning - Attempting to save empty transactions array');
+        log('FinanceContext: Warning - Attempting to save empty transactions array');
+      }
+      
       const dataToSave = JSON.stringify(newTransactions);
+      console.log(`[SETUP DEBUG] Data to save size: ${dataToSave.length} bytes`);
+      log(`FinanceContext: Data to save size: ${dataToSave.length} bytes`);
+      
+      // Save to storage
+      console.log(`[SETUP DEBUG] Calling AsyncStorage.setItem with key: ${STORAGE_KEYS.TRANSACTIONS}`);
       await AsyncStorage.setItem(STORAGE_KEYS.TRANSACTIONS, dataToSave);
-      console.log(
-        `FinanceContext: Saved ${newTransactions.length} transactions to storage`
+      console.log('[SETUP DEBUG] AsyncStorage.setItem completed');
+      log('FinanceContext: AsyncStorage.setItem completed');
+      
+      // Immediately verify the save
+      console.log(`[SETUP DEBUG] Verifying save with key: ${STORAGE_KEYS.TRANSACTIONS}`);
+      const verification = await AsyncStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+      console.log(`[SETUP DEBUG] Verification result: ${verification ? 'Found data' : 'NO DATA FOUND'}`);
+      
+      if (!verification) {
+        const error = new Error('Save verification failed - data not found in storage after save');
+        console.error(`[SETUP DEBUG] Save verification FAILED - no data found`);
+        console.error(`[SETUP DEBUG] Storage key used: ${STORAGE_KEYS.TRANSACTIONS}`);
+        // Debug: List all keys to see what's in storage
+        const allKeys = await AsyncStorage.getAllKeys();
+        console.log(`[SETUP DEBUG] All storage keys:`, allKeys.filter(k => k.includes('finance') || k.includes('transaction')));
+        logError('FinanceContext: Save verification failed', error);
+        logError(`FinanceContext: Storage key: ${STORAGE_KEYS.TRANSACTIONS}`);
+        throw error;
+      }
+      
+      const parsed = JSON.parse(verification);
+      console.log(`[SETUP DEBUG] Parsed ${parsed.length} transactions from verification`);
+      
+      if (!Array.isArray(parsed)) {
+        const error = new Error('Save verification failed - data is not an array');
+        console.error('[SETUP DEBUG] Save verification FAILED - data is not an array');
+        logError('FinanceContext: Save verification failed', error);
+        throw error;
+      }
+      
+      if (parsed.length !== newTransactions.length) {
+        const error = new Error(`Save verification failed - expected ${newTransactions.length} transactions, found ${parsed.length}`);
+        console.error(`[SETUP DEBUG] Save verification FAILED - count mismatch: expected ${newTransactions.length}, found ${parsed.length}`);
+        logError('FinanceContext: Save verification failed', error);
+        logError(`FinanceContext: Expected: ${newTransactions.length}, Found: ${parsed.length}`);
+        throw error;
+      }
+      
+      console.log(`[SETUP DEBUG] Successfully saved and verified ${newTransactions.length} transactions`);
+      log(
+        `FinanceContext: Successfully saved and verified ${newTransactions.length} transactions to storage`
       );
     } catch (error) {
-      console.error('FinanceContext: Error saving transactions:', error);
-      throw new Error('Failed to save transaction data');
+      logError('FinanceContext: Error saving transactions:', error);
+      logError(`FinanceContext: Storage key: ${STORAGE_KEYS.TRANSACTIONS}`);
+      logError(`FinanceContext: Transaction count: ${newTransactions.length}`);
+      // Re-throw the error so callers know the save failed
+      throw error;
     }
   };
 
@@ -365,18 +523,25 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Get current pay period
-    const currentPayPeriod = getCurrentPayPeriod(transactions);
-    console.log('FinanceContext: Current pay period:', currentPayPeriod);
+    log(`FinanceContext: calculateWeeklyOverview called with ${transactions.length} transactions`);
     
-    // Debug: Log all income transactions
+    // Debug: Log all income transactions (dev only)
     const allIncomeTransactions = transactions.filter(t => t.type === 'income');
-    console.log('FinanceContext: All income transactions:', allIncomeTransactions.map(t => ({
+    log(`FinanceContext: Found ${allIncomeTransactions.length} income transactions:`, allIncomeTransactions.map(t => ({
       name: t.name,
       amount: t.amount,
       date: t.date,
-      isRecurring: t.isRecurring
+      isRecurring: t.isRecurring,
+      hasPaySchedule: !!t.paySchedule
     })));
+
+    // Get current pay period
+    const currentPayPeriod = getCurrentPayPeriod(transactions);
+    log('FinanceContext: Current pay period:', currentPayPeriod ? {
+      startDate: currentPayPeriod.startDate.toISOString(),
+      endDate: currentPayPeriod.endDate.toISOString(),
+      isActive: currentPayPeriod.isActive
+    } : 'null');
 
     let periodIncome = 0;
     let periodStartDate: Date;
@@ -386,127 +551,64 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       periodStartDate = currentPayPeriod.startDate;
       periodEndDate = currentPayPeriod.endDate;
 
-      console.log(
+      log(
         'FinanceContext: Pay period dates:',
         periodStartDate.toDateString(),
         'to',
         periodEndDate.toDateString()
       );
 
-      // Find all income transactions within this pay period
-      const incomeTransactions = transactions.filter(t => {
-        if (t.type !== 'income') return false;
-        const transactionDate = new Date(t.date);
-        transactionDate.setHours(0, 0, 0, 0);
-        const isInPeriod =
-          transactionDate >= periodStartDate &&
-          transactionDate <= periodEndDate;
-        console.log(
-          'FinanceContext: Income transaction',
-          t.name,
-          'Date:',
-          transactionDate.toDateString(),
-          'In period:',
-          isInPeriod,
-          'Period start:',
-          periodStartDate.toDateString(),
-          'Period end:',
-          periodEndDate.toDateString()
-        );
-        return isInPeriod;
-      });
-
-      console.log(
-        'FinanceContext: Found',
-        incomeTransactions.length,
-        'income transactions in current pay period'
-      );
-
-      // Sum all income transactions in this period
-      periodIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
-      console.log('FinanceContext: Total period income:', periodIncome);
+      // Calculate income for the pay period using actual pay dates from pay schedules
+      const allIncomeTransactions = transactions.filter(t => t.type === 'income');
       
-      // If no income found in pay period, try to calculate projected income for the period
-      if (periodIncome === 0) {
-        console.log('FinanceContext: No income found in pay period, calculating projected income...');
-        
-        // Safety check: limit pay period to reasonable range (max 12 months)
-        const maxEndDate = new Date(periodStartDate);
-        maxEndDate.setMonth(maxEndDate.getMonth() + 12);
-        const safeEndDate = periodEndDate > maxEndDate ? maxEndDate : periodEndDate;
-        
-        console.log('FinanceContext: Using safe end date:', safeEndDate.toDateString());
-        console.log('FinanceContext: Pay period start:', periodStartDate.toDateString());
-        console.log('FinanceContext: Pay period end (original):', periodEndDate.toDateString());
-        
-        const recurringIncomeTransactions = transactions.filter(t => t.type === 'income' && t.isRecurring);
-        console.log('FinanceContext: Found recurring income transactions:', recurringIncomeTransactions.map(t => ({
-          name: t.name,
-          amount: t.amount,
-          date: t.date,
-          paySchedule: t.paySchedule
-        })));
-        
-        // Instead of complex pay period calculations, use a simple approach:
-        // Calculate income for the current month and show that as the pay period income
-        const today = new Date();
-        const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-        const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        
-        console.log('FinanceContext: Using current month for income calculation:', currentMonthStart.toDateString(), 'to', currentMonthEnd.toDateString());
-        
-        // Calculate monthly income based on frequency
-        const monthlyIncome = recurringIncomeTransactions.reduce((sum, income) => {
-          if (income.paySchedule) {
-            console.log(`FinanceContext: Processing income: ${income.name}, amount: $${income.amount}, cadence: ${income.paySchedule.cadence}`);
-            
-            switch (income.paySchedule.cadence) {
-              case 'weekly':
-                const weeklyAmount = income.amount * 4.33; // ~4.33 weeks per month
-                console.log(`FinanceContext: Weekly income: $${income.amount} × 4.33 = $${weeklyAmount.toFixed(2)}`);
-                return sum + weeklyAmount;
-              case 'every_2_weeks':
-                const biweeklyAmount = income.amount * 2.17; // ~2.17 bi-weekly periods per month
-                console.log(`FinanceContext: Bi-weekly income: $${income.amount} × 2.17 = $${biweeklyAmount.toFixed(2)}`);
-                return sum + biweeklyAmount;
-              case 'monthly':
-                console.log(`FinanceContext: Monthly income: $${income.amount}`);
-                return sum + income.amount;
-              case 'twice_monthly':
-                const twiceMonthlyAmount = income.amount * 2;
-                console.log(`FinanceContext: Twice monthly income: $${income.amount} × 2 = $${twiceMonthlyAmount}`);
-                return sum + twiceMonthlyAmount;
-              default:
-                console.log(`FinanceContext: Default income: $${income.amount}`);
-                return sum + income.amount;
-            }
-          } else {
-            console.log(`FinanceContext: Income ${income.name} has no pay schedule`);
-            return sum;
+      log('FinanceContext: Calculating pay period income for period:', periodStartDate.toDateString(), 'to', periodEndDate.toDateString());
+      
+      periodIncome = allIncomeTransactions.reduce((sum, income) => {
+        // For recurring income with pay schedules, calculate actual pay dates in the period
+        if (income.isRecurring && income.paySchedule) {
+          const payDates = getPayDatesInRange(
+            income.paySchedule,
+            periodStartDate,
+            periodEndDate
+          );
+          const incomeAmount = payDates.length * income.amount;
+          log(
+            `FinanceContext: Recurring income ${income.name}: ${payDates.length} occurrence(s) in period × $${income.amount} = $${incomeAmount.toFixed(2)}`
+          );
+          return sum + incomeAmount;
+        } else if (income.isRecurring && !income.paySchedule) {
+          // Legacy recurring income without pay schedule - check if transaction date falls within period
+          const transactionDate = new Date(income.date);
+          transactionDate.setHours(0, 0, 0, 0);
+          const isInPeriod =
+            transactionDate >= periodStartDate &&
+            transactionDate <= periodEndDate;
+          
+          if (isInPeriod) {
+            log(
+              `FinanceContext: Legacy recurring income ${income.name}: $${income.amount} (date: ${transactionDate.toDateString()})`
+            );
+            return sum + income.amount;
           }
-        }, 0);
-        
-        console.log('FinanceContext: Total monthly income calculated:', monthlyIncome);
-        
-        // For the pay period, calculate how much of the month is covered
-        const payPeriodStart = new Date(periodStartDate);
-        const payPeriodEnd = new Date(periodEndDate);
-        
-        // Calculate what portion of the month this pay period covers
-        const monthStart = new Date(payPeriodStart.getFullYear(), payPeriodStart.getMonth(), 1);
-        const monthEnd = new Date(payPeriodStart.getFullYear(), payPeriodStart.getMonth() + 1, 0);
-        
-        const daysInMonth = monthEnd.getDate();
-        const daysInPayPeriod = Math.min(payPeriodEnd.getDate(), daysInMonth) - payPeriodStart.getDate() + 1;
-        const monthFraction = daysInPayPeriod / daysInMonth;
-        
-        console.log(`FinanceContext: Pay period covers ${daysInPayPeriod} days out of ${daysInMonth} days in month (${(monthFraction * 100).toFixed(1)}%)`);
-        
-        // Calculate pay period income based on the fraction of the month covered
-        periodIncome = monthlyIncome * monthFraction;
-        
-        console.log(`FinanceContext: Final pay period income: $${monthlyIncome.toFixed(2)} × ${monthFraction.toFixed(3)} = $${periodIncome.toFixed(2)}`);
-      }
+        } else {
+          // For non-recurring income, check if the transaction date falls within the pay period
+          const transactionDate = new Date(income.date);
+          transactionDate.setHours(0, 0, 0, 0);
+          const isInPeriod =
+            transactionDate >= periodStartDate &&
+            transactionDate <= periodEndDate;
+          
+          if (isInPeriod) {
+            log(
+              `FinanceContext: Non-recurring income ${income.name}: $${income.amount} (date: ${transactionDate.toDateString()})`
+            );
+            return sum + income.amount;
+          }
+        }
+        return sum;
+      }, 0);
+      
+      log('FinanceContext: Total pay period income calculated:', periodIncome.toFixed(2));
     } else {
       // Fallback to weekly calculation if no pay period found
       periodStartDate = new Date(today);
@@ -514,6 +616,45 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       periodEndDate = new Date(periodStartDate);
       periodEndDate.setDate(periodStartDate.getDate() + 6);
       periodEndDate.setHours(23, 59, 59, 999);
+      
+      // Calculate income for the weekly fallback period
+      const weeklyIncomeTransactions = transactions.filter(t => t.type === 'income');
+      periodIncome = weeklyIncomeTransactions.reduce((sum, income) => {
+        // For recurring income with pay schedules, calculate actual pay dates in the period
+        if (income.isRecurring && income.paySchedule) {
+          const payDates = getPayDatesInRange(
+            income.paySchedule,
+            periodStartDate,
+            periodEndDate
+          );
+          return sum + (payDates.length * income.amount);
+        } else if (income.isRecurring && !income.paySchedule) {
+          // Legacy recurring income without pay schedule - check if transaction date falls within period
+          const transactionDate = new Date(income.date);
+          transactionDate.setHours(0, 0, 0, 0);
+          const isInPeriod =
+            transactionDate >= periodStartDate &&
+            transactionDate <= periodEndDate;
+          
+          if (isInPeriod) {
+            return sum + income.amount;
+          }
+        } else {
+          // For non-recurring income, check if the transaction date falls within the pay period
+          const transactionDate = new Date(income.date);
+          transactionDate.setHours(0, 0, 0, 0);
+          const isInPeriod =
+            transactionDate >= periodStartDate &&
+            transactionDate <= periodEndDate;
+          
+          if (isInPeriod) {
+            return sum + income.amount;
+          }
+        }
+        return sum;
+      }, 0);
+      
+      log('FinanceContext: Weekly fallback period income calculated:', periodIncome.toFixed(2));
     }
 
     // Get all expense transactions and resolve their dates to the current pay period
@@ -522,8 +663,27 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       .map(t => {
         let resolvedDate = new Date(t.date);
 
+        // Handle given expenses with schedule
+        if (t.category === 'given_expenses' && t.givenExpenseSchedule && currentPayPeriod) {
+          const periodStart = new Date(periodStartDate);
+          const periodEnd = new Date(periodEndDate);
+          
+          // Calculate the date for this given expense within the pay period
+          const payPeriodDate = getGivenExpenseDateForPayPeriod(
+            t.givenExpenseSchedule,
+            periodStart,
+            periodEnd
+          );
+          
+          if (payPeriodDate) {
+            resolvedDate = payPeriodDate;
+          } else {
+            // If no date in pay period, calculate next occurrence
+            resolvedDate = calculateNextGivenExpenseDate(t.givenExpenseSchedule);
+          }
+        }
         // If this is a non-recurring expense, try to resolve it to the current pay period
-        if (!t.isRecurring && currentPayPeriod) {
+        else if (!t.isRecurring && currentPayPeriod) {
           const originalDate = new Date(t.date);
           const dayOfMonth = originalDate.getDate();
 
@@ -563,6 +723,13 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       })
       .filter(t => {
         // Only include expenses that fall within the current pay period
+        // For given expenses, include them if they have a date in or near the period
+        if (t.category === 'given_expenses' && t.givenExpenseSchedule) {
+          // Include if within pay period or within next 30 days (for display)
+          const thirtyDaysFromPeriodEnd = new Date(periodEndDate);
+          thirtyDaysFromPeriodEnd.setDate(thirtyDaysFromPeriodEnd.getDate() + 30);
+          return t.resolvedDate >= periodStartDate && t.resolvedDate <= thirtyDaysFromPeriodEnd;
+        }
         return (
           t.resolvedDate >= periodStartDate && t.resolvedDate <= periodEndDate
         );
@@ -861,20 +1028,33 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    const savingsExpenses = transactions
-      .filter(t => {
-        const transactionDate = new Date(t.date);
-        return (
-          t.type === 'expense' &&
-          t.category === 'savings' &&
-          transactionDate >= startOfMonth &&
-          transactionDate <= endOfMonth
-        );
-      })
-      .reduce((sum, t) => sum + t.amount, 0);
+    // Calculate savings expenses for current month
+    // Handle both recurring savings with pay schedules and one-time savings
+    let savingsExpenses = 0;
+    const savingsTransactions = transactions.filter(
+      t => t.type === 'expense' && t.category === 'savings'
+    );
 
-    // Debug logging for budget calculations
-    console.log('FinanceContext: Budget calculation for current month:', {
+    savingsTransactions.forEach(transaction => {
+      if (transaction.isRecurring && transaction.paySchedule) {
+        // For recurring savings with pay schedule, calculate actual pay dates in the current month
+        const payDates = getPayDatesInRange(
+          transaction.paySchedule,
+          startOfMonth,
+          endOfMonth
+        );
+        savingsExpenses += payDates.length * transaction.amount;
+      } else {
+        // For one-time savings or recurring savings without pay schedule, check if date falls in current month
+        const transactionDate = new Date(transaction.date);
+        if (transactionDate >= startOfMonth && transactionDate <= endOfMonth) {
+          savingsExpenses += transaction.amount;
+        }
+      }
+    });
+
+    // Debug logging for budget calculations (dev only)
+    log('FinanceContext: Budget calculation for current month:', {
       month: `${startOfMonth.toDateString()} to ${endOfMonth.toDateString()}`,
       monthlyIncome: monthlyIncome.toFixed(2),
       recurringExpenses: recurringExpenses.toFixed(2),
@@ -897,53 +1077,64 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
     try {
-      console.log('FinanceContext: Adding transaction', transaction);
+      log('FinanceContext: Adding transaction', transaction);
 
-      // Generate a more unique ID with timestamp and random components
-      const timestamp = Date.now();
-      const random = Math.random().toString(36).substr(2, 9);
-      const uniqueId = `${timestamp}-${random}`;
+      // Generate a UUID-compliant ID for database compatibility
+      const uniqueId = generateUUID();
       
       const newTransaction: Transaction = {
         ...transaction,
         id: uniqueId,
       };
 
-      console.log('FinanceContext: Generated transaction ID:', uniqueId);
+      log('FinanceContext: Generated transaction ID:', uniqueId);
 
       // Use functional update to ensure we have the latest state
+      let updatedTransactions: Transaction[] = [];
       setTransactions(prevTransactions => {
-        const updatedTransactions = [...prevTransactions, newTransaction];
-        console.log('FinanceContext: Current transactions count:', prevTransactions.length);
-        console.log('FinanceContext: New transactions count:', updatedTransactions.length);
-        
-        // Save to storage (local first for speed)
-        saveTransactions(updatedTransactions).catch(error => {
-          console.error('FinanceContext: Error saving transactions:', error);
-        });
-        
-        // Sync to cloud
-        const syncService = new SyncService(userId);
-        syncService.syncTransactionToCloud(newTransaction).catch(error => {
-          console.error('FinanceContext: Error syncing to cloud:', error);
-        });
-        
+        updatedTransactions = [...prevTransactions, newTransaction];
+        log('FinanceContext: Current transactions count:', prevTransactions.length);
+        log('FinanceContext: New transactions count:', updatedTransactions.length);
         return updatedTransactions;
       });
 
-      // Verify the save was successful
+      // Save to storage (await to ensure it completes)
+      console.log(`[SETUP DEBUG] FinanceContext: Saving ${updatedTransactions.length} transactions to storage key: ${STORAGE_KEYS.TRANSACTIONS}`);
+      console.log(`[SETUP DEBUG] FinanceContext: UserId: ${userId}`);
+      console.log(`[SETUP DEBUG] FinanceContext: Storage key should be: finance_transactions_v2_${userId}`);
+      log(`FinanceContext: Saving ${updatedTransactions.length} transactions to storage key: ${STORAGE_KEYS.TRANSACTIONS}`);
+      await saveTransactions(updatedTransactions);
+      console.log('[SETUP DEBUG] FinanceContext: Save completed, verifying...');
+      log('FinanceContext: Save completed, verifying...');
+      
+      // Verify the save was successful immediately
       const savedTransactions = await AsyncStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
       if (savedTransactions) {
         const parsed = JSON.parse(savedTransactions);
-        console.log('FinanceContext: Storage verification - saved count:', parsed.length);
-        if (parsed.length !== (transactions.length + 1)) {
-          console.warn('FinanceContext: Storage count mismatch! Expected:', transactions.length + 1, 'Storage:', parsed.length);
+        log(`FinanceContext: Storage verification - saved ${parsed.length} transactions (expected ${updatedTransactions.length})`);
+        if (parsed.length !== updatedTransactions.length) {
+          warn('FinanceContext: Storage count mismatch! Expected:', updatedTransactions.length, 'Storage:', parsed.length);
+          // Try to save again if there's a mismatch
+          log('FinanceContext: Retrying save due to count mismatch...');
+          await saveTransactions(updatedTransactions);
         }
+      } else {
+        logError('FinanceContext: CRITICAL - Save verification failed! No data found in storage after save.');
+        logError(`FinanceContext: Storage key used: ${STORAGE_KEYS.TRANSACTIONS}`);
+        // Try to save again
+        log('FinanceContext: Retrying save...');
+        await saveTransactions(updatedTransactions);
       }
+      
+      // Sync to cloud (non-blocking, but log errors)
+      const syncService = new SyncService(userId);
+      syncService.syncTransactionToCloud(newTransaction).catch(error => {
+        logError('FinanceContext: Error syncing to cloud:', error);
+      });
 
-      console.log('FinanceContext: Transaction added successfully. New count:', transactions.length + 1);
+      log('FinanceContext: Transaction added successfully. New count:', updatedTransactions.length);
     } catch (error) {
-      console.error('FinanceContext: Error adding transaction:', error);
+      logError('FinanceContext: Error adding transaction:', error);
       throw error;
     }
   };
@@ -955,7 +1146,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     try {
       const transactionToUpdate = transactions.find(t => t.id === id);
       if (!transactionToUpdate) {
-        console.warn('FinanceContext: Transaction not found for update:', id);
+        warn('FinanceContext: Transaction not found for update:', id);
         return;
       }
 
@@ -974,9 +1165,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       const syncService = new SyncService(userId);
       await syncService.syncTransactionToCloud(updatedTransaction);
       
-      console.log('FinanceContext: Transaction updated successfully');
+      log('FinanceContext: Transaction updated successfully');
     } catch (error) {
-      console.error('FinanceContext: Error updating transaction:', error);
+      logError('FinanceContext: Error updating transaction:', error);
       // Revert state on error
       setTransactions(transactions);
       throw error;
@@ -997,9 +1188,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       const syncService = new SyncService(userId);
       await syncService.deleteTransactionFromCloud(id);
       
-      console.log('FinanceContext: Transaction deleted successfully');
+      log('FinanceContext: Transaction deleted successfully');
     } catch (error) {
-      console.error('FinanceContext: Error deleting transaction:', error);
+      logError('FinanceContext: Error deleting transaction:', error);
       // Revert state on error
       setTransactions(transactions);
       throw error;
@@ -1008,7 +1199,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const clearAllData = async () => {
     try {
-      console.log('FinanceContext: Clearing all data...');
+      log('FinanceContext: Clearing all data...');
       await AsyncStorage.multiRemove([
         STORAGE_KEYS.TRANSACTIONS,
         STORAGE_KEYS.BUDGET_GOALS,
@@ -1019,9 +1210,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       ]);
       setTransactions([]);
       setMilestones([]);
-      console.log('FinanceContext: All data cleared successfully');
+      log('FinanceContext: All data cleared successfully');
     } catch (error) {
-      console.error('FinanceContext: Error clearing financial data:', error);
+      logError('FinanceContext: Error clearing financial data:', error);
       throw new Error('Failed to clear data');
     }
   };
@@ -1038,12 +1229,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         version: CURRENT_APP_VERSION,
         appVersion: CURRENT_APP_VERSION,
       };
-      console.log(
+      log(
         `FinanceContext: Exporting ${transactions.length} transactions`
       );
       return JSON.stringify(exportData, null, 2);
     } catch (error) {
-      console.error('FinanceContext: Error exporting data:', error);
+      logError('FinanceContext: Error exporting data:', error);
       throw new Error('Failed to export data');
     }
   };
@@ -1054,7 +1245,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       if (parsedData.transactions && Array.isArray(parsedData.transactions)) {
         const validTransactions =
           parsedData.transactions.filter(validateTransaction);
-        console.log(
+        log(
           `FinanceContext: Importing ${validTransactions.length} valid transactions`
         );
         setTransactions(validTransactions);
@@ -1063,7 +1254,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Invalid data format - no transactions array found');
       }
     } catch (error) {
-      console.error('FinanceContext: Error importing data:', error);
+      logError('FinanceContext: Error importing data:', error);
       throw new Error(
         'Failed to import data - invalid format or corrupted data'
       );
@@ -1084,10 +1275,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         const backupData = await exportData();
         await AsyncStorage.setItem('finance_auto_backup', backupData);
         await AsyncStorage.setItem(STORAGE_KEYS.LAST_BACKUP, now.toISOString());
-        console.log('FinanceContext: Auto-backup completed');
+        log('FinanceContext: Auto-backup completed');
       }
     } catch (error) {
-      console.error('FinanceContext: Auto-backup failed:', error);
+      logError('FinanceContext: Auto-backup failed:', error);
       // Don't throw error for backup failures - it's not critical
     }
   };

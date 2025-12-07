@@ -1,16 +1,19 @@
 const { getDefaultConfig } = require('expo/metro-config');
+const withPlaidLink = require('./plugins/withPlaidLink');
 
 module.exports = {
   expo: {
     name: 'Trilo',
     slug: 'trilo',
     owner: 'cameroncons',
-    version: '1.0.0',
+    version: '1.0.1',
     orientation: 'portrait',
     icon: './assets/images/icon.png',
-    scheme: 'myapp',
+    scheme: 'trilo',
     userInterfaceStyle: 'automatic',
-    newArchEnabled: false,
+    // New Architecture enabled - react-native-plaid-link-sdk v12.5.1+ supports new arch
+    // If native module linking issues persist, try disabling with: newArchEnabled: false
+    newArchEnabled: true,
     jsEngine: 'hermes',
     
     // Splash screen configuration
@@ -23,8 +26,8 @@ module.exports = {
     // iOS configuration
     ios: {
       supportsTablet: true,
-      bundleIdentifier: 'com.trilo.app',
-      buildNumber: '1',
+      bundleIdentifier: 'org.name.Trilo',
+      buildNumber: '2',
       splash: {
         image: './assets/images/splash-icon.png',
         resizeMode: 'contain',
@@ -34,7 +37,15 @@ module.exports = {
         ITSAppUsesNonExemptEncryption: false,
         NSPhotoLibraryUsageDescription: 'Allow $(PRODUCT_NAME) to access your photos',
         NSCameraUsageDescription: 'Allow $(PRODUCT_NAME) to access your camera',
-        NSMicrophoneUsageDescription: 'Allow $(PRODUCT_NAME) to access your microphone'
+        NSMicrophoneUsageDescription: 'Allow $(PRODUCT_NAME) to access your microphone',
+        UIViewControllerBasedStatusBarAppearance: false,
+        UIStatusBarHidden: false,
+        CFBundleURLTypes: [
+          {
+            CFBundleURLName: 'plaidlink',
+            CFBundleURLSchemes: ['plaidlink']
+          }
+        ]
       },
       usesIcloudStorage: true
     },
@@ -77,7 +88,8 @@ module.exports = {
       [
         'expo-image-picker',
         {
-          photosPermission: 'The app accesses your photos to let you share them with your friends.'
+          photosPermission: 'Trilo needs access to your photos to select profile pictures.',
+          cameraPermission: 'Trilo needs access to your camera to take profile pictures.'
         }
       ],
       [
@@ -86,7 +98,12 @@ module.exports = {
           defaultChannel: 'default',
           enableBackgroundRemoteNotifications: false
         }
-      ]
+      ],
+      'expo-font',
+      'expo-web-browser',
+      // Plaid Link plugin - conditionally applied
+      // Note: Plaid will gracefully handle missing native module in Expo Go
+      withPlaidLink
     ],
     
     // Experiments
@@ -101,7 +118,12 @@ module.exports = {
       },
       eas: {
         projectId: '75bef967-5779-49d0-bc57-ae4f0621a7d4'
-      }
+      },
+      supabaseUrl: 'https://raictkrsnejvfvpgqzcq.supabase.co',
+      supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJhaWN0a3JzbmVqdmZ2cGdxemNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0OTI4NDYsImV4cCI6MjA3NzA2ODg0Nn0.VGIKiPi03R_FgaXvYppCwvDkNXQMSu9xJ1H51Z2Eulw',
+      plaidApiUrl: 'https://trilo-production.up.railway.app/api/plaid',
+      revenueCatApiKeyIos: 'appl_KYJdeAHerYQeEgWWYLlFZVhXQBH',
+      revenueCatApiKeyAndroid: 'goog_YOUR_ANDROID_KEY_HERE'
     },
     
     // Platform support

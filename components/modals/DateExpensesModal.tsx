@@ -14,6 +14,7 @@ import { useSettings } from '@/context/SettingsContext';
 import { useThemeColors } from '@/constants/colors';
 import TransactionItem from '@/components/TransactionItem';
 import EmptyState from '@/components/feedback/EmptyState';
+import Card from '@/components/layout/Card';
 import {
   Spacing,
   SpacingValues,
@@ -74,6 +75,79 @@ export default function DateExpensesModal({
     return expenses;
   }, [transactions, selectedDate]);
 
+  // Get income for the selected date (including recurring)
+  const dateIncome = React.useMemo(() => {
+    if (!selectedDate) return [];
+
+    const income: Transaction[] = [];
+
+    transactions.forEach(transaction => {
+      if (transaction.type !== 'income') return;
+
+      const transactionDate = new Date(transaction.date);
+
+      // Check if this is a one-time income on this exact date
+      if (
+        transactionDate.getDate() === selectedDate.getDate() &&
+        transactionDate.getMonth() === selectedDate.getMonth() &&
+        transactionDate.getFullYear() === selectedDate.getFullYear()
+      ) {
+        income.push(transaction);
+        return;
+      }
+
+      // Check if this is recurring income that should appear on this date
+      if (transaction.isRecurring && transaction.paySchedule) {
+        const paySchedule = transaction.paySchedule;
+
+        // Weekly income
+        if (paySchedule.cadence === 'weekly') {
+          const lastPaidDate = new Date(paySchedule.lastPaidDate);
+          const daysSinceLastPaid = Math.floor(
+            (selectedDate.getTime() - lastPaidDate.getTime()) / (1000 * 60 * 60 * 24)
+          );
+          if (daysSinceLastPaid >= 0 && daysSinceLastPaid % 7 === 0) {
+            income.push(transaction);
+          }
+        }
+        // Every 2 weeks income
+        else if (paySchedule.cadence === 'every_2_weeks') {
+          const lastPaidDate = new Date(paySchedule.lastPaidDate);
+          const daysSinceLastPaid = Math.floor(
+            (selectedDate.getTime() - lastPaidDate.getTime()) / (1000 * 60 * 60 * 24)
+          );
+          if (daysSinceLastPaid >= 0 && daysSinceLastPaid % 14 === 0) {
+            income.push(transaction);
+          }
+        }
+        // Twice a month income
+        else if (
+          paySchedule.cadence === 'twice_monthly' &&
+          paySchedule.monthlyDays
+        ) {
+          if (paySchedule.monthlyDays.includes(selectedDate.getDate())) {
+            income.push(transaction);
+          }
+        }
+        // Monthly income
+        else if (paySchedule.cadence === 'monthly') {
+          const lastPaidDate = new Date(paySchedule.lastPaidDate);
+          if (selectedDate.getDate() === lastPaidDate.getDate()) {
+            income.push(transaction);
+          }
+        }
+        // Custom income
+        else if (paySchedule.cadence === 'custom' && paySchedule.customDays) {
+          if (paySchedule.customDays.includes(selectedDate.getDate())) {
+            income.push(transaction);
+          }
+        }
+      }
+    });
+
+    return income;
+  }, [transactions, selectedDate]);
+
   // Format date for display
   const formattedDate = selectedDate?.toLocaleDateString('en-US', {
     weekday: 'long',
@@ -82,9 +156,13 @@ export default function DateExpensesModal({
     day: 'numeric',
   });
 
-  // Calculate total for the day
-  const totalForDay = dateExpenses.reduce(
+  // Calculate totals for the day
+  const totalExpenses = dateExpenses.reduce(
     (sum, expense) => sum + expense.amount,
+    0
+  );
+  const totalIncome = dateIncome.reduce(
+    (sum, income) => sum + income.amount,
     0
   );
 
@@ -117,7 +195,7 @@ export default function DateExpensesModal({
           >
             <View style={styles.headerContent}>
               <Text style={[styles.title, { color: colors.text }]}>
-                Daily Expenses
+                Daily Transactions
               </Text>
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                 {formattedDate}
@@ -147,54 +225,60 @@ export default function DateExpensesModal({
               { backgroundColor: colors.background },
             ]}
           >
-            {dateExpenses.length > 0 ? (
+            {dateIncome.length > 0 || dateExpenses.length > 0 ? (
               <>
-                {/* Summary */}
-                <View
-                  style={[
-                    styles.summaryCard,
-                    { backgroundColor: colors.cardSecondary },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.summaryLabel,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    Total for {selectedDate.getDate()}
-                  </Text>
-                  <Text style={[styles.summaryAmount, { color: colors.error }]}>
-                    ${totalForDay.toFixed(2)}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.summaryCount,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    {dateExpenses.length} expense
-                    {dateExpenses.length !== 1 ? 's' : ''}
-                  </Text>
-                </View>
+                {/* Expected Income Section */}
+                {dateIncome.length > 0 && (
+                  <>
+                    <View style={styles.sectionHeader}>
+                      <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                        Expected Income
+                      </Text>
+                      <Text style={[styles.sectionTotal, { color: colors.text }]}>
+                        ${totalIncome.toFixed(2)}
+                      </Text>
+                    </View>
+                    <Card variant="default">
+                      {dateIncome.map((income, index) => (
+                        <TransactionItem
+                          key={income.id}
+                          transaction={income}
+                          isLast={index === dateIncome.length - 1}
+                        />
+                      ))}
+                    </Card>
+                  </>
+                )}
 
-                {/* Expense List */}
-                <View style={styles.expenseList}>
-                  {dateExpenses.map((expense, index) => (
-                    <TransactionItem
-                      key={expense.id}
-                      transaction={expense}
-                      isLast={index === dateExpenses.length - 1}
-                    />
-                  ))}
-                </View>
+                {/* Expenses Section */}
+                {dateExpenses.length > 0 && (
+                  <>
+                    <View style={styles.sectionHeader}>
+                      <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                        Expenses
+                      </Text>
+                      <Text style={[styles.sectionTotal, { color: colors.textSecondary }]}>
+                        ${totalExpenses.toFixed(2)}
+                      </Text>
+                    </View>
+                    <Card variant="default">
+                      {dateExpenses.map((expense, index) => (
+                        <TransactionItem
+                          key={expense.id}
+                          transaction={expense}
+                          isLast={index === dateExpenses.length - 1}
+                        />
+                      ))}
+                    </Card>
+                  </>
+                )}
               </>
             ) : (
               <View style={styles.emptyState}>
                 <EmptyState
                   icon='history'
-                  title='No expenses'
-                  subtitle={`No expenses recorded for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                  title='No transactions'
+                  subtitle={`No expenses or income recorded for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
                 />
               </View>
             )}
@@ -224,14 +308,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    letterSpacing: -0.4,
+    ...Typography.h3,
     marginBottom: 2,
   },
   subtitle: {
-    fontSize: 15,
-    fontWeight: '500',
+    ...Typography.bodyMedium,
   },
   closeButton: {
     width: Math.max(40, SpacingValues.minTouchTarget),
@@ -247,26 +328,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.lg,
   },
-  summaryCard: {
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.modern,
-    marginBottom: Spacing.lg,
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.md,
   },
-  summaryLabel: {
-    ...Typography.caption,
-    marginBottom: Spacing.xs,
+  sectionTitle: {
+    ...Typography.h2,
+    flex: 1,
   },
-  summaryAmount: {
-    ...Typography.currency,
-    marginBottom: Spacing.xs,
-  },
-  summaryCount: {
-    ...Typography.bodySmall,
-  },
-  expenseList: {
-    borderRadius: BorderRadius.modern,
-    overflow: 'hidden',
+  sectionTotal: {
+    ...Typography.bodyMedium,
+    fontWeight: '600',
   },
   emptyState: {
     padding: Spacing.xl,

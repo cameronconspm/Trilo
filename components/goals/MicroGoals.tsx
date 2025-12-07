@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
   Dimensions,
   Animated,
 } from 'react-native';
@@ -15,6 +14,7 @@ import { useChallengeTracking } from '@/context/ChallengeTrackingContext';
 import { Spacing, BorderRadius, Shadow, getResponsiveTypography } from '@/constants/spacing';
 import Card from '@/components/layout/Card';
 import Button from '@/components/layout/Button';
+import AlertModal from '@/components/modals/AlertModal';
 import { 
   Zap, 
   Clock, 
@@ -71,6 +71,20 @@ export function MicroGoals({ style, onGoalComplete }: MicroGoalsProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [pressedCard, setPressedCard] = useState<string | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
+  
+  // Alert modal state for custom modals
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+    actions: Array<{ text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }>;
+  }>({
+    title: '',
+    message: '',
+    type: 'info',
+    actions: [],
+  });
 
 
   // Available micro-goals
@@ -340,14 +354,23 @@ export function MicroGoals({ style, onGoalComplete }: MicroGoalsProps) {
         g.id === goal.id ? { ...g, isActive: true } : g
       ));
       
-      // Show confirmation
-      Alert.alert(
-        'Goal Started! 🎯',
-        `You've started "${goal.title}". Good luck!`,
-        [{ text: 'OK' }]
-      );
+      // Show custom success modal
+      setAlertConfig({
+        title: 'Goal Started! 🎯',
+        message: `You've started "${goal.title}". Good luck!`,
+        type: 'success',
+        actions: [{ text: 'OK' }],
+      });
+      setShowAlert(true);
     } catch (error) {
       console.error('Error starting goal:', error);
+      setAlertConfig({
+        title: 'Error',
+        message: 'Failed to start goal. Please try again.',
+        type: 'error',
+        actions: [{ text: 'OK' }],
+      });
+      setShowAlert(true);
     }
   };
 
@@ -361,24 +384,37 @@ export function MicroGoals({ style, onGoalComplete }: MicroGoalsProps) {
       ));
       
       // Award XP (in production, this would update user score)
-      Alert.alert(
-        'Goal Completed! 🎉',
-        `Congratulations! You earned ${goal.xpReward} XP for completing "${goal.title}".`,
-        [{ text: 'Awesome!' }]
-      );
+      setAlertConfig({
+        title: 'Goal Completed! 🎉',
+        message: `Congratulations! You earned ${goal.xpReward} XP for completing "${goal.title}".`,
+        type: 'success',
+        actions: [{ text: 'Awesome!' }],
+      });
+      setShowAlert(true);
 
       onGoalComplete?.(goal);
     } catch (error) {
       console.error('Error completing goal:', error);
+      setAlertConfig({
+        title: 'Error',
+        message: 'Failed to complete goal. Please try again.',
+        type: 'error',
+        actions: [{ text: 'OK' }],
+      });
+      setShowAlert(true);
     }
   };
 
   const handleCancelGoal = (goal: MicroGoal) => {
-    Alert.alert(
-      'Cancel Goal',
-      `Are you sure you want to cancel "${goal.title}"?`,
-      [
-        { text: 'Keep Going', style: 'cancel' },
+    setAlertConfig({
+      title: 'Cancel Goal',
+      message: `Are you sure you want to cancel "${goal.title}"?`,
+      type: 'warning',
+      actions: [
+        { 
+          text: 'Keep Going', 
+          style: 'cancel',
+        },
         { 
           text: 'Cancel Goal', 
           style: 'destructive',
@@ -389,8 +425,9 @@ export function MicroGoals({ style, onGoalComplete }: MicroGoalsProps) {
             );
           }
         }
-      ]
-    );
+      ],
+    });
+    setShowAlert(true);
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -667,6 +704,15 @@ export function MicroGoals({ style, onGoalComplete }: MicroGoalsProps) {
         </View>
       )}
 
+      {/* Custom Alert Modal for goal actions */}
+      <AlertModal
+        visible={showAlert}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        actions={alertConfig.actions}
+        onClose={() => setShowAlert(false)}
+      />
     </Card>
   );
 }

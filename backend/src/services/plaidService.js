@@ -280,20 +280,43 @@ class PlaidService {
     }
 
     // Transform transactions for database
-    const transactionData = transactions.map(transaction => ({
-      account_id: accountId,
-      transaction_id: transaction.transaction_id,
-      amount: transaction.amount,
-      date: transaction.date,
-      name: transaction.name,
-      merchant_name: transaction.merchant_name,
-      category: transaction.category ? transaction.category.join(', ') : null,
-      subcategory: transaction.subcategory ? transaction.subcategory.join(', ') : null,
-      account_owner: transaction.account_owner,
-      pending: transaction.pending,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }));
+    const transactionData = transactions.map(transaction => {
+      // Extract logo URL from Plaid transaction data
+      // Priority: counterparties logo_url > personal_finance_category icon_url
+      let logoUrl = null;
+      
+      // Check counterparties array for merchant logo
+      if (transaction.counterparties && Array.isArray(transaction.counterparties) && transaction.counterparties.length > 0) {
+        const counterparty = transaction.counterparties[0];
+        if (counterparty.logo_url) {
+          logoUrl = counterparty.logo_url;
+        }
+      }
+      
+      // Fallback to personal finance category icon if no merchant logo
+      if (!logoUrl && transaction.personal_finance_category) {
+        const pfc = transaction.personal_finance_category;
+        if (pfc.icon_url) {
+          logoUrl = pfc.icon_url;
+        }
+      }
+      
+      return {
+        account_id: accountId,
+        transaction_id: transaction.transaction_id,
+        amount: transaction.amount,
+        date: transaction.date,
+        name: transaction.name,
+        merchant_name: transaction.merchant_name,
+        category: transaction.category ? transaction.category.join(', ') : null,
+        subcategory: transaction.subcategory ? transaction.subcategory.join(', ') : null,
+        account_owner: transaction.account_owner,
+        pending: transaction.pending,
+        logo_url: logoUrl,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    });
 
     try {
       // Bulk insert transactions

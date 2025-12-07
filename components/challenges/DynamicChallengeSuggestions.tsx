@@ -14,6 +14,7 @@ import { useChallengeTracking } from '@/context/ChallengeTrackingContext';
 import { Spacing, BorderRadius, Shadow, getResponsiveTypography } from '@/constants/spacing';
 import Card from '@/components/layout/Card';
 import Button from '@/components/layout/Button';
+import AlertModal from '@/components/modals/AlertModal';
 import { 
   Lightbulb, 
   Target, 
@@ -70,6 +71,20 @@ export function DynamicChallengeSuggestions({ style, onChallengeSelect }: Dynami
   const [suggestions, setSuggestions] = useState<SuggestedChallenge[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshCounter, setRefreshCounter] = useState(0);
+  
+  // Alert modal state for custom modals (matching MicroGoals pattern)
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+    actions: Array<{ text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }>;
+  }>({
+    title: '',
+    message: '',
+    type: 'info',
+    actions: [],
+  });
 
   // Handle scroll to update current index
   const handleScroll = (event: any) => {
@@ -328,7 +343,25 @@ export function DynamicChallengeSuggestions({ style, onChallengeSelect }: Dynami
       
       // Select challenge set based on refresh counter
       const selectedSet = challengeSets[refreshCounter % challengeSets.length];
-      newSuggestions.push(...selectedSet);
+      
+      // Map the selected set and check if any templates are already in activeChallenges
+      const suggestionsWithStatus = selectedSet.map(suggestion => {
+        // Check if a challenge with this template ID is already active
+        const isAlreadyActive = activeChallenges.some(
+          challenge => challenge.template_id === suggestion.template.id
+        );
+        
+        // If a challenge with this template is already active, mark it as started
+        // This prevents showing suggestions for challenges that are already active
+        const status = isAlreadyActive ? 'started' : 'not_started';
+        
+        return {
+          ...suggestion,
+          status: status as 'not_started' | 'started',
+        };
+      });
+      
+      newSuggestions.push(...suggestionsWithStatus);
 
       setSuggestions(newSuggestions);
     } catch (error) {
@@ -347,13 +380,34 @@ export function DynamicChallengeSuggestions({ style, onChallengeSelect }: Dynami
       await createChallenge(suggestion.template.id);
       
       // Update the suggestion status to 'started' to hide it from the list
-      setSuggestions(prev => prev.map(s => 
-        s.id === suggestion.id ? { ...s, status: 'started' } : s
-      ));
+      // Use functional update to ensure we're working with the latest state
+      setSuggestions(prev => {
+        const updated = prev.map(s => 
+          s.id === suggestion.id ? { ...s, status: 'started' as const } : s
+        );
+        return updated;
+      });
+      
+      // Show success modal (matching MicroGoals pattern)
+      setAlertConfig({
+        title: 'Challenge Started! 🎯',
+        message: `You've started "${suggestion.template.name}". Good luck!`,
+        type: 'success',
+        actions: [{ text: 'OK' }],
+      });
+      setShowAlert(true);
       
       onChallengeSelect?.(suggestion);
     } catch (error) {
       console.error('Error creating challenge:', error);
+      // Show error modal
+      setAlertConfig({
+        title: 'Error',
+        message: 'Failed to start challenge. Please try again.',
+        type: 'error',
+        actions: [{ text: 'OK' }],
+      });
+      setShowAlert(true);
     }
   };
 
@@ -603,6 +657,15 @@ export function DynamicChallengeSuggestions({ style, onChallengeSelect }: Dynami
         </View>
       )}
 
+      {/* Custom Alert Modal for challenge actions (matching MicroGoals pattern) */}
+      <AlertModal
+        visible={showAlert}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        actions={alertConfig.actions}
+        onClose={() => setShowAlert(false)}
+      />
     </Card>
   );
 }

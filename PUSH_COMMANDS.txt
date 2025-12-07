@@ -1,0 +1,23 @@
+=== QUICKEST WAY: Push Everything ===
+
+git add .
+git commit -m "Add SMS-based MFA feature with country code selector and auto-formatting"
+git push
+
+=== OR: Push Only MFA Files ===
+
+# Add MFA files
+git add backend/src/routes/mfa.js backend/src/server.js
+git add services/mfaService.ts
+git add components/auth/
+git add components/forms/PhoneNumberInput.tsx
+git add context/AuthContext.tsx app/signin.tsx app/(tabs)/profile.tsx app/(tabs)/banking.tsx
+git add docs/SECURITY_POLICY.md docs/SECURITY_IMPLEMENTATION.md docs/PRIVACY_POLICY_UPDATED.md docs/SMS_MFA_SETUP.md
+git add DEPLOY_MFA_ROUTES.md .github/workflows/security-scan.yml backend/README.md backend/env.example backend/package.json
+
+# Commit
+git commit -m "Add SMS-based MFA feature with country code selector and auto-formatting"
+
+# Push
+git push
+

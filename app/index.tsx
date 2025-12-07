@@ -5,18 +5,18 @@ import React from 'react';
 export default function Index() {
   const { user, loading } = useAuth();
 
-  // Show nothing while loading
+  // Show nothing while loading auth
   if (loading) {
     return null;
   }
 
   // Let AuthContext handle navigation for signed-in users
-  // Only redirect to signin if definitely not authenticated
-  if (!user) {
-    return <Redirect href="/signin" />;
+  if (user) {
+    return null;
   }
 
-  // If user exists but not redirected by AuthContext yet, show loading
-  return null;
+  // Always show onboarding when user is not logged in
+  // This ensures onboarding is shown every time for unauthenticated users
+  return <Redirect href="/onboarding" />;
 }
 

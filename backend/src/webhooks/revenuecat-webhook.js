@@ -12,13 +12,48 @@
 
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const { supabase } = require('../config/supabase');
 
-// Verify webhook signature (optional but recommended)
+/**
+ * Verify webhook authorization header
+ * RevenueCat recommends using an authorization header with a secret token
+ * Set this token in RevenueCat dashboard under Webhook Settings
+ */
 function verifyWebhookSignature(req, secret) {
-  // Implement signature verification
-  // See: https://www.revenuecat.com/docs/webhooks
-  return true;
+  // If no secret configured, skip verification (for development)
+  if (!secret || secret === '') {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('⚠️ RevenueCat webhook secret not configured - skipping verification (development mode)');
+      return true;
+    }
+    // In production, require secret to be configured
+    console.error('❌ RevenueCat webhook secret not configured in production');
+    return false;
+  }
+
+  // RevenueCat sends authorization token in Authorization header
+  // Format: "Bearer <token>" or just "<token>"
+  const authHeader = req.headers['authorization'] || req.headers['x-revenuecat-authorization'];
+  
+  if (!authHeader) {
+    console.error('❌ Missing authorization header in webhook request');
+    return false;
+  }
+
+  // Extract token (handle both "Bearer <token>" and "<token>" formats)
+  const token = authHeader.startsWith('Bearer ') 
+    ? authHeader.substring(7) 
+    : authHeader;
+
+  // Verify token matches secret
+  const isValid = token === secret;
+  
+  if (!isValid) {
+    console.error('❌ Invalid webhook authorization token');
+  }
+  
+  return isValid;
 }
 
 router.post('/revenuecat', async (req, res) => {
@@ -61,7 +96,9 @@ router.post('/revenuecat', async (req, res) => {
           })
           .eq('user_id', userId);
 
-        console.log(`✅ Subscription activated for user ${userId}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✅ Subscription activated for user ${userId}`);
+        }
         break;
 
       case 'CANCELLATION':
@@ -75,11 +112,15 @@ router.post('/revenuecat', async (req, res) => {
           })
           .eq('user_id', userId);
 
-        console.log(`❌ Subscription expired for user ${userId}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`❌ Subscription expired for user ${userId}`);
+        }
         break;
 
       default:
-        console.log(`Ignoring event type: ${event_type}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Ignoring event type: ${event_type}`);
+        }
     }
 
     return res.status(200).json({ success: true });

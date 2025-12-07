@@ -266,13 +266,7 @@ export function AccountCarousel({ onAddAccount, onRefresh }: AccountCarouselProp
   if (state.accounts.length === 0) {
     return (
       <View style={styles.container}>
-        <View style={[
-          styles.scrollContainer,
-          { 
-            alignItems: 'center',
-            justifyContent: 'center'
-          }
-        ]}>
+        <View style={styles.connectBankContainer}>
           <View style={styles.connectBankCardWrapper}>
             <Card style={[styles.connectBankCard, { backgroundColor: colors.card }]} contentStyle={[styles.connectBankCardContent, { backgroundColor: colors.card }]}>
               <TouchableOpacity 
@@ -380,16 +374,19 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     paddingVertical: Spacing.sm,
-    alignItems: 'center',
+    alignItems: 'center', // For horizontal scroll view
+    // No horizontal padding - parent banking screen provides it
+  },
+  connectBankContainer: {
+    paddingVertical: Spacing.sm,
+    alignItems: 'stretch', // Allow card to stretch to full width
     // No horizontal padding - parent banking screen provides it
   },
   accountCardWrapper: {
     marginRight: Spacing.md, // Gap between cards
   },
   connectBankCardWrapper: {
-    width: '100%', // Ensure consistent width across devices
-    maxWidth: 400, // Prevent it from getting too wide on tablets
-    alignSelf: 'center',
+    width: '100%', // Full width to match other cards
   },
   accountCard: {
     position: 'relative',
