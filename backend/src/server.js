@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const plaidRoutes = require('./routes/plaid');
+const mfaRoutes = require('./routes/mfa');
 const webhookRoutes = require('./webhooks/revenuecat-webhook');
 
 const app = express();
@@ -100,6 +101,12 @@ app.get('/plaid/redirect', async (req, res) => {
 
 // API routes
 app.use('/api/plaid', plaidRoutes);
+app.use('/api/mfa', mfaRoutes);
+
+// Log registered routes for debugging
+console.log('✅ API Routes registered:');
+console.log('   - /api/plaid/*');
+console.log('   - /api/mfa/*');
 
 // Webhook routes (must be before body parsing middleware to capture raw body if needed)
 app.use('/api/webhooks', webhookRoutes);
@@ -163,7 +170,14 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+  console.log(`[404] Route not found: ${req.method} ${req.originalUrl}`);
+  console.log(`[404] Available routes: /api/plaid/*, /api/mfa/*, /health`);
+  res.status(404).json({ 
+    error: 'Route not found',
+    method: req.method,
+    path: req.originalUrl,
+    hint: 'Available routes: /api/plaid/*, /api/mfa/*, /health'
+  });
 });
 
 // Start server
