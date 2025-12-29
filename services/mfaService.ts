@@ -38,7 +38,7 @@ export interface MFASetupResult {
 /**
  * Send SMS verification code to phone number
  */
-export async function sendSMSVerificationCode(phoneNumber: string, userId: string): Promise<{ success: boolean; message?: string }> {
+export async function sendSMSVerificationCode(phoneNumber: string, userId: string): Promise<{ success: boolean; message?: string; code?: string }> {
   try {
     const url = `${API_BASE_URL}/api/mfa/send-code`;
     console.log('[MFA] 📱 Sending SMS code request');
@@ -93,7 +93,14 @@ export async function sendSMSVerificationCode(phoneNumber: string, userId: strin
     // Store full phone number (for resending codes) - in production, encrypt this
     await AsyncStorage.setItem(`${MFA_PHONE_FULL_STORAGE_KEY}_${userId}`, phoneNumber);
 
-    return { success: true, message: data.message || 'Verification code sent' };
+    // In development mode, include the code in the response for testing
+    let message = data.message || 'Verification code sent';
+    if (data.code) {
+      message = `Code sent! Check Railway logs for: ${data.code}`;
+      console.log(`[MFA] 📱 Your verification code: ${data.code}`);
+    }
+
+    return { success: true, message, code: data.code };
   } catch (error) {
     console.error('[MFA] ❌ Error sending SMS verification code:', error);
     

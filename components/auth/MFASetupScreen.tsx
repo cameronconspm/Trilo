@@ -35,6 +35,7 @@ export default function MFASetupScreen({ onComplete, onCancel }: MFASetupScreenP
   const [verificationCode, setVerificationCode] = useState('');
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [devCode, setDevCode] = useState<string | null>(null); // Store dev code for display
 
   // Combine country code and phone number for full phone number
   const getFullPhoneNumber = () => {
@@ -66,6 +67,11 @@ export default function MFASetupScreen({ onComplete, onCancel }: MFASetupScreenP
       const result = await sendSMSVerificationCode(fullPhoneNumber, user.id);
       
       if (result.success) {
+        // In development, store the code if provided
+        if (result.code) {
+          setDevCode(result.code);
+          console.log(`[MFA] 📱 Development mode - Your code: ${result.code}`);
+        }
         setStep('verify');
       } else {
         Alert.alert('Error', result.message || 'Failed to send verification code. Please try again.');
@@ -183,16 +189,19 @@ export default function MFASetupScreen({ onComplete, onCancel }: MFASetupScreenP
     codeInput: {
       backgroundColor: colors.innerCard,
       borderRadius: BorderRadius.md,
-      padding: Spacing.md,
-      ...Typography.body,
+      paddingVertical: Spacing.md,
+      paddingHorizontal: Spacing.md,
       fontSize: 32,
       fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+      fontWeight: '600',
       color: colors.text,
       textAlign: 'center',
       letterSpacing: 12,
       borderWidth: 1,
       borderColor: colors.border,
-      minHeight: 64,
+      height: 64,
+      includeFontPadding: false,
+      lineHeight: Platform.OS === 'ios' ? 38 : 40,
     },
     buttonContainer: {
       marginTop: Spacing.md,
@@ -212,6 +221,22 @@ export default function MFASetupScreen({ onComplete, onCancel }: MFASetupScreenP
     },
     resendButtonDisabled: {
       opacity: 0.5,
+    },
+    devCodeContainer: {
+      marginTop: Spacing.md,
+      padding: Spacing.md,
+      borderRadius: BorderRadius.md,
+      borderWidth: 1,
+      alignItems: 'center',
+    },
+    devCodeLabel: {
+      ...Typography.caption,
+      marginBottom: Spacing.xs,
+    },
+    devCodeText: {
+      ...Typography.h2,
+      fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+      letterSpacing: 4,
     },
   });
 
@@ -312,6 +337,16 @@ export default function MFASetupScreen({ onComplete, onCancel }: MFASetupScreenP
                   autoFocus
                   editable={!verifying}
                 />
+                {devCode && (
+                  <View style={[styles.devCodeContainer, { backgroundColor: `${colors.primary}15`, borderColor: colors.primary }]}>
+                    <Text style={[styles.devCodeLabel, { color: colors.textSecondary }]}>
+                      Development Mode - Your code:
+                    </Text>
+                    <Text style={[styles.devCodeText, { color: colors.primary }]}>
+                      {devCode}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               <View style={styles.buttonContainer}>

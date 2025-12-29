@@ -19,7 +19,8 @@
     "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
-    "plaid": "^12.0.0"
+    "plaid": "^12.0.0",
+    "twilio": "^5.3.5"
   },
   "devDependencies": {
     "jest": "^29.7.0",
