@@ -21,11 +21,7 @@ setInterval(() => {
  * Generate a random 6-digit code
  */
 function generateVerificationCode() {
-  // #region agent log
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  fetch('http://127.0.0.1:7242/ingest/fd030542-01b4-4fd0-bef5-1587e412ee0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mfa.js:24',message:'Code generated',data:{code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'5'})}).catch(()=>{});
-  // #endregion
-  return code;
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 /**
@@ -33,47 +29,54 @@ function generateVerificationCode() {
  * Supports Twilio (recommended) or logs to console in development
  */
 async function sendSMS(phoneNumber, code) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/fd030542-01b4-4fd0-bef5-1587e412ee0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mfa.js:31',message:'sendSMS called',data:{phoneNumber,code,hasTwilioSid:!!process.env.TWILIO_ACCOUNT_SID,hasTwilioToken:!!process.env.TWILIO_AUTH_TOKEN,hasTwilioPhone:!!process.env.TWILIO_PHONE_NUMBER},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'1,2'})}).catch(()=>{});
-  // #endregion
   // Check if Twilio is configured
   if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER) {
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/fd030542-01b4-4fd0-bef5-1587e412ee0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mfa.js:35',message:'Attempting Twilio send',data:{phoneNumber,code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'1,2'})}).catch(()=>{});
-      // #endregion
+      // Validate credentials format before attempting send
+      const accountSid = process.env.TWILIO_ACCOUNT_SID.trim();
+      const authToken = process.env.TWILIO_AUTH_TOKEN.trim();
+      const fromNumber = process.env.TWILIO_PHONE_NUMBER.trim();
+      
+      if (!accountSid.startsWith('AC')) {
+        console.error('[MFA] ⚠️  TWILIO_ACCOUNT_SID should start with "AC". Current value starts with:', accountSid.substring(0, 2));
+      }
+      if (!fromNumber.startsWith('+')) {
+        console.error('[MFA] ⚠️  TWILIO_PHONE_NUMBER should start with "+". Current value:', fromNumber);
+      }
+      
       // Dynamically import Twilio (install with: npm install twilio)
       const twilio = require('twilio');
-      const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+      const client = twilio(accountSid, authToken);
       
       await client.messages.create({
         body: `Your Trilo verification code is: ${code}. This code expires in 10 minutes.`,
         to: phoneNumber,
-        from: process.env.TWILIO_PHONE_NUMBER,
+        from: fromNumber,
       });
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/fd030542-01b4-4fd0-bef5-1587e412ee0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mfa.js:45',message:'Twilio SMS sent successfully',data:{phoneNumber},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'1,2'})}).catch(()=>{});
-      // #endregion
       console.log(`[MFA] SMS code sent to ${phoneNumber} via Twilio`);
       return true;
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/fd030542-01b4-4fd0-bef5-1587e412ee0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mfa.js:48',message:'Twilio send failed',data:{error:error.message,errorName:error.name,phoneNumber},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'1,2,6'})}).catch(()=>{});
-      // #endregion
       console.error('[MFA] Error sending SMS via Twilio:', error);
+      
+      // Provide helpful error messages for common authentication issues
+      if (error.status === 401 || error.code === 20003) {
+        console.error('[MFA] 🔐 Authentication Error (401) - Common causes:');
+        console.error('[MFA]   1. Wrong Account SID (should start with "AC")');
+        console.error('[MFA]   2. Wrong Auth Token (check for typos or extra spaces)');
+        console.error('[MFA]   3. Credentials copied incorrectly from Twilio Console');
+        console.error('[MFA]   4. Using Account SID in place of Auth Token (or vice versa)');
+        console.error('[MFA]   💡 Verify in Railway: Variables → Check all 3 Twilio variables are set correctly');
+      }
+      
       // Fall through to logging for debugging
     }
   }
   
   // Development/fallback: Log the code to console
-  // ⚠️ REMOVE THIS IN PRODUCTION OR WHEN SMS SERVICE IS CONFIGURED
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/fd030542-01b4-4fd0-bef5-1587e412ee0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mfa.js:55',message:'Falling back to console logging',data:{phoneNumber,code,reason:'Twilio not configured'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'1,2'})}).catch(()=>{});
-  // #endregion
-  console.log(`[MFA] ⚠️  SMS Code for ${phoneNumber}: ${code}`);
-  console.log('[MFA] ⚠️  SMS sending not configured - code logged above');
-  console.log('[MFA] ⚠️  To enable SMS: Install Twilio and set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER');
+  // ⚠️ Only logs when Twilio is not configured
+  console.log(`[MFA] ⚠️  SMS sending not configured - code for ${phoneNumber} logged to console`);
+  console.log('[MFA] ⚠️  To enable SMS: Configure Twilio credentials in Railway environment variables');
   
   return true;
 }
@@ -83,28 +86,16 @@ async function sendSMS(phoneNumber, code) {
  * Send SMS verification code to phone number
  */
 router.post('/send-code', async (req, res) => {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/fd030542-01b4-4fd0-bef5-1587e412ee0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mfa.js:66',message:'send-code route called',data:{phone_number:req.body.phone_number,user_id:req.body.user_id,bodyKeys:Object.keys(req.body)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'3,4'})}).catch(()=>{});
-  // #endregion
   try {
     const { phone_number, user_id } = req.body;
 
     if (!phone_number || !user_id) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/fd030542-01b4-4fd0-bef5-1587e412ee0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mfa.js:70',message:'Missing required fields',data:{hasPhone:!!phone_number,hasUserId:!!user_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'4'})}).catch(()=>{});
-      // #endregion
       return res.status(400).json({ error: 'Phone number and user ID are required' });
     }
 
     // Validate phone number format (basic check)
     const phoneDigits = phone_number.replace(/\D/g, '');
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/fd030542-01b4-4fd0-bef5-1587e412ee0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mfa.js:75',message:'Phone validation',data:{phone_number,phoneDigits,digitLength:phoneDigits.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'4'})}).catch(()=>{});
-    // #endregion
     if (phoneDigits.length < 10) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/fd030542-01b4-4fd0-bef5-1587e412ee0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mfa.js:77',message:'Invalid phone format',data:{phoneDigits,digitLength:phoneDigits.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'4'})}).catch(()=>{});
-      // #endregion
       return res.status(400).json({ error: 'Invalid phone number format' });
     }
 
@@ -132,15 +123,10 @@ router.post('/send-code', async (req, res) => {
       phoneNumber: phone_number,
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/fd030542-01b4-4fd0-bef5-1587e412ee0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mfa.js:87',message:'Code stored in memory',data:{key,verificationId,code,storedByKey:verificationCodes.has(key),storedById:verificationCodes.has(`id_${verificationId}`)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'5'})}).catch(()=>{});
-    // #endregion
-
-    // Send SMS (in production, this would actually send SMS)
+    // Send SMS
     await sendSMS(phone_number, code);
 
     console.log(`[MFA] Verification code sent to ${phone_number} for user ${user_id}`);
-    console.log(`[MFA] ⚠️  Code: ${code} (remove this log in production!)`);
 
     res.json({
       success: true,
