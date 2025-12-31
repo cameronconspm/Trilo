@@ -48,18 +48,30 @@ async function sendSMS(phoneNumber, code) {
       const twilio = require('twilio');
       const client = twilio(accountSid, authToken);
       
-      await client.messages.create({
+      const message = await client.messages.create({
         body: `Your Trilo verification code is: ${code}. This code expires in 10 minutes.`,
         to: phoneNumber,
         from: fromNumber,
       });
       
+      // Log Twilio response details for debugging
       console.log(`[MFA] SMS code sent to ${phoneNumber} via Twilio`);
+      console.log(`[MFA] Twilio Message SID: ${message.sid}`);
+      console.log(`[MFA] Twilio Status: ${message.status}`);
+      
+      // Check for common issues
+      if (message.status === 'queued' || message.status === 'sending') {
+        console.log('[MFA] ✅ Message queued successfully. Delivery may take a few moments.');
+      } else if (message.status === 'failed' || message.status === 'undelivered') {
+        console.error(`[MFA] ⚠️  Message status: ${message.status}. Check Twilio Console for details.`);
+        console.error(`[MFA] ⚠️  Common issues: Unverified phone number (trial accounts), invalid number format, or account limitations.`);
+      }
+      
       return true;
     } catch (error) {
       console.error('[MFA] Error sending SMS via Twilio:', error);
       
-      // Provide helpful error messages for common authentication issues
+      // Provide helpful error messages for common issues
       if (error.status === 401 || error.code === 20003) {
         console.error('[MFA] 🔐 Authentication Error (401) - Common causes:');
         console.error('[MFA]   1. Wrong Account SID (should start with "AC")');
@@ -67,7 +79,25 @@ async function sendSMS(phoneNumber, code) {
         console.error('[MFA]   3. Credentials copied incorrectly from Twilio Console');
         console.error('[MFA]   4. Using Account SID in place of Auth Token (or vice versa)');
         console.error('[MFA]   💡 Verify in Railway: Variables → Check all 3 Twilio variables are set correctly');
+      } else if (error.code === 21211 || error.code === 21610) {
+        console.error('[MFA] 📱 Phone Number Error - Common causes:');
+        console.error('[MFA]   1. Invalid phone number format');
+        console.error('[MFA]   2. Unverified phone number (trial accounts can only send to verified numbers)');
+        console.error('[MFA]   3. Phone number not verified in Twilio Console → Phone Numbers → Verified Caller IDs');
+        console.error('[MFA]   💡 For trial accounts: Verify your phone number at https://console.twilio.com/us1/develop/phone-numbers/manage/verified');
+      } else if (error.code === 21608 || error.code === 21614) {
+        console.error('[MFA] ⚠️  Trial Account Limitation:');
+        console.error('[MFA]   Trial accounts can only send SMS to verified phone numbers');
+        console.error('[MFA]   💡 Verify the recipient number in Twilio Console → Phone Numbers → Verified Caller IDs');
+        console.error('[MFA]   💡 Or upgrade to a paid Twilio account for production use');
       }
+      
+      console.error('[MFA] Full Twilio error:', {
+        code: error.code,
+        status: error.status,
+        message: error.message,
+        moreInfo: error.moreInfo,
+      });
       
       // Fall through to logging for debugging
     }
