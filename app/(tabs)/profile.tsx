@@ -34,7 +34,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useSubscription } from '@/context/SubscriptionContext';
 import { usePlaid } from '@/context/PlaidContext';
 import MFASetupScreen from '@/components/auth/MFASetupScreen';
-import { isMFAEnabled, disableMFA, getMFAPhoneNumber } from '@/services/mfaService';
+import { isMFAEnabled, disableMFA, getMFAPhoneNumber, wasMFASetupSkipped } from '@/services/mfaService';
 import { showManageSubscriptions } from '@/lib/revenuecat';
 import { SUBSCRIPTIONS_ENABLED } from '@/constants/features';
 import { useAlert } from '@/hooks/useAlert';
@@ -60,6 +60,7 @@ import {
   Trophy,
   LogOut,
   MessageSquare,
+  AlertCircle,
 } from 'lucide-react-native';
 import NameEditModal from '@/components/modals/NameEditModal';
 import { ModalWrapper } from '@/components/modals/ModalWrapper';
@@ -112,6 +113,7 @@ function ProfileScreenContent() {
   const [showMFASetup, setShowMFASetup] = useState(false);
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState<string>('');
+  const [mfaSetupSkipped, setMfaSetupSkipped] = useState(false);
 
   const { status, subscriptionDetails, trialDaysRemaining, monthlyPackage, annualPackage, purchaseSubscription, checkAccess } = useSubscription();
 
@@ -132,30 +134,40 @@ function ProfileScreenContent() {
     if (user?.id) {
       checkMFAStatus()
         .then((enabled) => {
-        setMfaEnabled(enabled);
+          setMfaEnabled(enabled);
         })
         .catch((error) => {
           console.error('Failed to check MFA status:', error);
           // Default to disabled on error (secure default)
           setMfaEnabled(false);
-      });
+        });
+      
+      // Check if MFA setup was skipped
+      wasMFASetupSkipped(user.id)
+        .then((skipped) => {
+          setMfaSetupSkipped(skipped);
+        })
+        .catch((error) => {
+          console.error('Failed to check if MFA setup was skipped:', error);
+          setMfaSetupSkipped(false);
+        });
       
       // Also load phone number if MFA is enabled
       import('@/services/mfaService')
         .then(({ getMFAPhoneNumber }) => {
           getMFAPhoneNumber(user.id)
             .then((phone) => {
-          if (phone) setPhoneNumber(phone);
+              if (phone) setPhoneNumber(phone);
             })
             .catch((error) => {
               console.error('Failed to load MFA phone number:', error);
               // Silently fail - phone number is optional
-        });
+            });
         })
         .catch((error) => {
           console.error('Failed to import MFA service:', error);
           // Silently fail - MFA service import error
-      });
+        });
     }
   }, [user?.id]);
 
@@ -167,6 +179,7 @@ function ProfileScreenContent() {
     setShowMFASetup(false);
     const enabled = await checkMFAStatus();
     setMfaEnabled(enabled);
+    setMfaSetupSkipped(false); // Clear skip flag when MFA is enabled
   };
 
   const handleMFASetupCancel = () => {
@@ -1156,6 +1169,29 @@ function ProfileScreenContent() {
             </Card>
           )}
 
+          {/* MFA Setup Skipped Notice */}
+          {user && mfaSetupSkipped && !mfaEnabled && (
+            <Card style={[styles.card, { backgroundColor: `${colors.warning || colors.primary}15`, borderWidth: 1, borderColor: `${colors.warning || colors.primary}40` }] as any}>
+              <View style={styles.noticeContainer}>
+                <AlertCircle size={20} color={colors.warning || colors.primary} style={{ marginRight: Spacing.sm }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.noticeTitle, { color: colors.text }]}>
+                    Enable Two-Factor Authentication
+                  </Text>
+                  <Text style={[styles.noticeText, { color: colors.textSecondary }]}>
+                    Protect your account and connect bank accounts securely.
+                  </Text>
+                  <TouchableOpacity
+                    onPress={handleEnableMFA}
+                    style={[styles.noticeButton, { backgroundColor: colors.primary }]}
+                  >
+                    <Text style={styles.noticeButtonText}>Enable MFA</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Card>
+          )}
+
           {/* Security */}
           {user && (
             <Card style={[styles.card, { backgroundColor: colors.card }] as any}>
@@ -1562,6 +1598,31 @@ const styles = StyleSheet.create({
   subscriptionDivider: {
     height: 1,
     marginVertical: Spacing.xs,
+  },
+  noticeContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  noticeTitle: {
+    ...Typography.bodyMedium,
+    fontWeight: '600',
+    marginBottom: Spacing.xs,
+  },
+  noticeText: {
+    ...Typography.caption,
+    marginBottom: Spacing.md,
+    lineHeight: 20,
+  },
+  noticeButton: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignSelf: 'flex-start',
+  },
+  noticeButtonText: {
+    ...Typography.bodyMedium,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   subscriptionHeaderItem: {
     flexDirection: 'row',

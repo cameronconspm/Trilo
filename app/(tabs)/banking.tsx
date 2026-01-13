@@ -76,24 +76,16 @@ export default function BankingScreen() {
       log('[Banking]   isConnecting:', isConnecting);
       log('[Banking]   hasLinkToken:', !!state.linkToken);
       
-      // Check if MFA is enabled but not verified - require verification before Plaid Link
-      // Note: Users without MFA enabled will be prompted to enable it in settings
-      if (mfaEnabled && !mfaVerified) {
+      // REQUIRE MFA before Plaid access - block if not enabled
+      if (!mfaEnabled && user) {
         showAlertModal({
           title: 'Multi-Factor Authentication Required',
-          message: 'Please verify your identity with your authenticator app before connecting a bank account. You can enable MFA in Settings if you haven\'t already.',
+          message: 'Multi-factor authentication is required before connecting bank accounts. This adds an extra layer of security to protect your financial data.',
           type: 'warning',
           actions: [
             { text: 'Cancel', onPress: () => {}, style: 'cancel' },
             {
-              text: 'Verify MFA',
-              onPress: () => {
-                // Navigate to sign-in screen to complete MFA verification
-                router.push('/signin');
-              },
-            },
-            {
-              text: 'Go to Settings',
+              text: 'Enable MFA',
               onPress: () => {
                 router.push('/(tabs)/profile');
               },
@@ -103,26 +95,16 @@ export default function BankingScreen() {
         return;
       }
       
-      // If MFA is not enabled, show warning but allow (for now - in production this should be required)
-      if (!mfaEnabled && user) {
+      // If MFA is enabled but not verified, require verification before Plaid Link
+      if (mfaEnabled && !mfaVerified) {
         showAlertModal({
-          title: 'Enable Multi-Factor Authentication',
-          message: 'For your security and to comply with Plaid requirements, we recommend enabling two-factor authentication before connecting bank accounts.',
+          title: 'Multi-Factor Authentication Required',
+          message: 'Please verify your identity with your phone before connecting a bank account.',
           type: 'warning',
           actions: [
+            { text: 'Cancel', onPress: () => {}, style: 'cancel' },
             {
-              text: 'Continue Anyway',
-              onPress: async () => {
-                // Allow connecting but show warning
-                try {
-                  await openLink();
-                } catch (error) {
-                  // Error handling in openLink
-                }
-              },
-            },
-            {
-              text: 'Enable MFA',
+              text: 'Go to Settings',
               onPress: () => {
                 router.push('/(tabs)/profile');
               },

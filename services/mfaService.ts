@@ -6,6 +6,7 @@ const MFA_PHONE_STORAGE_KEY = '@trilo:mfa_phone';
 const MFA_PHONE_FULL_STORAGE_KEY = '@trilo:mfa_phone_full'; // Encrypted full phone for resending
 const MFA_ENABLED_STORAGE_KEY = '@trilo:mfa_enabled';
 const MFA_VERIFICATION_ID_STORAGE_KEY = '@trilo:mfa_verification_id';
+const MFA_SETUP_SKIPPED_STORAGE_KEY = '@trilo:mfa_setup_skipped';
 
 // Get API base URL (same logic as PlaidContext for consistency)
 const getApiBaseUrl = (): string => {
@@ -212,11 +213,36 @@ export function formatPhoneNumber(phoneNumber: string): string {
 
 /**
  * Check if MFA is enabled for a user
+ * Checks both AsyncStorage and Supabase user metadata for consistency
  */
 export async function isMFAEnabled(userId: string): Promise<boolean> {
   try {
-    const enabled = await AsyncStorage.getItem(`${MFA_ENABLED_STORAGE_KEY}_${userId}`);
-    return enabled === 'true';
+    // Check AsyncStorage first (fast)
+    const localEnabled = await AsyncStorage.getItem(`${MFA_ENABLED_STORAGE_KEY}_${userId}`);
+    
+    // Also check Supabase user metadata for consistency
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (user && !error) {
+        const metadataEnabled = user.user_metadata?.mfa_enabled === true;
+        
+        // If there's a mismatch, prefer metadata (source of truth)
+        if (localEnabled === 'true' !== metadataEnabled) {
+          // Sync AsyncStorage with metadata
+          if (metadataEnabled) {
+            await AsyncStorage.setItem(`${MFA_ENABLED_STORAGE_KEY}_${userId}`, 'true');
+          } else {
+            await AsyncStorage.removeItem(`${MFA_ENABLED_STORAGE_KEY}_${userId}`);
+          }
+          return metadataEnabled;
+        }
+      }
+    } catch (metadataError) {
+      // If metadata check fails, fall back to local storage
+      console.warn('Failed to check MFA status from metadata:', metadataError);
+    }
+    
+    return localEnabled === 'true';
   } catch (error) {
     console.error('Error checking MFA status:', error);
     return false;
@@ -225,16 +251,20 @@ export async function isMFAEnabled(userId: string): Promise<boolean> {
 
 /**
  * Enable MFA for a user (after successful setup)
+ * Updates both AsyncStorage and Supabase user metadata atomically
  */
 export async function enableMFA(userId: string, phoneNumber: string): Promise<void> {
   try {
-    await AsyncStorage.setItem(`${MFA_ENABLED_STORAGE_KEY}_${userId}`, 'true');
-    
     // Store masked phone number for display
     const maskedPhone = maskPhoneNumber(phoneNumber);
+    
+    // Update local storage first
+    await AsyncStorage.setItem(`${MFA_ENABLED_STORAGE_KEY}_${userId}`, 'true');
     await AsyncStorage.setItem(`${MFA_PHONE_STORAGE_KEY}_${userId}`, maskedPhone);
-    // Store full phone number for resending (in production, encrypt this)
     await AsyncStorage.setItem(`${MFA_PHONE_FULL_STORAGE_KEY}_${userId}`, phoneNumber);
+    
+    // Clear skipped flag if it exists
+    await AsyncStorage.removeItem(`${MFA_SETUP_SKIPPED_STORAGE_KEY}_${userId}`);
     
     // Update Supabase user metadata
     const { error } = await supabase.auth.updateUser({
@@ -248,6 +278,7 @@ export async function enableMFA(userId: string, phoneNumber: string): Promise<vo
     
     if (error) {
       console.warn('Failed to update user metadata with MFA status:', error);
+      // Don't throw - local storage is updated, metadata will sync on next check
     }
   } catch (error) {
     console.error('Error enabling MFA:', error);
@@ -257,9 +288,11 @@ export async function enableMFA(userId: string, phoneNumber: string): Promise<vo
 
 /**
  * Disable MFA for a user
+ * Updates both AsyncStorage and Supabase user metadata
  */
 export async function disableMFA(userId: string): Promise<void> {
   try {
+    // Remove from local storage
     await AsyncStorage.removeItem(`${MFA_ENABLED_STORAGE_KEY}_${userId}`);
     await AsyncStorage.removeItem(`${MFA_PHONE_STORAGE_KEY}_${userId}`);
     await AsyncStorage.removeItem(`${MFA_PHONE_FULL_STORAGE_KEY}_${userId}`);
@@ -272,6 +305,7 @@ export async function disableMFA(userId: string): Promise<void> {
     
     if (error) {
       console.warn('Failed to update user metadata with MFA status:', error);
+      // Don't throw - local storage is updated, metadata will sync on next check
     }
   } catch (error) {
     console.error('Error disabling MFA:', error);
@@ -288,6 +322,43 @@ export async function getMFAPhoneNumber(userId: string): Promise<string | null> 
   } catch (error) {
     console.error('Error getting MFA phone number:', error);
     return null;
+  }
+}
+
+/**
+ * Mark MFA setup as skipped for a user
+ */
+export async function markMFASetupSkipped(userId: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(`${MFA_SETUP_SKIPPED_STORAGE_KEY}_${userId}`, 'true');
+  } catch (error) {
+    console.error('Error marking MFA setup as skipped:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check if MFA setup was skipped for a user
+ */
+export async function wasMFASetupSkipped(userId: string): Promise<boolean> {
+  try {
+    const skipped = await AsyncStorage.getItem(`${MFA_SETUP_SKIPPED_STORAGE_KEY}_${userId}`);
+    return skipped === 'true';
+  } catch (error) {
+    console.error('Error checking if MFA setup was skipped:', error);
+    return false;
+  }
+}
+
+/**
+ * Clear the skipped flag (when user enables MFA)
+ */
+export async function clearMFASetupSkipped(userId: string): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(`${MFA_SETUP_SKIPPED_STORAGE_KEY}_${userId}`);
+  } catch (error) {
+    console.error('Error clearing MFA setup skipped flag:', error);
+    // Don't throw - this is not critical
   }
 }
 

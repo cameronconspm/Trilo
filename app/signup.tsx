@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -19,6 +20,8 @@ import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius, Shadow } from '@/constants/spacing';
 import { useRouter } from 'expo-router';
 import { Mail, Lock, ArrowRight, Sparkles, Check } from 'lucide-react-native';
+import MFASetupScreen from '@/components/auth/MFASetupScreen';
+import { markMFASetupSkipped } from '@/services/mfaService';
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState('');
@@ -26,11 +29,20 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showMFASetup, setShowMFASetup] = useState(false);
+  const [signupCompleted, setSignupCompleted] = useState(false);
 
-  const { signUp } = useAuth();
+  const { signUp, user } = useAuth();
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
   const router = useRouter();
+
+  // Show MFA setup modal after user is created
+  useEffect(() => {
+    if (signupCompleted && user?.id && !showMFASetup) {
+      setShowMFASetup(true);
+    }
+  }, [signupCompleted, user, showMFASetup]);
 
   const handleSignUp = async () => {
     if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
@@ -53,15 +65,32 @@ export default function SignUpScreen() {
 
     try {
       await signUp(email.trim(), password);
-      // Auto-redirect to home screen after successful signup
-      // AuthContext will handle navigation automatically
-      // No alert needed - smooth transition to app
+      setSignupCompleted(true);
+      // MFA setup modal will be shown via useEffect when user is available
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign up');
       Alert.alert('Sign Up Failed', err instanceof Error ? err.message : 'Failed to sign up');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMFASetupComplete = () => {
+    setShowMFASetup(false);
+    // AuthContext will handle navigation automatically after signup
+  };
+
+  const handleMFASetupSkip = async () => {
+    if (user?.id) {
+      try {
+        await markMFASetupSkipped(user.id);
+      } catch (error) {
+        console.error('Failed to mark MFA setup as skipped:', error);
+        // Don't block the user if this fails
+      }
+    }
+    setShowMFASetup(false);
+    // AuthContext will handle navigation automatically after signup
   };
 
   const handleSignIn = () => {
@@ -353,6 +382,21 @@ export default function SignUpScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* MFA Setup Modal */}
+      {showMFASetup && user?.id && (
+        <Modal
+          visible={showMFASetup}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={handleMFASetupSkip}
+        >
+          <MFASetupScreen
+            onComplete={handleMFASetupComplete}
+            onCancel={handleMFASetupSkip}
+          />
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
