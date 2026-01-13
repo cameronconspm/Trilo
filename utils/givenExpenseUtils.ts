@@ -135,7 +135,7 @@ export function getGivenExpenseDatesInRange(
         daysUntilFirst += 7;
       }
       
-      let nextDate = new Date(current);
+      const nextDate = new Date(current);
       nextDate.setDate(current.getDate() + daysUntilFirst);
       
       // Add all occurrences in range
@@ -151,7 +151,7 @@ export function getGivenExpenseDatesInRange(
       scheduleStartDate.setHours(0, 0, 0, 0);
       
       // Find first occurrence in or after range start
-      let checkDate = new Date(Math.max(current.getTime(), scheduleStartDate.getTime()));
+      const checkDate = new Date(Math.max(current.getTime(), scheduleStartDate.getTime()));
       
       // Find the first valid occurrence
       while (checkDate <= end) {
@@ -174,7 +174,7 @@ export function getGivenExpenseDatesInRange(
       const scheduleStartDate = new Date(schedule.startDate);
       const dayOfMonth = scheduleStartDate.getDate();
       
-      let checkDate = new Date(current.getFullYear(), current.getMonth(), dayOfMonth);
+      const checkDate = new Date(current.getFullYear(), current.getMonth(), dayOfMonth);
       
       // If this month's date is in the past, start from next month
       if (checkDate < current) {
@@ -260,7 +260,7 @@ export function getGivenExpenseDateForPayPeriod(
   payPeriodStart: Date,
   payPeriodEnd: Date
 ): Date | null {
-  const dates = getGivenExpenseDatesInRange(payPeriodStart, payPeriodEnd);
+  const dates = getGivenExpenseDatesInRange(schedule, payPeriodStart, payPeriodEnd);
   // Return the first (and usually only) occurrence in the pay period
   return dates.length > 0 ? dates[0] : null;
 }

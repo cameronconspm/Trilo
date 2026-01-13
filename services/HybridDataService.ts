@@ -8,7 +8,7 @@ import { SupabaseDataService } from './SupabaseDataService';
  * Tries Supabase first, falls back to local storage if Supabase is unavailable
  */
 
-interface HybridDataService {
+export interface HybridDataService {
   getTransactions(): Promise<Transaction[]>;
   saveTransaction(transaction: Transaction): Promise<void>;
   updateTransaction(id: string, updates: Partial<Transaction>): Promise<void>;

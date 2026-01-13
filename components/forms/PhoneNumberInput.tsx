@@ -99,19 +99,17 @@ export default function PhoneNumberInput({
   );
 
   const formattedValue = useMemo(() => {
-    const digits = parsePhoneNumber(value);
-    return formatPhoneNumber(digits);
+    return formatPhoneNumber(value);
   }, [value]);
 
   const handlePhoneChange = (text: string) => {
-    // Only allow digits
+    // Extract only digits from the input
     const digits = text.replace(/\D/g, '');
     
     // Limit to 10 digits for US/Canada format
     const limited = digits.slice(0, 10);
     
-    // Call onChangeText with the full phone number (country code + digits)
-    // The parent component will handle combining them
+    // Update parent component with digits only
     onChangeText(limited);
   };
 
@@ -125,17 +123,17 @@ export default function PhoneNumberInput({
       marginBottom: Spacing.lg,
     },
     label: {
-      ...Typography.body,
+      ...Typography.label,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: Spacing.sm,
+      marginBottom: Spacing.xs,
     },
     inputRow: {
       flexDirection: 'row',
       gap: Spacing.sm,
     },
     countryCodeButton: {
-      backgroundColor: colors.innerCard,
+      backgroundColor: colors.cardSecondary,
       borderRadius: BorderRadius.md,
       borderWidth: 1,
       borderColor: error ? colors.error : colors.border,
@@ -145,6 +143,7 @@ export default function PhoneNumberInput({
       alignItems: 'center',
       justifyContent: 'center',
       minWidth: 100,
+      height: 48,
     },
     countryCodeText: {
       ...Typography.body,
@@ -154,15 +153,15 @@ export default function PhoneNumberInput({
     },
     phoneInput: {
       flex: 1,
-      backgroundColor: colors.innerCard,
+      backgroundColor: colors.cardSecondary,
       borderRadius: BorderRadius.md,
-      padding: Spacing.md,
+      paddingHorizontal: Spacing.md,
+      height: 48,
       ...Typography.body,
       fontSize: 17,
       color: colors.text,
       borderWidth: 1,
       borderColor: error ? colors.error : colors.border,
-      minHeight: 52,
     },
     errorText: {
       ...Typography.caption,

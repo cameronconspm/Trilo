@@ -23,16 +23,23 @@ interface SettingsContextType {
 
 const DEFAULT_CONTEXT_VALUE: SettingsContextType = {
   theme: 'system',
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   setTheme: async () => {},
   isBankConnected: false,
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   connectBank: async () => {},
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   disconnectBank: async () => {},
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   resetData: async () => {},
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   resetDataSelective: async () => {},
   isLoading: true,
   nickname: '',
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   setNickname: async () => {},
   avatarUri: null,
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   setAvatarUri: async () => {},
 };
 

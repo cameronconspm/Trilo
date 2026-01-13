@@ -3,19 +3,8 @@ const router = express.Router();
 const crypto = require('crypto');
 const supabase = require('../config/supabase');
 
-// In-memory store for verification codes (in production, use Redis or database)
-// Format: { userId_phone: { code: string, expiresAt: number, attempts: number } }
-const verificationCodes = new Map();
-
-// Clean up expired codes every 10 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of verificationCodes.entries()) {
-    if (value.expiresAt < now) {
-      verificationCodes.delete(key);
-    }
-  }
-}, 10 * 60 * 1000);
+// Database storage for verification codes (secure, persistent)
+// Codes are stored in mfa_verification_codes table
 
 /**
  * Generate a random 6-digit code
@@ -44,26 +33,74 @@ async function sendSMS(phoneNumber, code) {
         console.error('[MFA] ⚠️  TWILIO_PHONE_NUMBER should start with "+". Current value:', fromNumber);
       }
       
+      // Normalize phone numbers to E.164 format (no spaces, dashes, or parentheses)
+      // Remove all non-digit characters except leading +
+      const normalizePhone = (num) => {
+        if (num.startsWith('+')) {
+          return '+' + num.slice(1).replace(/\D/g, '');
+        }
+        return num.replace(/\D/g, '');
+      };
+      
+      const normalizedTo = normalizePhone(phoneNumber);
+      const normalizedFrom = normalizePhone(fromNumber);
+      
+      console.log(`[MFA] Sending SMS - To: ${normalizedTo}, From: ${normalizedFrom}`);
+      console.log(`[MFA] Original formats - To: ${phoneNumber}, From: ${fromNumber}`);
+      
       // Dynamically import Twilio (install with: npm install twilio)
       const twilio = require('twilio');
       const client = twilio(accountSid, authToken);
       
       const message = await client.messages.create({
         body: `Your Trilo verification code is: ${code}. This code expires in 10 minutes.`,
-        to: phoneNumber,
-        from: fromNumber,
+        to: normalizedTo,
+        from: normalizedFrom,
       });
       
       // Log Twilio response details for debugging
       console.log(`[MFA] SMS code sent to ${phoneNumber} via Twilio`);
       console.log(`[MFA] Twilio Message SID: ${message.sid}`);
       console.log(`[MFA] Twilio Status: ${message.status}`);
+      console.log(`[MFA] To: ${normalizedTo}, From: ${normalizedFrom}`);
       
       // Check for common issues
       if (message.status === 'queued' || message.status === 'sending') {
         console.log('[MFA] ✅ Message queued successfully. Delivery may take a few moments.');
+        
+        // Check message status after a short delay to see if delivery succeeded
+        setTimeout(async () => {
+          try {
+            const updatedMessage = await client.messages(message.sid).fetch();
+            console.log(`[MFA] Message status check (after delay): ${updatedMessage.status}`);
+            console.log(`[MFA] Error Code: ${updatedMessage.errorCode || 'none'}`);
+            console.log(`[MFA] Error Message: ${updatedMessage.errorMessage || 'none'}`);
+            
+            if (updatedMessage.status === 'failed' || updatedMessage.status === 'undelivered') {
+              console.error(`[MFA] ❌ Message delivery failed!`);
+              console.error(`[MFA] Error Code: ${updatedMessage.errorCode}`);
+              console.error(`[MFA] Error Message: ${updatedMessage.errorMessage}`);
+              
+              // Common error codes
+              if (updatedMessage.errorCode === 21211) {
+                console.error('[MFA] ⚠️  Invalid phone number format');
+              } else if (updatedMessage.errorCode === 21610 || updatedMessage.errorCode === 21614) {
+                console.error('[MFA] ⚠️  Unverified phone number (trial accounts can only send to verified numbers)');
+                console.error('[MFA] 💡 Verify the number at: https://console.twilio.com/us1/develop/phone-numbers/manage/verified');
+              } else if (updatedMessage.errorCode === 30008) {
+                console.error('[MFA] ⚠️  Unknown destination handset');
+              }
+            } else if (updatedMessage.status === 'sent' || updatedMessage.status === 'delivered') {
+              console.log(`[MFA] ✅ Message ${updatedMessage.status} successfully!`);
+            }
+          } catch (statusError) {
+            console.error('[MFA] Error checking message status:', statusError.message);
+          }
+        }, 3000); // Check after 3 seconds
       } else if (message.status === 'failed' || message.status === 'undelivered') {
         console.error(`[MFA] ⚠️  Message status: ${message.status}. Check Twilio Console for details.`);
+        console.error(`[MFA] Error Code: ${message.errorCode || 'none'}`);
+        console.error(`[MFA] Error Message: ${message.errorMessage || 'none'}`);
         console.error(`[MFA] ⚠️  Common issues: Unverified phone number (trial accounts), invalid number format, or account limitations.`);
       }
       
@@ -134,24 +171,22 @@ router.post('/send-code', async (req, res) => {
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
     const verificationId = crypto.randomBytes(16).toString('hex');
 
-    // Store verification code
-    const key = `${user_id}_${phone_number}`;
-    verificationCodes.set(key, {
-      code,
-      expiresAt,
-      attempts: 0,
-      verificationId,
-      phoneNumber: phone_number,
-    });
+    // Store verification code in database
+    const expiresAtISO = new Date(expiresAt).toISOString();
+    const { error: insertError } = await supabase
+      .from('mfa_verification_codes')
+      .insert({
+        verification_id: verificationId,
+        user_id: user_id,
+        phone_number: phone_number,
+        code: code,
+        attempts: 0,
+        expires_at: expiresAtISO,
+      });
 
-    // Store by verification ID for lookup
-    verificationCodes.set(`id_${verificationId}`, {
-      code,
-      expiresAt,
-      attempts: 0,
-      userId: user_id,
-      phoneNumber: phone_number,
-    });
+    if (insertError) {
+      throw new Error(`Failed to store verification code: ${insertError.message}`);
+    }
 
     // Send SMS
     await sendSMS(phone_number, code);
@@ -184,45 +219,53 @@ router.post('/verify-code', async (req, res) => {
       return res.status(400).json({ error: 'Verification ID, code, and user ID are required' });
     }
 
-    // Look up verification by ID
-    const stored = verificationCodes.get(`id_${verification_id}`);
+    // Look up verification by ID from database
+    const { data: storedData, error: fetchError } = await supabase
+      .from('mfa_verification_codes')
+      .select('*')
+      .eq('verification_id', verification_id)
+      .single();
 
-    if (!stored) {
+    if (fetchError || !storedData) {
       return res.status(400).json({ verified: false, error: 'Invalid verification ID' });
     }
 
     // Check if expired
-    if (stored.expiresAt < Date.now()) {
-      verificationCodes.delete(`id_${verification_id}`);
+    const expiresAt = new Date(storedData.expires_at).getTime();
+    if (expiresAt < Date.now()) {
+      // Clean up expired code
+      await supabase.from('mfa_verification_codes').delete().eq('verification_id', verification_id);
       return res.status(400).json({ verified: false, error: 'Verification code expired' });
     }
 
     // Check attempt limit (prevent brute force)
-    if (stored.attempts >= 5) {
-      verificationCodes.delete(`id_${verification_id}`);
+    if (storedData.attempts >= 5) {
+      // Clean up code after max attempts
+      await supabase.from('mfa_verification_codes').delete().eq('verification_id', verification_id);
       return res.status(400).json({ verified: false, error: 'Too many attempts. Please request a new code.' });
     }
 
-    stored.attempts += 1;
+    // Increment attempts
+    const newAttempts = storedData.attempts + 1;
+    await supabase
+      .from('mfa_verification_codes')
+      .update({ attempts: newAttempts })
+      .eq('verification_id', verification_id);
 
     // Verify code
-    if (stored.code === code.trim()) {
-      // Code is correct - clean up
-      verificationCodes.delete(`id_${verification_id}`);
-      
-      // Also clean up by user_id_phone key
-      const key = `${stored.userId}_${stored.phoneNumber}`;
-      verificationCodes.delete(key);
+    if (storedData.code === code.trim()) {
+      // Code is correct - clean up from database
+      await supabase.from('mfa_verification_codes').delete().eq('verification_id', verification_id);
 
       // Update user metadata in Supabase (optional)
       try {
         const { error: updateError } = await supabase.auth.admin.updateUserById(
-          stored.userId,
+          storedData.user_id,
           {
             user_metadata: {
               mfa_enabled: true,
               mfa_enabled_at: new Date().toISOString(),
-              mfa_phone: stored.phoneNumber,
+              mfa_phone: storedData.phone_number,
             },
           }
         );
@@ -235,11 +278,11 @@ router.post('/verify-code', async (req, res) => {
         console.warn('[MFA] Error updating user metadata:', metadataError);
       }
 
-      console.log(`[MFA] Verification successful for user ${stored.userId}`);
+      console.log(`[MFA] Verification successful for user ${storedData.user_id}`);
       res.json({ verified: true });
     } else {
       // Code is incorrect
-      console.log(`[MFA] Verification failed for user ${stored.userId} (attempt ${stored.attempts}/5)`);
+      console.log(`[MFA] Verification failed for user ${storedData.user_id} (attempt ${newAttempts}/5)`);
       res.status(400).json({ verified: false, error: 'Invalid verification code' });
     }
   } catch (error) {

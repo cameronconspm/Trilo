@@ -118,7 +118,7 @@ export function getPayDatesForMonth(
     const payDates: Date[] = [];
 
     switch (paySchedule.cadence) {
-      case 'twice_monthly':
+      case 'twice_monthly': {
         if (paySchedule.monthlyDays) {
           paySchedule.monthlyDays.forEach(day => {
             const date = new Date(year, month, day);
@@ -129,8 +129,9 @@ export function getPayDatesForMonth(
           });
         }
         break;
+      }
 
-      case 'custom':
+      case 'custom': {
         if (paySchedule.customDays) {
           paySchedule.customDays.forEach(day => {
             const date = new Date(year, month, day);
@@ -141,17 +142,19 @@ export function getPayDatesForMonth(
           });
         }
         break;
+      }
 
-      case 'monthly':
+      case 'monthly': {
         const lastPaid = new Date(paySchedule.lastPaidDate);
         const monthlyDate = new Date(year, month, lastPaid.getDate());
         if (monthlyDate.getMonth() === month) {
           payDates.push(monthlyDate);
         }
         break;
+      }
 
       case 'weekly':
-      case 'every_2_weeks':
+      case 'every_2_weeks': {
         // Calculate all occurrences in the month
         const startOfMonth = new Date(year, month, 1);
         const endOfMonth = new Date(year, month + 1, 0);
@@ -184,6 +187,7 @@ export function getPayDatesForMonth(
           currentDate = result.date;
         }
         break;
+      }
     }
 
     return { dates: payDates };

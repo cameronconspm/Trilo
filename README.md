@@ -31,6 +31,38 @@ This will:
 2. Scan the QR code with your device's camera (iOS) or Expo Go app (Android)
 3. The app will load automatically in Expo Go
 
+## ⚙️ **Environment Configuration**
+
+Trilo uses environment variables for API keys and configuration. For development, create a `.env.local` file in the project root:
+
+```bash
+# Copy the example file
+cp .env.example .env.local
+
+# Edit .env.local with your actual keys
+```
+
+### Required Environment Variables
+
+- `EXPO_PUBLIC_SUPABASE_URL` - Your Supabase project URL
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY` - Supabase anonymous key (safe to expose)
+- `EXPO_PUBLIC_PLAID_API_URL` - Your backend Plaid API endpoint
+- `EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` - RevenueCat iOS API key (for subscriptions)
+- `EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID` - RevenueCat Android API key (for subscriptions)
+
+**Note**: The app will work without these in development mode (uses fallbacks), but they're required for production builds.
+
+### Production Builds
+
+For production builds with EAS, use EAS Secrets:
+
+```bash
+eas secret:create --scope project --name EXPO_PUBLIC_REVENUECAT_API_KEY_IOS --value your_key
+eas secret:create --scope project --name EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID --value your_key
+```
+
+See `.env.example` for detailed configuration instructions.
+
 ## 🛠️ **Available Scripts**
 
 | Command | Description | Use Case |

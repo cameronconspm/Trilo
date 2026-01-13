@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Transaction,
@@ -22,6 +23,8 @@ import { SyncService } from '@/services/SyncService';
 import { WidgetSyncService } from '@/services/WidgetSyncService';
 import { log, warn, error as logError } from '@/utils/logger';
 import { generateUUID } from '@/utils/uuidUtils';
+import { supabase } from '@/lib/supabase';
+import { STATE_SYNC_TIMEOUTS } from '@/constants/timing';
 
 interface Milestone {
   id: string;
@@ -163,6 +166,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, [user?.id]);
 
   // Check for external data clearing (like reset data)
+  // Use AppState listener instead of polling to save battery
   useEffect(() => {
     const checkForDataReset = async () => {
       try {
@@ -186,28 +190,48 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // Check every 2 seconds when app is active
-    const interval = setInterval(checkForDataReset, 2000);
-    return () => clearInterval(interval);
+    // Check immediately on mount
+    checkForDataReset();
+
+    // Only check when app comes to foreground (much more battery-efficient than polling)
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        checkForDataReset();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, [transactions.length]);
 
-  // Calculate insights whenever transactions change - real-time sync
+  // Consolidated calculation effect - runs calculations when transactions change or loading completes
+  // Uses debouncing to prevent excessive calculations during rapid state changes
   useEffect(() => {
-    if (!isLoading && transactions.length >= 0) {
-      // Immediate calculation for real-time updates
+    if (isLoading) {
+      return;
+    }
+
+    // Skip if no transactions (will be handled by initial load effect)
+    if (transactions.length === 0) {
+      return;
+    }
+
       log(`FinanceContext: Recalculating insights for ${transactions.length} transactions`);
-      // Use a small delay to ensure state is stable
+    
+    // Use a small delay to batch rapid changes (debouncing)
       const timeoutId = setTimeout(() => {
         calculateWeeklyOverview();
         calculateMonthlyInsights();
         calculateBudget();
         // Auto-backup every time data changes
         autoBackup();
-      }, 50);
+    }, STATE_SYNC_TIMEOUTS.FINANCE_CALCULATION_DEBOUNCE);
+
       return () => clearTimeout(timeoutId);
-    }
   }, [transactions.length, isLoading]);
 
+  // Widget sync effect - separate from calculations
   useEffect(() => {
     if (isLoading) {
       return;
@@ -230,32 +254,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     syncWidget();
   }, [isLoading, weeklyOverview.upcomingExpenses]);
 
-  // Additional effect to ensure immediate UI updates when transactions are modified
-  useEffect(() => {
-    if (!isLoading && transactions.length >= 0) {
-      // Force recalculation on any transaction array change
-      const timeoutId = setTimeout(() => {
-        calculateWeeklyOverview();
-        calculateMonthlyInsights();
-        calculateBudget();
-      }, 0);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [transactions.length, isLoading]);
-
-  // Ensure calculations run when loading completes (initial load fix)
-  // This effect ensures the UI updates on initial app load when data finishes loading
-  useEffect(() => {
-    if (!isLoading && transactions.length >= 0) {
-      // Run calculations immediately when loading completes
-      // The transactions.length >= 0 check ensures this runs even with empty transactions
-      calculateWeeklyOverview();
-      calculateMonthlyInsights();
-      calculateBudget();
-    }
-  }, [isLoading, transactions.length]);
-
   const loadAllData = async () => {
     try {
       setIsLoading(true);
@@ -271,15 +269,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         if (cloudTransactions && cloudTransactions.length > 0) {
           log(`FinanceContext: Loaded ${cloudTransactions.length} transactions from cloud`);
           setTransactions(cloudTransactions);
-          // Calculate immediately after setting transactions, then mark as loaded
-          // Use setTimeout to ensure state has updated before calculations
-          setTimeout(() => {
-            calculateWeeklyOverview();
-            calculateMonthlyInsights();
-            calculateBudget();
+          // Mark as loaded - calculations will run via the consolidated useEffect
+          // No need for setTimeout here - the effect will trigger when transactions change
             setIsLoading(false);
-            log('FinanceContext: Cloud data calculations completed');
-          }, 100);
+          log('FinanceContext: Cloud data loaded, calculations will run via effect');
           return;
         } else {
           log('FinanceContext: No cloud data (or test account), loading from local storage');
@@ -370,28 +363,17 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       // We'll use transactions.length in the calculations which reads from state
       const transactionCount = transactions.length;
       
-      // Ensure calculations run before marking as loaded
-      // Use setTimeout to ensure state has updated
-      setTimeout(() => {
-        // Use transactions from state (via closure) - it will have the updated value
-        log(`FinanceContext: Running calculations for transactions`);
-        calculateWeeklyOverview();
-        calculateMonthlyInsights();
-        calculateBudget();
+      // Mark as loaded - calculations will run via the consolidated useEffect
+      // No need for setTimeout here - the effect will trigger when transactions change
         setIsLoading(false);
-        log('FinanceContext: Calculations completed, loading state cleared');
-      }, 100); // Increased delay to ensure state is fully updated
+      log('FinanceContext: Local data loaded, calculations will run via effect');
     } catch (error) {
       logError('FinanceContext: Error loading financial data:', error);
       // Try to recover from backup
       await recoverFromBackup();
-      // Even on error, ensure loading state is cleared
-      setTimeout(() => {
-        calculateWeeklyOverview();
-        calculateMonthlyInsights();
-        calculateBudget();
+      // Mark as loaded - calculations will run via the consolidated useEffect
+      // No need for setTimeout here - the effect will trigger when transactions change
         setIsLoading(false);
-      }, 0);
     }
   };
 
@@ -450,9 +432,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const saveTransactions = async (newTransactions: Transaction[]) => {
     try {
-      console.log(`[SETUP DEBUG] saveTransactions called with ${newTransactions.length} transactions`);
-      console.log(`[SETUP DEBUG] Using storage key: ${STORAGE_KEYS.TRANSACTIONS}`);
-      console.log(`[SETUP DEBUG] UserId in context: ${userId}`);
+      log(`FinanceContext: saveTransactions called with ${newTransactions.length} transactions`);
+      log(`FinanceContext: Using storage key: ${STORAGE_KEYS.TRANSACTIONS}`);
+      log(`FinanceContext: UserId in context: ${userId}`);
       log(`FinanceContext: saveTransactions called with ${newTransactions.length} transactions`);
       log(`FinanceContext: Using storage key: ${STORAGE_KEYS.TRANSACTIONS}`);
       
@@ -462,19 +444,19 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       }
       
       const dataToSave = JSON.stringify(newTransactions);
-      console.log(`[SETUP DEBUG] Data to save size: ${dataToSave.length} bytes`);
+      log(`FinanceContext: Data to save size: ${dataToSave.length} bytes`);
       log(`FinanceContext: Data to save size: ${dataToSave.length} bytes`);
       
       // Save to storage
-      console.log(`[SETUP DEBUG] Calling AsyncStorage.setItem with key: ${STORAGE_KEYS.TRANSACTIONS}`);
+      log(`FinanceContext: Calling AsyncStorage.setItem with key: ${STORAGE_KEYS.TRANSACTIONS}`);
       await AsyncStorage.setItem(STORAGE_KEYS.TRANSACTIONS, dataToSave);
-      console.log('[SETUP DEBUG] AsyncStorage.setItem completed');
+      log('FinanceContext: AsyncStorage.setItem completed');
       log('FinanceContext: AsyncStorage.setItem completed');
       
       // Immediately verify the save
-      console.log(`[SETUP DEBUG] Verifying save with key: ${STORAGE_KEYS.TRANSACTIONS}`);
+      log(`FinanceContext: Verifying save with key: ${STORAGE_KEYS.TRANSACTIONS}`);
       const verification = await AsyncStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
-      console.log(`[SETUP DEBUG] Verification result: ${verification ? 'Found data' : 'NO DATA FOUND'}`);
+      log(`FinanceContext: Verification result: ${verification ? 'Found data' : 'NO DATA FOUND'}`);
       
       if (!verification) {
         const error = new Error('Save verification failed - data not found in storage after save');
@@ -482,14 +464,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         console.error(`[SETUP DEBUG] Storage key used: ${STORAGE_KEYS.TRANSACTIONS}`);
         // Debug: List all keys to see what's in storage
         const allKeys = await AsyncStorage.getAllKeys();
-        console.log(`[SETUP DEBUG] All storage keys:`, allKeys.filter(k => k.includes('finance') || k.includes('transaction')));
+        log(`FinanceContext: All storage keys:`, allKeys.filter(k => k.includes('finance') || k.includes('transaction')));
         logError('FinanceContext: Save verification failed', error);
         logError(`FinanceContext: Storage key: ${STORAGE_KEYS.TRANSACTIONS}`);
         throw error;
       }
       
       const parsed = JSON.parse(verification);
-      console.log(`[SETUP DEBUG] Parsed ${parsed.length} transactions from verification`);
+      log(`FinanceContext: Parsed ${parsed.length} transactions from verification`);
       
       if (!Array.isArray(parsed)) {
         const error = new Error('Save verification failed - data is not an array');
@@ -506,7 +488,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
       
-      console.log(`[SETUP DEBUG] Successfully saved and verified ${newTransactions.length} transactions`);
+      log(`FinanceContext: Successfully saved and verified ${newTransactions.length} transactions`);
       log(
         `FinanceContext: Successfully saved and verified ${newTransactions.length} transactions to storage`
       );
@@ -1099,12 +1081,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       });
 
       // Save to storage (await to ensure it completes)
-      console.log(`[SETUP DEBUG] FinanceContext: Saving ${updatedTransactions.length} transactions to storage key: ${STORAGE_KEYS.TRANSACTIONS}`);
-      console.log(`[SETUP DEBUG] FinanceContext: UserId: ${userId}`);
-      console.log(`[SETUP DEBUG] FinanceContext: Storage key should be: finance_transactions_v2_${userId}`);
       log(`FinanceContext: Saving ${updatedTransactions.length} transactions to storage key: ${STORAGE_KEYS.TRANSACTIONS}`);
+      log(`FinanceContext: UserId: ${userId}`);
+      log(`FinanceContext: Storage key should be: finance_transactions_v2_${userId}`);
       await saveTransactions(updatedTransactions);
-      console.log('[SETUP DEBUG] FinanceContext: Save completed, verifying...');
       log('FinanceContext: Save completed, verifying...');
       
       // Verify the save was successful immediately
@@ -1208,6 +1188,33 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         STORAGE_KEYS.PLANNING_STREAK,
         'finance_auto_backup',
       ]);
+      
+      // Clear from Supabase if available
+      try {
+        // Clear all transactions from cloud (includes income since income is stored as transactions with type='income')
+        const { error } = await supabase
+          .from('user_transactions')
+          .delete()
+          .eq('user_id', userId);
+        
+        if (error) {
+          log('FinanceContext: Could not clear Supabase (may not be available):', error);
+        }
+        
+        // Also clear income from user_income table if it exists
+        const { error: incomeError } = await supabase
+          .from('user_income')
+          .delete()
+          .eq('user_id', userId);
+        
+        if (incomeError && incomeError.code !== '42P01') { // 42P01 = table doesn't exist
+          log('FinanceContext: Could not clear income from Supabase:', incomeError);
+        }
+      } catch (supabaseError) {
+        log('FinanceContext: Error clearing Supabase (may not be available):', supabaseError);
+        // Continue even if Supabase clear fails
+      }
+      
       setTransactions([]);
       setMilestones([]);
       log('FinanceContext: All data cleared successfully');

@@ -244,7 +244,7 @@ export default function AddExpenseScreen() {
               
               <ScrollView 
                 style={styles.daysList}
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.daysContent}
               >
                 {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
@@ -258,7 +258,7 @@ export default function AddExpenseScreen() {
                       setSelectedDay(day);
                       setShowDayPicker(false);
                     }}
-                    activeOpacity={0.7}
+                    activeOpacity={0.6}
                   >
                     <Text
                       style={[
@@ -371,55 +371,57 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: BorderRadius.xxl,
     width: '100%',
-    maxHeight: '70%',
+    maxWidth: 360,
+    maxHeight: '65%',
     ...Shadow.heavy,
   },
   modalHeader: {
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
-    alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: Spacing.xs,
-    letterSpacing: -0.3,
+    marginBottom: 2,
+    textAlign: 'center',
   },
   modalSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.textSecondary,
     textAlign: 'center',
-    fontWeight: '500',
+    fontWeight: '400',
   },
   daysList: {
     maxHeight: 400,
   },
   daysContent: {
-    padding: Spacing.md,
+    paddingVertical: Spacing.xs,
   },
   dayOption: {
-    backgroundColor: Colors.background,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.lg,
-    marginBottom: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    minHeight: 44,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border + '30',
   },
   selectedDayOption: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: Colors.primary + '15',
   },
   dayText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     color: Colors.text,
   },
   selectedDayText: {
-    color: Colors.card,
-    fontWeight: '700',
+    color: Colors.primary,
+    fontWeight: '600',
   },
   amountContainer: {
     flexDirection: 'row',

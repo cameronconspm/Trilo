@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { useSettings } from '@/context/SettingsContext';
 import { useThemeColors } from '@/constants/colors';
@@ -9,6 +9,7 @@ import { Spacing, BorderRadius, Shadow, Typography } from '@/constants/spacing';
 import { X } from 'lucide-react-native';
 import AlertModal from './AlertModal';
 import { ModalWrapper } from './ModalWrapper';
+import ProgressBar from '@/components/feedback/ProgressBar';
 import categories from '@/constants/categories';
 
 interface CsvImportModalProps {
@@ -37,7 +38,7 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
   const colors = useThemeColors(theme);
   const { addTransaction, transactions } = useFinance();
 
-  const [step, setStep] = useState<'select' | 'preview'>('select');
+  const [step, setStep] = useState<'select' | 'preview' | 'importing'>('select');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [parsedData, setParsedData] = useState<string[][]>([]);
   const [isImporting, setIsImporting] = useState(false);
@@ -48,6 +49,13 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
     message: string;
     type: 'success' | 'error' | 'warning' | 'info';
   }>({ title: '', message: '', type: 'info' });
+  // Progress tracking
+  const [importProgress, setImportProgress] = useState({
+    current: 0,
+    total: 0,
+    successCount: 0,
+    failedCount: 0,
+  });
 
   // Reset modal state when it becomes visible
   useEffect(() => {
@@ -63,6 +71,7 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
     setIsImporting(false);
     setImportedEntries([]);
     setShowAlert(false);
+    setImportProgress({ current: 0, total: 0, successCount: 0, failedCount: 0 });
   };
 
 
@@ -131,6 +140,13 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
 
   const handleConfirm = async () => {
     setIsImporting(true);
+    setStep('importing');
+    setImportProgress({
+      current: 0,
+      total: parsedData.length - 1, // Exclude header
+      successCount: 0,
+      failedCount: 0,
+    });
     
     try {
       // Process the CSV data and import expenses
@@ -143,6 +159,7 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
         type: 'error'
       });
       setShowAlert(true);
+      setStep('preview'); // Go back to preview on error
     } finally {
       setIsImporting(false);
     }
@@ -158,6 +175,13 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
       
       // Skip header row, process data rows
       for (let i = 1; i < parsedData.length; i++) {
+        // Update progress
+        setImportProgress({
+          current: i,
+          total: totalRows,
+          successCount,
+          failedCount,
+        });
         const row = parsedData[i];
         
         try {
@@ -221,8 +245,20 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
             await Promise.race([addTransactionPromise, timeoutPromise]);
             
             successCount++;
+            // Update progress after each successful import
+            setImportProgress(prev => ({
+              ...prev,
+              successCount,
+              current: i,
+            }));
           } catch (addError) {
             failedCount++;
+            // Update progress after failure
+            setImportProgress(prev => ({
+              ...prev,
+              failedCount,
+              current: i,
+            }));
             continue;
           }
           
@@ -259,9 +295,25 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
       
     } catch (error) {
       console.error('Import process error:', error);
+      
+      // Get user-friendly error message
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'An error occurred during import';
+      
+      // Provide more specific error messages
+      let userMessage = 'An error occurred during import.';
+      if (errorMessage.includes('timeout') || errorMessage.includes('network')) {
+        userMessage = 'Import timed out. Please check your connection and try again.';
+      } else if (errorMessage.includes('format') || errorMessage.includes('parse')) {
+        userMessage = 'Unable to parse CSV file. Please check the format and try again.';
+      } else if (errorMessage.includes('validation') || errorMessage.includes('invalid')) {
+        userMessage = 'Some rows have invalid data. Please check your CSV and try again.';
+      }
+      
       setAlertConfig({
         title: 'Import Error',
-        message: 'An error occurred during import. Please try again.',
+        message: userMessage,
         type: 'error'
       });
       setShowAlert(true);
@@ -339,13 +391,14 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
             <Text style={[styles.title, { color: colors.text }]}>
               {step === 'select' && 'Import Expenses (CSV)'}
               {step === 'preview' && 'Preview Import'}
+              {step === 'importing' && 'Importing Expenses...'}
             </Text>
             
             {/* Step indicator */}
             <View style={styles.stepIndicator}>
               <View style={[styles.stepDot, { backgroundColor: step === 'select' ? colors.primary : colors.border }]} />
-              <View style={[styles.stepLine, { backgroundColor: step === 'preview' ? colors.primary : colors.border }]} />
-              <View style={[styles.stepDot, { backgroundColor: step === 'preview' ? colors.primary : colors.border }]} />
+              <View style={[styles.stepLine, { backgroundColor: (step === 'preview' || step === 'importing') ? colors.primary : colors.border }]} />
+              <View style={[styles.stepDot, { backgroundColor: (step === 'preview' || step === 'importing') ? colors.primary : colors.border }]} />
             </View>
             
             {step === 'select' && (
@@ -358,10 +411,35 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
                 Review your data before importing. Found {parsedData.length - 1} expenses to import.
               </Text>
             )}
+            {step === 'importing' && (
+              <Text style={[styles.instructionsText, { color: colors.textSecondary }]}>
+                Please wait while expenses are imported...
+              </Text>
+            )}
           </View>
 
           {/* Content */}
-          {step === 'select' ? (
+          {step === 'importing' ? (
+            <View style={styles.body}>
+              <View style={styles.importProgressContainer}>
+                <ProgressBar
+                  progress={importProgress.total > 0 ? (importProgress.current / importProgress.total) * 100 : 0}
+                  showPercentage={true}
+                  label={`Importing: ${importProgress.current} / ${importProgress.total}`}
+                />
+                <View style={styles.progressStats}>
+                  <Text style={[styles.progressStatText, { color: colors.success }]}>
+                    ✓ {importProgress.successCount} successful
+                  </Text>
+                  {importProgress.failedCount > 0 && (
+                    <Text style={[styles.progressStatText, { color: colors.error }]}>
+                      ✗ {importProgress.failedCount} failed
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </View>
+          ) : step === 'select' ? (
             <View style={styles.body}>
               <View style={styles.selectContent}>
                 <View style={[styles.csvFormatHelp, { backgroundColor: colors.cardSecondary, borderColor: colors.border }]}>
@@ -488,6 +566,14 @@ export default function CsvImportModal({ visible, onClose }: CsvImportModalProps
                     </Text>
                   </TouchableOpacity>
                 </>
+              )}
+
+              {step === 'importing' && (
+                <View style={styles.importingFooter}>
+                  <Text style={[styles.importingText, { color: colors.textSecondary }]}>
+                    Importing... Please wait
+                  </Text>
+                </View>
               )}
 
 
@@ -697,6 +783,23 @@ const styles = StyleSheet.create({
   },
   importingText: {
     fontSize: 14,
+  },
+  importProgressContainer: {
+    padding: Spacing.lg,
+    gap: Spacing.md,
+  },
+  progressStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: Spacing.sm,
+  },
+  progressStatText: {
+    ...Typography.bodySmall,
+    fontWeight: '600',
+  },
+  importingFooter: {
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
   },
   logContainer: {
     width: '100%',

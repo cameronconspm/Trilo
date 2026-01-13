@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Modal, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Modal, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
 import { useThemeColors } from '@/constants/colors';
 import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius } from '@/constants/spacing';
+import { createFadeAnimation, MODAL_ANIMATIONS } from '@/utils/modalAnimations';
 
 interface ModalWrapperProps {
   visible: boolean;
@@ -23,15 +24,31 @@ export function ModalWrapper({
 }: ModalWrapperProps) {
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
+  const [overlayOpacity] = React.useState(new Animated.Value(0));
+
+  // Animate overlay fade for smoother transitions
+  // When animationType is 'none', we control all animation ourselves
+  // When animationType is 'fade' or 'slide', we still animate overlay for consistency
+  React.useEffect(() => {
+    const animation = createFadeAnimation(overlayOpacity, visible);
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
+  }, [visible, overlayOpacity]);
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType={animationType}
+      animationType={animationType === 'none' ? 'none' : animationType} // Support 'none' to avoid double animations
       onRequestClose={disableBackdropPress ? undefined : onClose}
     >
-      <View style={[styles.overlay, { backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.4)' }]}>
+      <Animated.View style={[styles.overlay, { 
+        backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.4)',
+        opacity: overlayOpacity,
+      }]}>
       <TouchableOpacity
         style={styles.overlayTouch}
         activeOpacity={1}
@@ -85,7 +102,7 @@ export function ModalWrapper({
           />
           {children}
         </View>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }

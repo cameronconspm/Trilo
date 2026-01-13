@@ -25,13 +25,14 @@ import AlertModal from '@/components/modals/AlertModal';
 import { CsvImportModal } from '@/components/modals';
 import { BadgeGalleryModal, LevelBadge } from '@/components/badges';
 import { useSettings } from '@/context/SettingsContext';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import OfflineIndicator from '@/components/feedback/OfflineIndicator';
 import { useNotifications } from '@/context/NotificationContext';
 import { useFinance } from '@/context/FinanceContext';
 import { useChallengeTracking } from '@/context/ChallengeTrackingContext';
 import { useAuth } from '@/context/AuthContext';
 import { useSubscription } from '@/context/SubscriptionContext';
 import { usePlaid } from '@/context/PlaidContext';
-import { useTutorial } from '@/context/TutorialContext';
 import MFASetupScreen from '@/components/auth/MFASetupScreen';
 import { isMFAEnabled, disableMFA, getMFAPhoneNumber } from '@/services/mfaService';
 import { showManageSubscriptions } from '@/lib/revenuecat';
@@ -58,7 +59,7 @@ import {
   ChevronRight,
   Trophy,
   LogOut,
-  Play,
+  MessageSquare,
 } from 'lucide-react-native';
 import NameEditModal from '@/components/modals/NameEditModal';
 import { ModalWrapper } from '@/components/modals/ModalWrapper';
@@ -66,7 +67,7 @@ import { PaywallModal } from '@/components/modals/PaywallModal';
 import { Transaction, CategoryType } from '@/types/finance';
 import { diagnoseRevenueCat, formatDiagnostics } from '@/lib/revenuecat-diagnostics';
 
-export default function ProfileScreen() {
+function ProfileScreenContent() {
   const {
     theme,
     setTheme,
@@ -86,7 +87,6 @@ export default function ProfileScreen() {
   const challengeTracking = useChallengeTracking();
 
   const router = useRouter();
-  const { restartTutorial, isLoading: tutorialLoading } = useTutorial();
 
   const {
     clearAllData: clearFinanceData,
@@ -130,14 +130,31 @@ export default function ProfileScreen() {
   // Check MFA status on mount and when user changes
   useEffect(() => {
     if (user?.id) {
-      checkMFAStatus().then((enabled) => {
+      checkMFAStatus()
+        .then((enabled) => {
         setMfaEnabled(enabled);
+        })
+        .catch((error) => {
+          console.error('Failed to check MFA status:', error);
+          // Default to disabled on error (secure default)
+          setMfaEnabled(false);
       });
+      
       // Also load phone number if MFA is enabled
-      import('@/services/mfaService').then(({ getMFAPhoneNumber }) => {
-        getMFAPhoneNumber(user.id).then((phone) => {
+      import('@/services/mfaService')
+        .then(({ getMFAPhoneNumber }) => {
+          getMFAPhoneNumber(user.id)
+            .then((phone) => {
           if (phone) setPhoneNumber(phone);
+            })
+            .catch((error) => {
+              console.error('Failed to load MFA phone number:', error);
+              // Silently fail - phone number is optional
         });
+        })
+        .catch((error) => {
+          console.error('Failed to import MFA service:', error);
+          // Silently fail - MFA service import error
       });
     }
   }, [user?.id]);
@@ -347,40 +364,6 @@ export default function ProfileScreen() {
     await setNickname(name);
   };
 
-  const handleShowTutorial = async () => {
-    try {
-      await restartTutorial();
-      router.replace('/(tabs)');
-    } catch (error) {
-      console.error('ProfileScreen: Failed to restart tutorial', error);
-      showAlert({
-        title: 'Unable to start tutorial',
-        message: 'Please try again shortly.',
-        type: 'error',
-        actions: [{ text: 'OK', onPress: () => {} }],
-      });
-    }
-  };
-
-  const handleTestOnboarding = async () => {
-    try {
-      // Clear setup completion flag if user exists
-      if (user) {
-        await AsyncStorage.removeItem(`@trilo:setup_completed_${user.id}`);
-      }
-      
-      // Navigate to setup flow (username, profile, income, expense)
-      router.replace('/setup');
-    } catch (error) {
-      console.error('ProfileScreen: Failed to reset setup', error);
-      showAlert({
-        title: 'Error',
-        message: 'Failed to reset setup. Please try again.',
-        type: 'error',
-        actions: [{ text: 'OK', onPress: () => {} }],
-      });
-    }
-  };
 
   const handleResetPersonalData = () => {
     showAlert({
@@ -483,6 +466,29 @@ export default function ProfileScreen() {
       Alert.alert(
         'Email Not Available',
         'Please send an email to support@thetriloapp.com'
+      );
+    }
+  };
+
+  const handleProvideFeedback = async () => {
+    const email = 'feedback@thetriloapp.com';
+    const subject = 'Feedback';
+    const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}`;
+
+    try {
+      const supported = await Linking.canOpenURL(mailtoUrl);
+      if (supported) {
+        await Linking.openURL(mailtoUrl);
+      } else {
+        Alert.alert(
+          'Email Not Available',
+          'Please send an email to feedback@thetriloapp.com'
+        );
+      }
+    } catch {
+      Alert.alert(
+        'Email Not Available',
+        'Please send an email to feedback@thetriloapp.com'
       );
     }
   };
@@ -609,46 +615,63 @@ export default function ProfileScreen() {
   };
 
   const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
+    showAlert({
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out?',
+      type: 'warning',
+      actions: [
+        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
         {
           text: 'Sign Out',
-          style: 'destructive',
           onPress: async () => {
             try {
               await signOut();
             } catch (error) {
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
+              showAlert({
+                title: 'Error',
+                message: 'Failed to sign out. Please try again.',
+                type: 'error',
+                actions: [{ text: 'OK', onPress: () => {} }],
+              });
             }
           },
+          style: 'destructive',
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'This will permanently delete your account and all your data. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
+    showAlert({
+      title: 'Delete Account',
+      message: 'This will permanently delete your account and all your data. This action cannot be undone.',
+      type: 'warning',
+      actions: [
+        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
         {
           text: 'Delete',
-          style: 'destructive',
           onPress: async () => {
             try {
               await deleteAccount();
-              Alert.alert('Success', 'Your account has been deleted.');
+              showAlert({
+                title: 'Account Deleted',
+                message: 'Your account has been deleted.',
+                type: 'success',
+                actions: [{ text: 'OK', onPress: () => {} }],
+              });
             } catch (error) {
-              Alert.alert('Error', 'Failed to delete account. Please try again.');
+              showAlert({
+                title: 'Error',
+                message: 'Failed to delete account. Please try again.',
+                type: 'error',
+                actions: [{ text: 'OK', onPress: () => {} }],
+              });
             }
           },
+          style: 'destructive',
         },
-      ]
-    );
+      ],
+    });
   };
 
   return (
@@ -658,7 +681,7 @@ export default function ProfileScreen() {
         style={[styles.container, { backgroundColor: colors.background }]}
       >
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
           {/* Header */}
@@ -732,21 +755,6 @@ export default function ProfileScreen() {
               title='Theme'
               value={theme.charAt(0).toUpperCase() + theme.slice(1)}
               onPress={() => setShowThemeModal(true)}
-              isLast
-            />
-          </Card>
-
-          {/* Guides */}
-          <Card style={[styles.card, { backgroundColor: colors.card }] as any}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>
-              Guides
-            </Text>
-            <SettingsItem
-              title='How Trilo Works'
-              subtitle='Replay the onboarding walkthrough'
-              icon={<RefreshCw size={18} color={colors.primary} />}
-              onPress={handleShowTutorial}
-              disabled={tutorialLoading}
               isLast
             />
           </Card>
@@ -984,12 +992,6 @@ export default function ProfileScreen() {
               onPress={() => setShowCsvImport(true)}
             />
             <SettingsItem
-              title='Test Setup Flow'
-              icon={<Play size={18} color={colors.primary} />}
-              onPress={handleTestOnboarding}
-              subtitle='Reset and replay username, profile, income, and expense setup'
-            />
-            <SettingsItem
               title='Reset Personal Data'
               icon={<RefreshCw size={18} color={colors.warning} />}
               onPress={handleResetPersonalData}
@@ -1149,6 +1151,7 @@ export default function ProfileScreen() {
                 title='Delete Account'
                 icon={<Shield size={18} color={colors.error} />}
                 onPress={handleDeleteAccount}
+                isLast
               />
             </Card>
           )}
@@ -1201,12 +1204,17 @@ export default function ProfileScreen() {
               title='Contact Support'
               icon={<Mail size={18} color={colors.primary} />}
               onPress={handleContactSupport}
+            />
+            <SettingsItem
+              title='Provide Feedback'
+              icon={<MessageSquare size={18} color={colors.primary} />}
+              onPress={handleProvideFeedback}
               isLast
             />
           </Card>
 
           <Text style={[styles.versionText, { color: colors.inactive }]}>
-            Version 1.0.0 — Data stored locally
+            Version 1.0.0
           </Text>
         </ScrollView>
       </SafeAreaView>
@@ -1245,7 +1253,7 @@ export default function ProfileScreen() {
         maxWidth={400}
       >
         <View style={[styles.themeModalContent, { backgroundColor: colors.card }]}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>
+          <Text style={[styles.modalTitleBase, { color: colors.text }]}>
             Choose Theme
           </Text>
           <View style={styles.themeOptions}>
@@ -1319,7 +1327,16 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       </ModalWrapper>
+      <OfflineIndicator />
     </>
+  );
+}
+
+export default function ProfileScreen() {
+  return (
+    <ErrorBoundary context="Profile Screen">
+      <ProfileScreenContent />
+    </ErrorBoundary>
   );
 }
 
@@ -1333,10 +1350,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: 100, // Space for tab bar
-    gap: Spacing.xxl, // 24px between sections
+    gap: Spacing.lg, // 16px between sections (reduced from 24px)
   },
   header: {
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md, // Reduced from lg for tighter spacing
   },
   title: {
     fontSize: 28,
@@ -1441,7 +1458,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xxl, // 24px top padding - matches modal standards
     paddingBottom: Spacing.xxl, // 24px bottom padding - matches modal standards
   },
-  modalTitle: {
+  modalTitleBase: {
     ...Typography.h3, // 20pt - Apple HIG standard for modal titles
     marginBottom: Spacing.xl, // 20px spacing before options - standard content spacing
     textAlign: 'center',

@@ -119,11 +119,13 @@ module.exports = {
       eas: {
         projectId: '75bef967-5779-49d0-bc57-ae4f0621a7d4'
       },
-      supabaseUrl: 'https://raictkrsnejvfvpgqzcq.supabase.co',
-      supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJhaWN0a3JzbmVqdmZ2cGdxemNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0OTI4NDYsImV4cCI6MjA3NzA2ODg0Nn0.VGIKiPi03R_FgaXvYppCwvDkNXQMSu9xJ1H51Z2Eulw',
-      plaidApiUrl: 'https://trilo-production.up.railway.app/api/plaid',
-      revenueCatApiKeyIos: 'appl_KYJdeAHerYQeEgWWYLlFZVhXQBH',
-      revenueCatApiKeyAndroid: 'goog_YOUR_ANDROID_KEY_HERE'
+      // Use environment variables with fallbacks for development
+      // In production, set these via EAS Secrets or environment variables
+      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://raictkrsnejvfvpgqzcq.supabase.co',
+      supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJhaWN0a3JzbmVqdmZ2cGdxemNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0OTI4NDYsImV4cCI6MjA3NzA2ODg0Nn0.VGIKiPi03R_FgaXvYppCwvDkNXQMSu9xJ1H51Z2Eulw',
+      plaidApiUrl: process.env.EXPO_PUBLIC_PLAID_API_URL || process.env.PLAID_API_URL || 'https://trilo-production.up.railway.app/api/plaid',
+      revenueCatApiKeyIos: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS || process.env.REVENUECAT_API_KEY_IOS || '',
+      revenueCatApiKeyAndroid: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID || process.env.REVENUECAT_API_KEY_ANDROID || ''
     },
     
     // Platform support

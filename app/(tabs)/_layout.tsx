@@ -24,6 +24,9 @@ import { BlockingPaywallModal } from '@/components/modals/BlockingPaywallModal';
 import { TooltipOverlay } from '@/components/onboarding/TooltipOverlay';
 import { TutorialService } from '@/services/TutorialService';
 import { SUBSCRIPTIONS_ENABLED } from '@/constants/features';
+import { saveLastScreen, setupNavigationStateCleanup } from '@/utils/navigationState';
+import { usePathname } from 'expo-router';
+import { COMMON_STORAGE_KEYS } from '@/utils/storageKeys';
 
 function StatusBarManager() {
   const { theme } = useSettings();
@@ -94,6 +97,14 @@ function TabLayoutContent() {
   const colors = useThemeColors(theme);
   const { spacing } = useResponsiveDesign();
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
+
+  // Track current screen for navigation state persistence
+  React.useEffect(() => {
+    if (pathname) {
+      saveLastScreen(pathname);
+    }
+  }, [pathname]);
   
   // Wrap tabs in themed container to prevent white flash
   const TabsWrapper = React.useCallback(({ children }: { children: React.ReactNode }) => (
@@ -268,7 +279,13 @@ export default function TabLayout() {
   const colors = useThemeColors(theme);
   const [checkingSetup, setCheckingSetup] = React.useState(true);
 
-  // Check if setup is needed
+  // Setup navigation state cleanup on mount
+  React.useEffect(() => {
+    const cleanup = setupNavigationStateCleanup();
+    return cleanup;
+  }, []);
+
+  // Check if setup is needed (non-blocking)
   React.useEffect(() => {
     let isMounted = true;
     
@@ -286,43 +303,32 @@ export default function TabLayout() {
         return;
       }
 
-      try {
-        // Add timeout to prevent blocking
-        const timeoutPromise = new Promise<void>((resolve) => {
-          setTimeout(() => {
+      // Allow UI to render immediately (non-blocking)
             if (isMounted) {
               setCheckingSetup(false);
             }
-            resolve();
-          }, 2000); // 2 second timeout
-        });
 
-        const setupKey = `@trilo:setup_completed_${user.id}`;
-        const setupPromise = (async () => {
+      // Check setup in background (non-blocking)
+      try {
+        const setupKey = `${COMMON_STORAGE_KEYS.SETUP_COMPLETED_PREFIX}${user.id}`;
           const setupCompleted = await AsyncStorage.getItem(setupKey);
 
           const tutorialService = new TutorialService(user.id);
           const tutorialStatus = await tutorialService.ensureStatus();
 
           // If tutorial is completed but setup is not, redirect to setup
+        // Only redirect if component is still mounted
           if (
+          isMounted &&
             tutorialStatus.tutorial_completed &&
             setupCompleted !== 'true' &&
             !tutorialStatus.needs_tutorial
           ) {
             router.replace('/setup');
           }
-        })();
-
-        // Race between setup check and timeout
-        await Promise.race([setupPromise, timeoutPromise]);
       } catch (error) {
         console.error('Failed to check setup status:', error);
-      } finally {
-        // Always set checkingSetup to false after check completes or times out
-        if (isMounted) {
-          setCheckingSetup(false);
-        }
+        // Don't block navigation on error
       }
     };
 

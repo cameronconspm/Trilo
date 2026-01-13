@@ -11,6 +11,7 @@ import {
 } from '@/lib/revenuecat';
 import { PurchasesPackage, CustomerInfo } from 'react-native-purchases';
 import { SUBSCRIPTIONS_ENABLED } from '@/constants/features';
+import { NETWORK_TIMEOUTS } from '@/constants/timing';
 
 export type SubscriptionStatus = 'loading' | 'trial' | 'active' | 'expired' | 'freeAccess';
 
@@ -83,7 +84,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           if (__DEV__) {
             console.warn('⚠️ RevenueCat not initialized yet, waiting... (' + (attempts + 1) + '/' + maxAttempts + ')');
           }
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, NETWORK_TIMEOUTS.REVENUECAT_RETRY_DELAY));
           attempts++;
         }
         
@@ -138,7 +139,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           }
           setTimeout(() => {
             loadPackages(retryCount + 1);
-          }, 3000);
+          }, NETWORK_TIMEOUTS.REVENUECAT_PACKAGE_RETRY_DELAY);
           return;
         }
       } finally {
@@ -149,7 +150,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     // Wait a bit longer for initialization to complete
     const timer = setTimeout(() => {
       loadPackages();
-    }, 1000);
+    }, NETWORK_TIMEOUTS.REVENUECAT_LOAD_DELAY);
 
     return () => clearTimeout(timer);
   }, []);

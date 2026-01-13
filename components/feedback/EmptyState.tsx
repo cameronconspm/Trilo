@@ -1,20 +1,26 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Plus, TrendingUp, DollarSign, History } from 'lucide-react-native';
 import { useThemeColors } from '@/constants/colors';
 import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius, Typography } from '@/constants/spacing';
+import Button from '@/components/layout/Button';
 
 interface EmptyStateProps {
   icon?: 'plus' | 'trending' | 'dollar' | 'history';
   title: string;
   subtitle: string;
+  actionButton?: {
+    label: string;
+    onPress: () => void;
+  };
 }
 
 export default function EmptyState({
   icon = 'plus',
   title,
   subtitle,
+  actionButton,
 }: EmptyStateProps) {
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
@@ -50,6 +56,16 @@ export default function EmptyState({
       <Text style={[styles.subtitle, { color: colors.inactive }]}>
         {subtitle}
       </Text>
+      {actionButton && (
+        <View style={styles.actionButtonContainer}>
+          <Button
+            title={actionButton.label}
+            onPress={actionButton.onPress}
+            variant="primary"
+            size="medium"
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -79,5 +95,10 @@ const styles = StyleSheet.create({
   subtitle: {
     ...Typography.bodySmall, // Using new typography system
     textAlign: 'center',
+  },
+  actionButtonContainer: {
+    marginTop: Spacing.lg,
+    width: '100%',
+    maxWidth: 200,
   },
 });

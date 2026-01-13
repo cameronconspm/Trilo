@@ -77,8 +77,8 @@ export async function initializeRevenueCat(): Promise<void> {
 
     let apiKey = Platform.OS === 'ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID;
     
-    // Skip initialization if using placeholder keys
-    if (apiKey.includes('YOUR_') || apiKey.includes('_HERE')) {
+    // Skip initialization if using placeholder keys or empty keys
+    if (!apiKey || apiKey.trim() === '' || apiKey.includes('YOUR_') || apiKey.includes('_HERE')) {
       if (__DEV__) {
         console.log('⚠️ RevenueCat not configured - using Test Store for Expo Go');
       }

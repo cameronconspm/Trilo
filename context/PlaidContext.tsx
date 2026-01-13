@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { isMFAEnabled } from '@/services/mfaService';
 import { useAuth } from './AuthContext';
+import { log } from '@/utils/logger';
+import { SYNC_INTERVALS, NETWORK_TIMEOUTS } from '@/constants/timing';
 
 // Types
 export interface BankAccount {
@@ -298,10 +300,10 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
     }
   }, [userId]);
 
-  // Load persisted state on mount
+  // Load persisted state on mount and when user changes
   useEffect(() => {
     loadPersistedState();
-  }, [loadPersistedState]); // Reload when user changes
+  }, [userId]); // Reload when user changes
 
   // Automatic sync effect will be added after refreshData is defined
 
@@ -319,10 +321,10 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
     const maxRetries = 2;
     
     try {
-      console.log('[Plaid] 🔗 Creating link token...');
-      console.log('[Plaid]   API Base URL:', API_BASE_URL);
-      console.log('[Plaid]   User ID:', userId);
-      console.log('[Plaid]   Retry attempt:', retryCount);
+      log('[Plaid] 🔗 Creating link token...');
+      log('[Plaid]   API Base URL:', API_BASE_URL);
+      log('[Plaid]   User ID:', userId);
+      log('[Plaid]   Retry attempt:', retryCount);
       
       const response = await fetch(`${API_BASE_URL}/link/token`, {
         method: 'POST',
@@ -332,8 +334,8 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
         body: JSON.stringify({ userId }),
       });
       
-      console.log('[Plaid]   Response Status:', response.status);
-      console.log('[Plaid]   Response OK:', response.ok);
+      log('[Plaid]   Response Status:', response.status);
+      log('[Plaid]   Response OK:', response.ok);
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -345,7 +347,7 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
         // Retry on server errors (5xx) or network issues
         if ((response.status >= 500 || response.status === 0) && retryCount < maxRetries) {
           console.log(`[Plaid]   Retrying... (${retryCount + 1}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, NETWORK_TIMEOUTS.RETRY_BASE_DELAY * (retryCount + 1))); // Exponential backoff
           return createLinkToken(retryCount + 1);
         }
         
@@ -358,8 +360,8 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
         throw new Error('Invalid response: link_token not found');
       }
       
-      console.log('[Plaid] ✅ Link token created successfully');
-      console.log('[Plaid]   Link Token:', data.link_token.substring(0, 20) + '...');
+      log('[Plaid] ✅ Link token created successfully');
+      log('[Plaid]   Link Token:', data.link_token.substring(0, 20) + '...');
       
       return data.link_token;
     } catch (error) {
@@ -378,7 +380,7 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
         // Retry on network errors
         if ((error.message.includes('fetch') || error.message.includes('Network') || error.message.includes('Failed to fetch')) && retryCount < maxRetries) {
           console.log(`[Plaid]   Retrying due to network error... (${retryCount + 1}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, NETWORK_TIMEOUTS.RETRY_BASE_DELAY * (retryCount + 1))); // Exponential backoff
           return createLinkToken(retryCount + 1);
         }
       }
@@ -389,7 +391,7 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
 
   const fetchAccounts = async (): Promise<BankAccount[]> => {
     try {
-      console.log('[Plaid] 📥 Fetching accounts...');
+      log('[Plaid] 📥 Fetching accounts...');
       const response = await fetch(`${API_BASE_URL}/accounts/${userId}`);
       
       if (!response.ok) {
@@ -401,7 +403,7 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
       }
       
       const accounts = await response.json();
-      console.log('[Plaid] ✅ Accounts fetched:', accounts.length);
+      log('[Plaid] ✅ Accounts fetched:', accounts.length);
       return accounts;
     } catch (error) {
       console.error('[Plaid] ❌ Error fetching accounts:', error);
@@ -418,7 +420,7 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
 
   const fetchTransactions = async (): Promise<Transaction[]> => {
     try {
-      console.log('[Plaid] 📥 Fetching transactions...');
+      log('[Plaid] 📥 Fetching transactions...');
       const response = await fetch(`${API_BASE_URL}/transactions/${userId}?limit=50`);
       
       if (!response.ok) {
@@ -430,7 +432,7 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
       }
       
       const transactions = await response.json();
-      console.log('[Plaid] ✅ Transactions fetched:', transactions.length);
+      log('[Plaid] ✅ Transactions fetched:', transactions.length);
       return transactions;
     } catch (error) {
       console.error('[Plaid] ❌ Error fetching transactions:', error);
@@ -447,12 +449,12 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
 
   const exchangePublicToken = async (publicToken: string, selectedAccountIds?: string[]): Promise<void> => {
     try {
-      console.log('[Plaid] 🔄 Exchanging public token for access token...');
-      console.log('[Plaid]   Public Token:', publicToken.substring(0, 20) + '...');
-      console.log('[Plaid]   User ID:', userId);
-      console.log('[Plaid]   Selected Account IDs:', selectedAccountIds?.length || 0);
+      log('[Plaid] 🔄 Exchanging public token for access token...');
+      log('[Plaid]   Public Token:', publicToken.substring(0, 20) + '...');
+      log('[Plaid]   User ID:', userId);
+      log('[Plaid]   Selected Account IDs:', selectedAccountIds?.length || 0);
       if (selectedAccountIds && selectedAccountIds.length > 0) {
-        console.log('[Plaid]   Account IDs:', selectedAccountIds);
+        log('[Plaid]   Account IDs:', selectedAccountIds);
       }
       
       const requestBody = {
@@ -461,7 +463,7 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
         selected_account_ids: selectedAccountIds, // Pass selected account IDs to backend
       };
       
-      console.log('[Plaid]   Request Body:', JSON.stringify({
+      log('[Plaid]   Request Body:', JSON.stringify({
         public_token: requestBody.public_token.substring(0, 20) + '...',
         userId: requestBody.userId,
       }));
@@ -474,8 +476,8 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
         body: JSON.stringify(requestBody),
       });
 
-      console.log('[Plaid]   Response Status:', response.status);
-      console.log('[Plaid]   Response OK:', response.ok);
+      log('[Plaid]   Response Status:', response.status);
+      log('[Plaid]   Response OK:', response.ok);
 
       if (!response.ok) {
         let errorData;
@@ -505,8 +507,8 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
       }
 
       const data = await response.json();
-      console.log('[Plaid] ✅ Token exchange successful');
-      console.log('[Plaid]   Exchange Result:', JSON.stringify(data, null, 2));
+      log('[Plaid] ✅ Token exchange successful');
+      log('[Plaid]   Exchange Result:', JSON.stringify(data, null, 2));
     } catch (error) {
       // Always log errors
       console.error('[Plaid] ❌ Token exchange failed:', error);
@@ -525,7 +527,7 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
   // Actions
   const connectBank = async (): Promise<void> => {
     try {
-      console.log('[Plaid] 🔗 Starting bank connection...');
+      log('[Plaid] 🔗 Starting bank connection...');
       dispatch({ type: 'SET_CONNECTING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
@@ -540,7 +542,7 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
       }
       
       dispatch({ type: 'SET_LINK_TOKEN', payload: token });
-      console.log('[Plaid] ✅ Link token received and stored');
+      log('[Plaid] ✅ Link token received and stored');
 
       // The actual Plaid Link will be handled by the PlaidLink component
       // This function just prepares the state
@@ -564,27 +566,27 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
 
   const handlePlaidSuccess = async (publicToken: string, metadata: PlaidLinkMetadata): Promise<void> => {
     try {
-      console.log('[Plaid] 🔄 Processing successful Plaid connection...');
-      console.log('[Plaid]   Institution:', metadata.institution?.name || 'Unknown');
-      console.log('[Plaid]   Account Count:', metadata.accounts?.length || 0);
+      log('[Plaid] 🔄 Processing successful Plaid connection...');
+      log('[Plaid]   Institution:', metadata.institution?.name || 'Unknown');
+      log('[Plaid]   Account Count:', metadata.accounts?.length || 0);
       
       // Extract selected account IDs from metadata
       const selectedAccountIds = metadata.accounts?.map(account => account.id) || [];
-      console.log('[Plaid]   Selected Account IDs:', selectedAccountIds);
+      log('[Plaid]   Selected Account IDs:', selectedAccountIds);
       
       // Exchange public token for access token, passing selected account IDs
       await exchangePublicToken(publicToken, selectedAccountIds);
       
       // Fetch updated accounts and transactions
-      console.log('[Plaid] 📥 Fetching accounts and transactions...');
+      log('[Plaid] 📥 Fetching accounts and transactions...');
       const [accounts, transactions] = await Promise.all([
         fetchAccounts(),
         fetchTransactions(),
       ]);
       
-      console.log('[Plaid] ✅ Connection complete');
-      console.log('[Plaid]   Accounts:', accounts.length);
-      console.log('[Plaid]   Transactions:', transactions.length);
+      log('[Plaid] ✅ Connection complete');
+      log('[Plaid]   Accounts:', accounts.length);
+      log('[Plaid]   Transactions:', transactions.length);
       
       // Update state
       dispatch({ type: 'SET_ACCOUNTS', payload: accounts });
@@ -600,7 +602,7 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
         persistState(storageKeys.FIRST_TIME, false),
       ]);
       
-      console.log('[Plaid] ✅ State persisted successfully');
+      log('[Plaid] ✅ State persisted successfully');
       
     } catch (error) {
       console.error('[Plaid] ❌ Failed to process Plaid success:', error);
@@ -620,21 +622,21 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
   };
 
   const handlePlaidExit = (error: any): void => {
-    console.log('[Plaid] 🚪 Plaid Link exited');
+    log('[Plaid] 🚪 Plaid Link exited');
     if (error) {
-      console.log('[Plaid]   Exit Error:', JSON.stringify(error, null, 2));
+      log('[Plaid]   Exit Error:', JSON.stringify(error, null, 2));
       const errorMessage = error.error_message || error.display_message || 'Connection was cancelled';
       dispatch({ type: 'SET_CONNECTION_ERROR', payload: errorMessage });
     } else {
-      console.log('[Plaid]   User cancelled connection');
+      log('[Plaid]   User cancelled connection');
     }
     dispatch({ type: 'SET_CONNECTING', payload: false });
   };
 
   const disconnectBank = async (accountId: string): Promise<void> => {
     // OPTIMISTIC UPDATE: Remove from state immediately for better UX
-    console.log('[Plaid] 🗑️  Disconnecting account:', accountId);
-    console.log('[Plaid]   Current accounts:', state.accounts.map(a => ({ id: a.id, name: a.name })));
+    log('[Plaid] 🗑️  Disconnecting account:', accountId);
+    log('[Plaid]   Current accounts:', state.accounts.map(a => ({ id: a.id, name: a.name })));
     
     // Remove from state optimistically (before backend call)
     const optimisticAccounts = state.accounts.filter(account => account.id !== accountId);
@@ -651,7 +653,7 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
       persistState(storageKeys.TRANSACTIONS, optimisticTransactions),
     ]);
     
-    console.log('[Plaid]   ✅ Optimistically removed from state');
+    log('[Plaid]   ✅ Optimistically removed from state');
     
     // Now call backend to sync
     try {
@@ -677,7 +679,7 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
                           result.success; // Backend might return success even with 500
         
         if (isNotFound || result.success) {
-          console.log('[Plaid]   ✅ Backend confirms account not found or already deleted');
+          log('[Plaid]   ✅ Backend confirms account not found or already deleted');
           dispatch({ type: 'CLEAR_ERROR' });
           return; // Success - account is gone
         }
@@ -699,7 +701,7 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
       }
 
       // Backend confirms success
-      console.log('[Plaid] ✅ Account disconnected from backend:', result);
+      log('[Plaid] ✅ Account disconnected from backend:', result);
       dispatch({ type: 'CLEAR_ERROR' });
       
     } catch (error) {
@@ -730,22 +732,23 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
     }
   };
 
-  const refreshData = async (): Promise<void> => {
+  const refreshData = useCallback(async (): Promise<void> => {
     try {
-      if (state.accounts.length === 0) {
-        console.log('[Plaid] ⏭️  Skipping refresh - no accounts');
+      // Use state.hasAccounts instead of state.accounts.length for stable dependency
+      if (!state.hasAccounts) {
+        log('[Plaid] ⏭️  Skipping refresh - no accounts');
         return;
       }
 
-      console.log('[Plaid] 🔄 Refreshing bank data...');
+      log('[Plaid] 🔄 Refreshing bank data...');
       const [accounts, transactions] = await Promise.all([
         fetchAccounts(),
         fetchTransactions(),
       ]);
       
-      console.log('[Plaid] ✅ Refresh complete');
-      console.log('[Plaid]   Accounts:', accounts.length);
-      console.log('[Plaid]   Transactions:', transactions.length);
+      log('[Plaid] ✅ Refresh complete');
+      log('[Plaid]   Accounts:', accounts.length);
+      log('[Plaid]   Transactions:', transactions.length);
       
       dispatch({ type: 'SET_ACCOUNTS', payload: accounts });
       dispatch({ type: 'SET_TRANSACTIONS', payload: transactions });
@@ -758,7 +761,7 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
         persistState(storageKeys.LAST_SYNC, new Date().toISOString()),
       ]);
       
-      console.log('[Plaid] ✅ Refresh data persisted');
+      log('[Plaid] ✅ Refresh data persisted');
       
     } catch (error) {
       console.error('[Plaid] ❌ Failed to refresh data:', error);
@@ -775,13 +778,28 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
       dispatch({ type: 'SET_CONNECTION_ERROR', payload: errorMessage });
       throw error;
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.hasAccounts, userId, persistState, dispatch]);
 
   // Automatic sync every 15 minutes
+  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
   useEffect(() => {
-    if (!state.hasAccounts) return;
+    if (!state.hasAccounts) {
+      // Clear interval if no accounts
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = null;
+      }
+      return;
+    }
 
-    const syncInterval = setInterval(async () => {
+    // Clear any existing interval before creating a new one
+    if (syncIntervalRef.current) {
+      clearInterval(syncIntervalRef.current);
+    }
+
+    syncIntervalRef.current = setInterval(async () => {
       try {
         if (__DEV__) {
           console.log('Auto-syncing bank data...');
@@ -791,10 +809,15 @@ export function PlaidProvider({ children, userId }: PlaidProviderProps) {
         // Always log errors, even in production
         console.error('Auto-sync failed:', error);
       }
-    }, 15 * 60 * 1000); // 15 minutes
+    }, SYNC_INTERVALS.PLAID_AUTO_SYNC);
 
-    // Cleanup interval on unmount or when accounts change
-    return () => clearInterval(syncInterval);
+    // Cleanup interval on unmount or when accounts/refreshData changes
+    return () => {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = null;
+      }
+    };
   }, [state.hasAccounts, refreshData]);
 
   const toggleBalances = (): void => {

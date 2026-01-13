@@ -11,8 +11,10 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Edit3, Trash2, Plus } from 'lucide-react-native';
 import { useFinance } from '@/context/FinanceContext';
@@ -29,6 +31,8 @@ import Button from '@/components/layout/Button';
 import AlertModal from '@/components/modals/AlertModal';
 import { useAlert } from '@/hooks/useAlert';
 import { useThemeColors } from '@/constants/colors';
+import { log } from '@/utils/logger';
+import Toggle, { ToggleOption } from '@/components/shared/Toggle';
 import {
   Spacing,
   SpacingValues,
@@ -108,6 +112,7 @@ export default function AddTransactionModal({
   );
 
   const [isLoading, setIsLoading] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   // Multi-expense state
   const [draftExpenses, setDraftExpenses] = useState<DraftExpense[]>([]);
@@ -118,6 +123,8 @@ export default function AddTransactionModal({
   // Reset form when modal opens or populate with edit data
   useEffect(() => {
     if (visible) {
+      // Reset submit attempt flag when modal opens
+      setHasAttemptedSubmit(false);
       if (editTransaction) {
         // Populate form with existing transaction data
         setTransactionType(editTransaction.type);
@@ -205,6 +212,9 @@ export default function AddTransactionModal({
   }, [category, transactionType]);
 
   const handleSubmit = async () => {
+    // Mark that user has attempted to submit
+    setHasAttemptedSubmit(true);
+
     if (!name.trim()) {
       showAlert({
         title: 'Missing Information',
@@ -370,6 +380,8 @@ export default function AddTransactionModal({
             paySchedule,
             givenExpenseSchedule,
           });
+          // Success haptic feedback
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (updateError) {
           console.error('Error updating transaction:', updateError);
           const errorMessage =
@@ -390,6 +402,8 @@ export default function AddTransactionModal({
             paySchedule,
             givenExpenseSchedule,
           });
+          // Success haptic feedback
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (addError) {
           console.error('Error adding transaction:', addError);
           const errorMessage =
@@ -398,20 +412,33 @@ export default function AddTransactionModal({
         }
       }
 
-      // Close modal immediately after successful save
+      // Close modal first, then show success alert after modal closes
+      resetModalState();
       onClose();
 
-      // Show success message after modal is closed
+      // Show success alert after modal closes using custom AlertModal (using setTimeout to allow modal close animation to complete)
       setTimeout(() => {
+      if (editTransaction) {
         showAlert({
-          title: 'Success!',
-          message: `${transactionType === 'income' ? 'Income' : 'Expense'} ${editTransaction ? 'updated' : 'added'} successfully!`,
+          title: 'Success',
+          message: `${transactionType === 'income' ? 'Income' : 'Expense'} updated.`,
           type: 'success',
-          actions: [{ text: 'OK', onPress: () => {} }],
+            actions: [{ text: 'OK', onPress: () => {} }],
         });
-      }, 100);
+      } else {
+        showAlert({
+          title: 'Success',
+          message: `${transactionType === 'income' ? 'Income' : 'Expense'} added.`,
+          type: 'success',
+            actions: [{ text: 'OK', onPress: () => {} }],
+          });
+        }
+      }, 300); // 300ms delay to allow modal close animation to complete
     } catch (error) {
       console.error('Error saving transaction:', error);
+      // Error haptic feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      // Show error using custom AlertModal
       showAlert({
         title: 'Error',
         message: `Failed to ${editTransaction ? 'update' : 'add'} ${transactionType}. Please try again.`,
@@ -438,6 +465,7 @@ export default function AddTransactionModal({
     setGivenExpenseFrequency('every_week');
     setGivenExpenseStartDate(new Date());
     setIsRecurring(transactionType === 'income');
+    setHasAttemptedSubmit(false); // Reset submit attempt flag
 
     // Reset draft expenses
     setDraftExpenses([]);
@@ -453,43 +481,69 @@ export default function AddTransactionModal({
     }
   };
 
-  const handleClose = () => {
-    resetModalState();
+  const hasUnsavedChanges = () => {
+    // Check if there's any data entered
+    if (editTransaction) {
+      // For editing, allow immediate close (changes are auto-saved)
+      return false;
+    }
+    
+    // Check if form has data
+    const hasFormData = name.trim() || amount.trim();
+    const hasDraftExpenses = draftExpenses.length > 0;
+    
+    return hasFormData || hasDraftExpenses;
+  };
 
-    // Always close immediately - Cancel should be immediate
-    onClose();
+  const handleClose = () => {
+    log('[AddTransactionModal] handleClose called', { hasUnsavedChanges: hasUnsavedChanges(), name: name.trim(), amount: amount.trim(), draftExpensesCount: draftExpenses.length });
+    if (hasUnsavedChanges()) {
+      // Warn user about unsaved changes
+      showAlert({
+        title: 'Unsaved Changes',
+        message: 'You have unsaved changes. Are you sure you want to close?',
+        type: 'warning',
+        actions: [
+          // eslint-disable-next-line @typescript-eslint/no-empty-function
+          { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+          {
+            text: 'Discard',
+            onPress: () => {
+              log('[AddTransactionModal] Discard button pressed, calling onClose');
+              resetModalState();
+              onClose();
+            },
+            style: 'destructive',
+          },
+        ],
+      });
+    } else {
+      log('[AddTransactionModal] No unsaved changes, calling onClose directly');
+      resetModalState();
+      onClose();
+    }
   };
 
   const handleXButtonClose = () => {
+    log('[AddTransactionModal] X button clicked', { hasEditTransaction: !!editTransaction, hasUnsavedChanges: hasUnsavedChanges() });
     try {
       // For editing, always allow immediate close without confirmation
       if (editTransaction) {
+        log('[AddTransactionModal] Edit mode, calling onClose directly');
         onClose();
         return;
       }
-
-      // For new transactions, show confirmation if there are changes
-      if (name.trim() || amount.trim() || draftExpenses.length > 0) {
-        showAlert({
-          title: 'Discard Changes',
-          message:
-            'Are you sure you want to discard this transaction and any added expenses?',
-          type: 'warning',
-          actions: [
-            { text: 'Keep Editing', onPress: () => {}, style: 'cancel' },
-            {
-              text: 'Discard',
-              onPress: () => {
-                resetModalState();
-                onClose();
-              },
-              style: 'destructive',
-            },
-          ],
-        });
-      } else {
-        onClose();
+      
+      // Check for unsaved changes and warn if needed
+      if (hasUnsavedChanges()) {
+        handleClose();
+        return;
       }
+
+      // No unsaved changes, close immediately
+      log('[AddTransactionModal] No unsaved changes, calling onClose directly');
+      resetModalState();
+      onClose();
     } catch (error) {
       console.error('Error in handleXButtonClose:', error);
       onClose(); // Always close even if there's an error
@@ -532,6 +586,7 @@ export default function AddTransactionModal({
     setSelectedDay(new Date().getDate());
     setGivenExpenseFrequency('every_week');
     setGivenExpenseStartDate(new Date());
+    setHasAttemptedSubmit(false); // Reset submit attempt flag
   };
 
   const saveCurrentExpense = () => {
@@ -599,6 +654,7 @@ export default function AddTransactionModal({
       setCategory('one_time_expense');
       setIsRecurring(false);
       setSelectedDay(new Date().getDate());
+      setHasAttemptedSubmit(false); // Reset submit attempt flag
     } else if (currentExpenseIndex !== null && currentExpenseIndex > index) {
       setCurrentExpenseIndex(currentExpenseIndex - 1);
     }
@@ -622,6 +678,7 @@ export default function AddTransactionModal({
   };
 
   const resetModalState = () => {
+    setHasAttemptedSubmit(false); // Reset submit attempt flag
     try {
       setName('');
       setAmount('');
@@ -711,11 +768,13 @@ export default function AddTransactionModal({
 
         if (expense.category === 'given_expenses') {
           // Handle given expenses with frequency schedule
+          const startDate = expense.givenExpenseStartDate!;
           givenExpenseSchedule = {
             frequency: expense.givenExpenseFrequency!,
-            startDate: expense.givenExpenseStartDate!.toISOString(),
+            dayOfWeek: startDate.getDay(), // 0 = Sunday, 1 = Monday, etc.
+            startDate: startDate.toISOString(),
           };
-          transactionDate = expense.givenExpenseStartDate!.toISOString();
+          transactionDate = startDate.toISOString();
         } else {
           // Use day of month for regular expenses - resolve to appropriate date
           const today = new Date();
@@ -789,20 +848,23 @@ export default function AddTransactionModal({
       // Reset form and draft expenses
       resetModalState();
 
-      // Close modal and show success message
+      // Close modal first, then show success alert after modal closes
       onClose();
+
+      // Show success alert after modal closes using custom AlertModal (using setTimeout to allow modal close animation to complete)
       setTimeout(() => {
-        showAlert({
-          title: 'Success!',
-          message: `${savedCount} expense${savedCount > 1 ? 's' : ''} added successfully! All expenses have been saved and will appear in both Budget and Overview tabs based on their dates and categories.`,
-          type: 'success',
+      showAlert({
+        title: 'Success',
+        message: `${savedCount} expense${savedCount > 1 ? 's' : ''} added.`,
+        type: 'success',
           actions: [{ text: 'OK', onPress: () => {} }],
-        });
-      }, 100);
+      });
+      }, 300); // 300ms delay to allow modal close animation to complete
     } catch (error) {
       console.error('Error saving expenses:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
+      // Show error using custom AlertModal
       showAlert({
         title: 'Error',
         message: `Failed to save expenses: ${errorMessage}`,
@@ -856,8 +918,6 @@ export default function AddTransactionModal({
       justifyContent: 'space-between',
       padding: Spacing.lg,
       paddingBottom: Spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
       backgroundColor: colors.background,
     },
     title: {
@@ -882,34 +942,6 @@ export default function AddTransactionModal({
       paddingHorizontal: Spacing.lg,
       paddingBottom: Spacing.lg,
     },
-    typeToggle: {
-      flexDirection: 'row',
-      backgroundColor: colors.cardSecondary,
-      borderRadius: BorderRadius.modern,
-      padding: 4,
-      marginVertical: Spacing.lg,
-      gap: 8,
-    },
-    typeButton: {
-      flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      alignItems: 'center',
-      borderRadius: BorderRadius.modern,
-    },
-    typeButtonActive: {
-      backgroundColor: colors.card,
-      ...Shadow.light,
-    },
-
-    typeButtonText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.textSecondary,
-    },
-    typeButtonTextActive: {
-      color: colors.text,
-    },
 
     formGroup: {
       marginBottom: Spacing.lg,
@@ -931,6 +963,15 @@ export default function AddTransactionModal({
       borderColor: colors.border,
       color: colors.text,
       ...Shadow.light,
+    },
+    inputError: {
+      borderColor: colors.error,
+      borderWidth: 2,
+    },
+    errorText: {
+      fontSize: 12,
+      marginTop: Spacing.xs,
+      fontWeight: '500',
     },
 
     amountContainer: {
@@ -1103,16 +1144,18 @@ export default function AddTransactionModal({
         visible={visible}
         animationType='slide'
         presentationStyle='pageSheet'
-        onRequestClose={handleClose}
+        onRequestClose={handleXButtonClose}
         transparent={false}
         statusBarTranslucent={false}
-        animationDuration={200}
       >
         <SafeAreaView style={dynamicStyles.safeArea}>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={dynamicStyles.container}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={dynamicStyles.container}>
             {/* Header */}
             <View style={dynamicStyles.header}>
               <Text style={dynamicStyles.title}>
@@ -1133,50 +1176,18 @@ export default function AddTransactionModal({
               style={dynamicStyles.content}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps='handled'
+              keyboardDismissMode='on-drag'
               contentContainerStyle={dynamicStyles.scrollContent}
             >
               {/* Transaction Type Toggle */}
-              <View style={dynamicStyles.typeToggle}>
-                <TouchableOpacity
-                  style={[
-                    dynamicStyles.typeButton,
-                    transactionType === 'expense' &&
-                      dynamicStyles.typeButtonActive,
-                  ]}
-                  onPress={() => setTransactionType('expense')}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={[
-                      dynamicStyles.typeButtonText,
-                      transactionType === 'expense' &&
-                        dynamicStyles.typeButtonTextActive,
-                    ]}
-                  >
-                    Expense
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    dynamicStyles.typeButton,
-                    transactionType === 'income' &&
-                      dynamicStyles.typeButtonActive,
-                  ]}
-                  onPress={() => setTransactionType('income')}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={[
-                      dynamicStyles.typeButtonText,
-                      transactionType === 'income' &&
-                        dynamicStyles.typeButtonTextActive,
-                    ]}
-                  >
-                    Income
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <Toggle
+                options={[
+                  { id: 'expense', label: 'Expense' },
+                  { id: 'income', label: 'Income' },
+                ]}
+                activeOption={transactionType}
+                onOptionChange={(optionId) => setTransactionType(optionId as TransactionType)}
+              />
 
               {/* Form Fields */}
               <View style={dynamicStyles.formGroup}>
@@ -1189,7 +1200,13 @@ export default function AddTransactionModal({
                 <TextInput
                   style={dynamicStyles.input}
                   value={name}
-                  onChangeText={setName}
+                  onChangeText={(text) => {
+                    setName(text);
+                    // Light haptic on text change for better UX
+                    if (text.length > 0 && name.length === 0) {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }
+                  }}
                   placeholder={
                     transactionType === 'income'
                       ? 'e.g., Salary, Freelance'
@@ -1199,7 +1216,18 @@ export default function AddTransactionModal({
                   returnKeyType='next'
                   autoCapitalize='words'
                   maxLength={50}
+                  onBlur={() => {
+                    // Validation feedback on blur
+                    if (name.trim().length === 0) {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                    }
+                  }}
                 />
+                {hasAttemptedSubmit && name.trim().length === 0 && !editTransaction && (
+                  <Text style={[dynamicStyles.errorText, { color: colors.error }]}>
+                    {transactionType === 'income' ? 'Income source' : 'Expense name'} is required
+                  </Text>
+                )}
               </View>
 
               <View style={dynamicStyles.formGroup}>
@@ -1216,14 +1244,32 @@ export default function AddTransactionModal({
                   <TextInput
                     style={dynamicStyles.amountInput}
                     value={amount}
-                    onChangeText={text => setAmount(formatAmount(text))}
+                    onChangeText={(text) => {
+                      setAmount(formatAmount(text));
+                      // Light haptic on value change
+                      const numValue = parseFloat(formatAmount(text));
+                      if (numValue > 0 && (!amount || parseFloat(amount) <= 0)) {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }
+                    }}
                     placeholder='0.00'
                     placeholderTextColor={colors.inactive}
                     keyboardType='decimal-pad'
                     returnKeyType='done'
                     maxLength={10}
+                    onBlur={() => {
+                      // Validation feedback on blur
+                      if (!amount || parseFloat(amount) <= 0) {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                      }
+                    }}
                   />
                 </View>
+                {hasAttemptedSubmit && (!amount || parseFloat(amount) <= 0) && !editTransaction && (
+                  <Text style={[dynamicStyles.errorText, { color: colors.error }]}>
+                    Amount must be greater than 0
+                  </Text>
+                )}
               </View>
 
               {transactionType === 'expense' && (
@@ -1494,6 +1540,8 @@ export default function AddTransactionModal({
                 />
               )}
             </View>
+              </View>
+            </TouchableWithoutFeedback>
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>

@@ -51,6 +51,7 @@ export function AccountCarousel({ onAddAccount, onRefresh }: AccountCarouselProp
   // Calculate the snap interval for proper card centering
   const snapInterval = cardWidth + cardSpacing;
 
+
   // Handle scroll to update current index
   const handleScroll = (event: any) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
@@ -160,7 +161,7 @@ export function AccountCarousel({ onAddAccount, onRefresh }: AccountCarouselProp
         { width: cardWidth }
       ]}
     >
-      <Card style={styles.accountCard}>
+      <Card style={[styles.accountCard, { marginBottom: 0 }]}>
         <View style={styles.accountCardHeader}>
           <View style={styles.accountCardInfo}>
             <Text style={[styles.accountCardName, { color: colors.text }]}>
@@ -267,7 +268,7 @@ export function AccountCarousel({ onAddAccount, onRefresh }: AccountCarouselProp
     return (
       <View style={styles.container}>
         <View style={styles.connectBankContainer}>
-          <View style={styles.connectBankCardWrapper}>
+          <View style={[styles.connectBankCardWrapper, { width: cardWidth }]}>
             <Card style={[styles.connectBankCard, { backgroundColor: colors.card }]} contentStyle={[styles.connectBankCardContent, { backgroundColor: colors.card }]}>
               <TouchableOpacity 
                 style={styles.connectBankContent}
@@ -296,6 +297,9 @@ export function AccountCarousel({ onAddAccount, onRefresh }: AccountCarouselProp
     );
   }
 
+
+  const scrollViewRefLayout = React.useRef<{ height: number; y: number } | null>(null);
+  
   return (
     <View style={styles.container}>
       
@@ -315,6 +319,10 @@ export function AccountCarousel({ onAddAccount, onRefresh }: AccountCarouselProp
         bounces={true}
         overScrollMode="auto"
         contentInsetAdjustmentBehavior="never"
+        onLayout={(event) => {
+          const { height, y } = event.nativeEvent.layout;
+          scrollViewRefLayout.current = { height, y };
+        }}
       >
         {state.accounts.map((account, index) => renderAccountCard(account, index))}
         {renderAddAccountCard()}
@@ -322,7 +330,10 @@ export function AccountCarousel({ onAddAccount, onRefresh }: AccountCarouselProp
       
       {/* Page Indicators */}
       {(state.accounts.length + 1) > 1 && (
-        <View style={styles.pageIndicators}>
+        <View 
+          style={styles.pageIndicators}
+          onLayout={() => {}}
+        >
           {[...state.accounts, { id: 'add' }].map((_, index) => (
             <TouchableOpacity
               key={index}
@@ -345,8 +356,9 @@ export function AccountCarousel({ onAddAccount, onRefresh }: AccountCarouselProp
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: Spacing.md,
-    // Remove horizontal padding - Banking tab's scrollContent already provides it
+    marginBottom: 0, // Reduced to bring next section closer
+    marginHorizontal: -Spacing.lg, // Extend beyond parent padding to prevent clipping
+    overflow: 'visible', // Allow shadows to show beyond bounds
   },
   header: {
     flexDirection: 'row',
@@ -373,24 +385,26 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
   },
   scrollContainer: {
-    paddingVertical: Spacing.sm,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs, // Add padding to allow card shadows to render fully
+    paddingHorizontal: Spacing.lg, // Add padding for shadow space and proper card spacing from screen edges
     alignItems: 'center', // For horizontal scroll view
-    // No horizontal padding - parent banking screen provides it
   },
   connectBankContainer: {
     paddingVertical: Spacing.sm,
-    alignItems: 'stretch', // Allow card to stretch to full width
-    // No horizontal padding - parent banking screen provides it
+    paddingHorizontal: Spacing.lg, // Match scrollContainer padding for consistency
+    alignItems: 'center', // Center the card
   },
   accountCardWrapper: {
     marginRight: Spacing.md, // Gap between cards
+    overflow: 'visible', // Allow card shadows to render fully
   },
   connectBankCardWrapper: {
-    width: '100%', // Full width to match other cards
+    // Width set inline to match cardWidth calculation
   },
   accountCard: {
     position: 'relative',
-    marginBottom: Spacing.md, // Match other cards margin
+    marginBottom: 0, // Remove bottom margin for consistent spacing
   },
   accountCardHeader: {
     flexDirection: 'row',
@@ -517,7 +531,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
-    marginTop: Spacing.sm,
+    marginTop: 8, // Space from cards to allow shadows and maintain consistency (8px)
+    marginBottom: Spacing.sm, // More space below dots (8px) to separate from bottom card
   },
   pageIndicator: {
     width: 8,

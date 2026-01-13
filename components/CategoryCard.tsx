@@ -13,12 +13,12 @@ interface CategoryCardProps {
   onPress?: () => void;
 }
 
-export default function CategoryCard({
+const CategoryCard = ({
   category,
   amount,
   count,
   onPress,
-}: CategoryCardProps) {
+}: CategoryCardProps) => {
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
   const categoryInfo = categories.find(c => c.id === category) || categories[0];
@@ -85,7 +85,10 @@ export default function CategoryCard({
       <CardContent />
     </View>
   );
-}
+};
+
+// Memoize component to prevent unnecessary re-renders in lists
+export default React.memo(CategoryCard);
 
 const styles = StyleSheet.create({
   container: {

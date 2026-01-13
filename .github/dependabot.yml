@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Frontend dependencies
+  # Root package.json (frontend)
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -8,19 +8,27 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 10
+    reviewers:
+      - "cameroncons" # Update with your GitHub username
     labels:
       - "dependencies"
-      - "frontend"
+      - "security"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # Group updates to reduce PR noise
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
+    # Ignore major version updates (review manually)
     ignore:
-      # Ignore major version updates for critical packages (review manually)
-      - dependency-name: "react"
+      - dependency-name: "*"
         update-types: ["version-update:semver-major"]
-      - dependency-name: "react-native"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "expo"
-        update-types: ["version-update:semver-major"]
-
-  # Backend dependencies
+  
+  # Backend package.json
   - package-ecosystem: "npm"
     directory: "/backend"
     schedule:
@@ -28,15 +36,31 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 10
+    reviewers:
+      - "cameroncons" # Update with your GitHub username
     labels:
       - "dependencies"
+      - "security"
       - "backend"
+    commit-message:
+      prefix: "chore(backend)"
+      include: "scope"
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
     ignore:
-      # Ignore major version updates for critical packages
-      - dependency-name: "express"
+      - dependency-name: "*"
         update-types: ["version-update:semver-major"]
-      - dependency-name: "@supabase/supabase-js"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "plaid"
-        update-types: ["version-update:semver-major"]
-
+  
+  # GitHub Actions updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    labels:
+      - "github-actions"
+      - "dependencies"

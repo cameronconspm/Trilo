@@ -85,7 +85,7 @@ export function getLeadingBlanks(firstWeekday: number, weekStart: number): numbe
 export function generateCalendarGrid(
   year: number,
   month: number,
-  weekStart: number = 0
+  weekStart = 0
 ): Array<{
   day: number;
   date: Date;

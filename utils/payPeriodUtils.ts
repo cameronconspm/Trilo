@@ -174,7 +174,7 @@ export function calculatePayPeriods(
       }
 
       // A period is active if today falls within it
-      let isActive = today >= startDate && today <= endDate;
+      const isActive = today >= startDate && today <= endDate;
 
       periods.push({
         startDate,
@@ -182,6 +182,29 @@ export function calculatePayPeriods(
         isActive,
         displayText,
       });
+    }
+    
+    // Check if the active period is a gap period (too short and between generated future dates)
+    // If so, merge it with the previous period or extend the previous period to include today
+    const activePeriodIndex = periods.findIndex(p => p.isActive);
+    if (activePeriodIndex > 0) {
+      const activePeriod = periods[activePeriodIndex];
+      const previousPeriod = periods[activePeriodIndex - 1];
+      
+      // Check if active period is a gap (less than 2 days and starts right after previous period ends)
+      const periodDurationMs = activePeriod.endDate.getTime() - activePeriod.startDate.getTime();
+      const daysBetween = (activePeriod.startDate.getTime() - previousPeriod.endDate.getTime()) / (1000 * 60 * 60 * 24);
+      const isGapPeriod = periodDurationMs < 2 * 24 * 60 * 60 * 1000 && daysBetween < 1.5;
+      
+      if (isGapPeriod) {
+        // Merge active period with previous period
+        previousPeriod.endDate = activePeriod.endDate;
+        previousPeriod.isActive = true;
+        previousPeriod.displayText = `${formatDateShort(previousPeriod.startDate)} – ${formatDateShort(previousPeriod.endDate)}`;
+        
+        // Remove the gap period
+        periods.splice(activePeriodIndex, 1);
+      }
     }
     
     // If no active period exists, create one from the past to the first income date

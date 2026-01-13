@@ -16,8 +16,9 @@ import { useSettings } from '@/context/SettingsContext';
 import { useTutorial } from '@/context/TutorialContext';
 import { Spacing, BorderRadius, Shadow, Typography } from '@/constants/spacing';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { COMMON_STORAGE_KEYS } from '@/utils/storageKeys';
 
-const SETUP_STORAGE_KEY_PREFIX = '@trilo:setup_completed_';
+const SETUP_STORAGE_KEY_PREFIX = COMMON_STORAGE_KEYS.SETUP_COMPLETED_PREFIX;
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -46,19 +47,12 @@ export function TooltipOverlay() {
   const currentStepData = steps[currentStep];
 
   useEffect(() => {
-    if (isActive) {
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    }
+    // Use consistent animation timing
+    Animated.timing(fadeAnim, {
+      toValue: isActive ? 1 : 0,
+      duration: isActive ? 300 : 200, // Standard enter, fast exit
+      useNativeDriver: true,
+    }).start();
   }, [isActive, fadeAnim]);
 
   if (!isActive || !currentStepData) {

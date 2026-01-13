@@ -7,30 +7,94 @@ require('dotenv').config();
 const plaidRoutes = require('./routes/plaid');
 const mfaRoutes = require('./routes/mfa');
 const webhookRoutes = require('./webhooks/revenuecat-webhook');
+const { requestIdMiddleware } = require('./utils/requestId');
+const { generalLimiter } = require('./middleware/rateLimit');
+const { apiVersioning } = require('./middleware/apiVersioning');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Security middleware
-app.use(helmet());
+// Request ID middleware (must be first)
+app.use(requestIdMiddleware);
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-});
-app.use(limiter);
-
-// CORS configuration
-app.use(cors({
-  origin: process.env.CORS_ORIGIN === '*' ? true : (process.env.CORS_ORIGIN || 'http://localhost:8081'),
-  credentials: true,
+// Security middleware - configure Helmet for financial app
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true,
+  },
 }));
 
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+// Rate limiting - general API rate limit
+app.use(generalLimiter);
+
+// CORS configuration - secure CORS for production
+const corsOptions = {
+  credentials: true,
+  optionsSuccessStatus: 200,
+};
+
+if (process.env.CORS_ORIGIN) {
+  if (process.env.CORS_ORIGIN === '*') {
+    // In production, warn about wildcard CORS
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('⚠️  WARNING: CORS_ORIGIN is set to "*" in production. This is insecure!');
+    }
+    corsOptions.origin = true; // Allow all origins
+  } else {
+    // Parse multiple origins if comma-separated
+    const origins = process.env.CORS_ORIGIN.split(',').map(origin => origin.trim());
+    corsOptions.origin = (origin, callback) => {
+      if (origins.indexOf(origin) !== -1 || !origin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    };
+  }
+} else {
+  // Default to localhost for development
+  corsOptions.origin = 'http://localhost:8081';
+}
+
+app.use(cors(corsOptions));
+
+// Body parsing middleware with security limits
+// Limit request body size to prevent DoS attacks
+app.use(express.json({ 
+  limit: process.env.MAX_REQUEST_SIZE || '1mb', // Default 1mb (reduced from 10mb for security)
+  strict: true // Only parse arrays and objects
+}));
+app.use(express.urlencoded({ 
+  extended: true,
+  limit: process.env.MAX_REQUEST_SIZE || '1mb',
+  parameterLimit: 100 // Limit number of parameters
+}));
+
+// Request timeout configuration
+// Set timeout for all requests (prevents hanging requests)
+const REQUEST_TIMEOUT_MS = parseInt(process.env.REQUEST_TIMEOUT_MS || '30000'); // 30 seconds default
+app.use((req, res, next) => {
+  req.setTimeout(REQUEST_TIMEOUT_MS, () => {
+    if (!res.headersSent) {
+      res.status(408).json({
+        error: 'Request timeout',
+        message: 'The request took too long to process',
+        requestId: req.id,
+      });
+    }
+  });
+  next();
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -99,9 +163,16 @@ app.get('/plaid/redirect', async (req, res) => {
   }
 });
 
-// API routes
+// API versioning middleware (before routes)
+app.use('/api', apiVersioning);
+
+// API routes (will work with or without version prefix)
+// /api/plaid/* and /api/v1/plaid/* both work (v1 is default)
 app.use('/api/plaid', plaidRoutes);
 app.use('/api/mfa', mfaRoutes);
+// Also register versioned routes for explicit version usage
+app.use('/api/v1/plaid', plaidRoutes);
+app.use('/api/v1/mfa', mfaRoutes);
 
 // Log registered routes for debugging
 console.log('✅ API Routes registered:');
@@ -119,9 +190,17 @@ app.use((err, req, res, next) => {
     return next(err);
   }
   
-  console.error('[Server] Unhandled error:', err);
-  console.error('[Server] Error code:', err?.code);
-  console.error('[Server] Error message:', err?.message);
+  const { logger } = require('./utils/logger');
+  const { createErrorResponse } = require('./utils/errorHandler');
+  
+  logger.error('Unhandled server error', {
+    error: err.message,
+    stack: err.stack,
+    code: err?.code,
+    requestId: req.id,
+    path: req.path,
+    method: req.method,
+  });
   
   // Check if it's a PGRST116 error (account not found)
   // PGRST116 means "0 rows" - for delete operations, this is success (account already deleted)
@@ -137,34 +216,23 @@ app.use((err, req, res, next) => {
                      errorMessage.includes('Cannot coerce') ||
                      errorMessage.includes('The result contains 0 rows') ||
                      (errorDetails && (String(errorDetails).includes('PGRST116') || String(errorDetails).includes('0 rows')));
-  
+
   if (hasPGRST116) {
-    console.log('[Server] ✅ PGRST116 detected in error middleware - treating as success');
-    console.log('[Server] Error code:', errorCode);
-    console.log('[Server] Error message:', errorMessage);
-    console.log('[Server] Error details:', errorDetails);
+    logger.info('PGRST116 detected in error middleware - treating as success', {
+      errorCode,
+      requestId: req.id,
+    });
     // Return success - account doesn't exist = success
     return res.json({ 
       success: true, 
       message: 'Account not found (may have been already deleted)',
-      alreadyDeleted: true
+      alreadyDeleted: true,
+      requestId: req.id,
     });
   }
   
-  // Preserve detailed error information if available
-  const errorResponse = {
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
-  };
-  
-  // Include error details if available
-  if (err?.code) {
-    errorResponse.code = err.code;
-  }
-  if (err?.details) {
-    errorResponse.details = err.details;
-  }
-  
+  // Use secure error response
+  const errorResponse = createErrorResponse(err, req, 'Internal server error');
   res.status(500).json(errorResponse);
 });
 

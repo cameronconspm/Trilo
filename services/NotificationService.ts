@@ -309,7 +309,7 @@ class NotificationService {
   async scheduleMilestoneNotification(
     title: string,
     body: string,
-    delay: number = 0
+    delay = 0
   ) {
     if (Platform.OS === 'web' || !this.settings.milestoneNotifications) return;
 

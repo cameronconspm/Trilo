@@ -47,22 +47,25 @@ const buildWidgetPayload = (expenses: Transaction[]): WidgetExpensePayload | nul
     };
   }
 
-  const normalizedExpenses = expenses
+  const mappedExpenses = expenses
     .map(expense => {
       const dueDate = new Date(expense.date);
       if (Number.isNaN(dueDate.getTime())) {
         return null;
       }
 
+      const categoryColor = getCategoryColor(expense.category);
       return {
         id: expense.id,
         title: expense.name,
         amount: Number.isFinite(expense.amount) ? expense.amount : 0,
         due_date: dueDate.toISOString(),
-        category_color: getCategoryColor(expense.category),
-      } satisfies WidgetExpense;
+        category_color: categoryColor || undefined,
+      };
     })
-    .filter((value): value is WidgetExpense => value !== null)
+    .filter((value): value is NonNullable<typeof value> => value !== null);
+  
+  const normalizedExpenses: WidgetExpense[] = mappedExpenses
     .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
     .slice(0, MAX_WIDGET_ITEMS);
 

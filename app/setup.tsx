@@ -8,7 +8,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
   Image,
   Switch,
@@ -32,9 +31,14 @@ import DatePicker from '@/components/forms/DatePicker';
 import PayCadencePicker from '@/components/forms/PayCadencePicker';
 import MonthlyDaysPicker from '@/components/forms/MonthlyDaysPicker';
 import { CsvImportModal } from '@/components/modals';
+import AlertModal from '@/components/modals/AlertModal';
 import { CategoryType, PayCadence, PaySchedule } from '@/types/finance';
+import { log } from '@/utils/logger';
+import { useAlert } from '@/hooks/useAlert';
+import { COMMON_STORAGE_KEYS } from '@/utils/storageKeys';
+import { STATE_SYNC_TIMEOUTS } from '@/constants/timing';
 
-const SETUP_STORAGE_KEY_PREFIX = '@trilo:setup_completed_';
+const SETUP_STORAGE_KEY_PREFIX = COMMON_STORAGE_KEYS.SETUP_COMPLETED_PREFIX;
 
 const SETUP_STEPS = [
   { label: 'Username', key: 'username' },
@@ -50,6 +54,7 @@ export default function SetupScreen() {
   const colors = useThemeColors(theme);
   const { setNickname, setAvatarUri } = useSettings();
   const { addTransaction, reloadData } = useFinance();
+  const { alertState, showAlert, hideAlert } = useAlert();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [username, setUsername] = useState('');
@@ -302,11 +307,12 @@ export default function SetupScreen() {
 
   const handleAvatarPress = async () => {
     if (Platform.OS === 'web') {
-      Alert.alert(
-        'Avatar Upload',
-        'Avatar upload is not available on web. This feature works on mobile devices.',
-        [{ text: 'OK' }]
-      );
+      showAlert({
+        title: 'Avatar Upload',
+        message: 'Avatar upload is not available on web. This feature works on mobile devices.',
+        type: 'info',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
       return;
     }
 
@@ -317,11 +323,12 @@ export default function SetupScreen() {
       ]);
 
       if (mediaLibraryStatus.status !== 'granted' && cameraStatus.status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Please grant permission to access your camera or photo library.',
-          [{ text: 'OK' }]
-        );
+        showAlert({
+          title: 'Permission Required',
+          message: 'Please grant permission to access your camera or photo library.',
+          type: 'warning',
+          actions: [{ text: 'OK', onPress: () => {} }],
+        });
         return;
       }
 
@@ -367,9 +374,25 @@ export default function SetupScreen() {
         });
       }
 
-      Alert.alert('Choose Photo', 'Select a photo source', options);
+      // For action sheet-style selection, we'll use a simple alert for now
+      // In the future, this could be replaced with a proper action sheet modal
+      showAlert({
+        title: 'Choose Photo',
+        message: 'Select a photo source',
+        type: 'info',
+        actions: options.map(opt => ({
+          text: opt.text,
+          onPress: opt.onPress || (() => {}),
+          style: opt.style || 'default',
+        })),
+      });
     } catch (error) {
-      Alert.alert('Error', 'Failed to open image picker. Please try again.');
+      showAlert({
+        title: 'Error',
+        message: 'Failed to open image picker. Please try again.',
+        type: 'error',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
     }
   };
 
@@ -377,10 +400,12 @@ export default function SetupScreen() {
     switch (step) {
       case 0: // Username
         if (username.trim().length < 2 || username.trim().length > 30) {
-          Alert.alert(
-            'Invalid Username',
-            'Username must be between 2 and 30 characters.'
-          );
+          showAlert({
+            title: 'Invalid Username',
+            message: 'Username must be between 2 and 30 characters.',
+            type: 'warning',
+            actions: [{ text: 'OK', onPress: () => {} }],
+          });
           return false;
         }
         return true;
@@ -388,28 +413,42 @@ export default function SetupScreen() {
         return true;
       case 2: // Income
         if (!incomeName.trim()) {
-          Alert.alert('Missing Information', 'Please enter an income source.');
+          showAlert({
+            title: 'Missing Information',
+            message: 'Please enter an income source.',
+            type: 'warning',
+            actions: [{ text: 'OK', onPress: () => {} }],
+          });
           return false;
         }
         const incomeAmt = parseFloat(incomeAmount);
         if (!incomeAmount || isNaN(incomeAmt) || incomeAmt <= 0) {
-          Alert.alert('Invalid Amount', 'Please enter a valid amount greater than 0.');
+          showAlert({
+            title: 'Invalid Amount',
+            message: 'Please enter a valid amount greater than 0.',
+            type: 'warning',
+            actions: [{ text: 'OK', onPress: () => {} }],
+          });
           return false;
         }
         // Validate pay schedule for recurring income
         if (incomeIsRecurring) {
           if (incomePayCadence === 'twice_monthly' && incomeMonthlyDays.length === 0) {
-            Alert.alert(
-              'Missing Pay Days',
-              'Please add at least one pay day for twice monthly schedule'
-            );
+            showAlert({
+              title: 'Missing Pay Days',
+              message: 'Please add at least one pay day for twice monthly schedule',
+              type: 'warning',
+              actions: [{ text: 'OK', onPress: () => {} }],
+            });
             return false;
           }
           if (incomePayCadence === 'custom' && incomeCustomDays.length === 0) {
-            Alert.alert(
-              'Missing Pay Days',
-              'Please add at least one pay day for custom schedule'
-            );
+            showAlert({
+              title: 'Missing Pay Days',
+              message: 'Please add at least one pay day for custom schedule',
+              type: 'warning',
+              actions: [{ text: 'OK', onPress: () => {} }],
+            });
             return false;
           }
         }
@@ -421,12 +460,22 @@ export default function SetupScreen() {
         }
         // If user started entering data, validate it
         if (!expenseName.trim()) {
-          Alert.alert('Missing Information', 'Please enter an expense name.');
+          showAlert({
+            title: 'Missing Information',
+            message: 'Please enter an expense name.',
+            type: 'warning',
+            actions: [{ text: 'OK', onPress: () => {} }],
+          });
           return false;
         }
         const expenseAmt = parseFloat(expenseAmount);
         if (!expenseAmount || isNaN(expenseAmt) || expenseAmt <= 0) {
-          Alert.alert('Invalid Amount', 'Please enter a valid amount greater than 0.');
+          showAlert({
+            title: 'Invalid Amount',
+            message: 'Please enter a valid amount greater than 0.',
+            type: 'warning',
+            actions: [{ text: 'OK', onPress: () => {} }],
+          });
           return false;
         }
         return true;
@@ -496,15 +545,16 @@ export default function SetupScreen() {
           isRecurring: incomeIsRecurring,
           paySchedule: incomePaySchedule,
         });
-        console.log('Setup: Income transaction added successfully');
+        log('Setup: Income transaction added successfully');
       } catch (error) {
         console.error('Setup: Failed to add income transaction:', error);
         setIsLoading(false);
-        Alert.alert(
-          'Error',
-          'Failed to save your income. Please try again.',
-          [{ text: 'OK' }]
-        );
+        showAlert({
+          title: 'Error',
+          message: 'Failed to save your income. Please try again.',
+          type: 'error',
+          actions: [{ text: 'OK', onPress: () => {} }],
+        });
         return;
       }
 
@@ -574,15 +624,16 @@ export default function SetupScreen() {
             isRecurring: expenseIsRecurring,
             paySchedule: expensePaySchedule,
           });
-          console.log('Setup: Expense transaction added successfully');
+          log('Setup: Expense transaction added successfully');
         } catch (error) {
           console.error('Setup: Failed to add expense transaction:', error);
           setIsLoading(false);
-          Alert.alert(
-            'Error',
-            'Failed to save your expense. Please try again.',
-            [{ text: 'OK' }]
-          );
+          showAlert({
+            title: 'Error',
+            message: 'Failed to save your expense. Please try again.',
+            type: 'error',
+            actions: [{ text: 'OK', onPress: () => {} }],
+          });
           return;
         }
 
@@ -591,13 +642,13 @@ export default function SetupScreen() {
       }
 
       // Wait longer for all state updates and saves to complete
-      await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, STATE_SYNC_TIMEOUTS.CSV_IMPORT_DELAY));
 
       // Verify data was saved to storage BEFORE reload
       // Use the same storage key format as FinanceContext
       const storageKey = `finance_transactions_v2_${user.id}`;
-      console.log(`[SETUP] Checking storage with key: ${storageKey}`);
-      console.log(`[SETUP] User ID: ${user.id}`);
+      log(`[SETUP] Checking storage with key: ${storageKey}`);
+      log(`[SETUP] User ID: ${user.id}`);
       
       // Wait a bit more to ensure all async operations complete
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -605,15 +656,15 @@ export default function SetupScreen() {
       // Check all possible storage keys
       const allKeys = await AsyncStorage.getAllKeys();
       const transactionKeys = allKeys.filter(k => k.includes('finance_transactions'));
-      console.log(`[SETUP] All transaction-related keys found:`, transactionKeys);
+      log(`[SETUP] All transaction-related keys found:`, transactionKeys);
       
       const savedData = await AsyncStorage.getItem(storageKey);
-      console.log(`[SETUP] Data found for key ${storageKey}:`, savedData ? 'YES' : 'NO');
+      log(`[SETUP] Data found for key ${storageKey}:`, savedData ? 'YES' : 'NO');
       
       if (savedData) {
         const parsed = JSON.parse(savedData);
-        console.log(`[SETUP] Verified ${parsed.length} transactions saved to storage before reload`);
-        console.log('[SETUP] Transaction details:', parsed.map((t: any) => ({
+        log(`[SETUP] Verified ${parsed.length} transactions saved to storage before reload`);
+        log('[SETUP] Transaction details:', parsed.map((t: any) => ({
           name: t.name,
           type: t.type,
           amount: t.amount,
@@ -630,13 +681,13 @@ export default function SetupScreen() {
           const data = await AsyncStorage.getItem(key);
           if (data) {
             const parsed = JSON.parse(data);
-            console.log(`[SETUP] Found ${parsed.length} transactions in key: ${key}`);
+            log(`[SETUP] Found ${parsed.length} transactions in key: ${key}`);
             if (parsed.length > 0) {
               // Data exists but in wrong key - this is the issue!
               console.error(`[SETUP] MISMATCH: Data saved to ${key} but checking ${storageKey}`);
               // Copy data to correct key
               await AsyncStorage.setItem(storageKey, data);
-              console.log(`[SETUP] Copied data from ${key} to ${storageKey}`);
+              log(`[SETUP] Copied data from ${key} to ${storageKey}`);
               break;
             }
           }
@@ -647,11 +698,12 @@ export default function SetupScreen() {
         if (!recheck) {
           // Don't proceed if data isn't saved - this is a critical error
           setIsLoading(false);
-          Alert.alert(
-            'Error',
-            'Failed to save your data. Please try again.',
-            [{ text: 'OK' }]
-          );
+          showAlert({
+            title: 'Error',
+            message: 'Failed to save your data. Please try again.',
+            type: 'error',
+            actions: [{ text: 'OK', onPress: () => {} }],
+          });
           return;
         }
       }
@@ -661,7 +713,7 @@ export default function SetupScreen() {
       try {
         const syncService = new SyncService(user.id);
         await syncService.syncToCloud();
-        console.log('Setup: Cloud sync completed (or skipped for test account)');
+        log('Setup: Cloud sync completed (or skipped for test account)');
       } catch (syncError) {
         console.error('Setup: Error syncing to cloud:', syncError);
         // Continue even if sync fails - data is saved locally
@@ -671,19 +723,19 @@ export default function SetupScreen() {
       await AsyncStorage.setItem(`${SETUP_STORAGE_KEY_PREFIX}${user.id}`, 'true');
 
       // Force FinanceContext to reload and recalculate
-      console.log('Setup: Reloading FinanceContext data...');
+      log('Setup: Reloading FinanceContext data...');
       await reloadData();
-      console.log('Setup: FinanceContext reloaded');
+      log('Setup: FinanceContext reloaded');
       
       // Wait longer to ensure all calculations complete and state updates
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, STATE_SYNC_TIMEOUTS.SETUP_COMPLETION_DELAY));
 
       // Final verification after reload - check storage
       const finalCheck = await AsyncStorage.getItem(storageKey);
       
       if (finalCheck) {
         const finalParsed = JSON.parse(finalCheck);
-        console.log(`Setup: Final check - ${finalParsed.length} transactions in storage after reload`);
+        log(`Setup: Final check - ${finalParsed.length} transactions in storage after reload`);
         
         if (finalParsed.length === 0) {
           console.error('Setup: CRITICAL - Storage was cleared during reload!');
@@ -691,9 +743,9 @@ export default function SetupScreen() {
           // Try to recover - check if data exists in a different format
           const allKeys = await AsyncStorage.getAllKeys();
           const transactionKeys = allKeys.filter(key => key.includes('finance_transactions'));
-          console.log('Setup: All transaction-related keys:', transactionKeys);
+          log('Setup: All transaction-related keys:', transactionKeys);
         } else {
-          console.log('Setup: Transaction details after reload:', finalParsed.map((t: any) => ({
+          log('Setup: Transaction details after reload:', finalParsed.map((t: any) => ({
             name: t.name,
             type: t.type,
             amount: t.amount,
@@ -705,14 +757,19 @@ export default function SetupScreen() {
         console.error(`Setup: Storage key checked: ${storageKey}`);
         // Debug: List all keys to see what's in storage
         const allKeys = await AsyncStorage.getAllKeys();
-        console.log('Setup: All storage keys:', allKeys.filter(key => key.includes('finance') || key.includes('transaction')));
+        log('Setup: All storage keys:', allKeys.filter(key => key.includes('finance') || key.includes('transaction')));
       }
 
       // Navigate to main app
       // The FinanceContext will reload on mount and should find the data
       router.replace('/(tabs)');
     } catch (error) {
-      Alert.alert('Error', 'Failed to complete setup. Please try again.');
+      showAlert({
+        title: 'Error',
+        message: 'Failed to complete setup. Please try again.',
+        type: 'error',
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
       console.error('Setup error:', error);
     } finally {
       setIsLoading(false);
@@ -1049,6 +1106,7 @@ export default function SetupScreen() {
         visible={showCsvImport}
         onClose={() => setShowCsvImport(false)}
       />
+      <AlertModal {...alertState} onClose={hideAlert} />
     </SafeAreaView>
   );
 }

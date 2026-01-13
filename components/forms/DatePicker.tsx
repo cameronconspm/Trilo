@@ -176,7 +176,7 @@ export default function DatePicker({
       marginBottom: spacing.lg,
     },
     label: {
-      ...typography.label,
+      fontSize: 17,
       fontWeight: '600',
       marginBottom: spacing.md,
       color: colors.text,

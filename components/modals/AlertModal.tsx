@@ -7,12 +7,12 @@ import {
   Animated,
   Platform,
 } from 'react-native';
-import { X, AlertTriangle, CheckCircle, Info } from 'lucide-react-native';
-import Button from '@/components/layout/Button';
+// Removed unused imports for Apple-style alert (no icons, no Button component)
 import { useThemeColors } from '@/constants/colors';
 import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius, Shadow, Typography } from '@/constants/spacing';
 import { ModalWrapper } from './ModalWrapper';
+import { createScaleFadeAnimation } from '@/utils/modalAnimations';
 
 interface AlertAction {
   text: string;
@@ -29,31 +29,26 @@ interface AlertModalProps {
   onClose: () => void;
 }
 
-// Standardized modal spacing constants - consistent across all modals
-const MODAL_STANDARDS = {
-  // Container padding - all sides have consistent spacing
-  paddingHorizontal: Spacing.xxl, // 24px - standard horizontal padding
-  paddingTop: Spacing.xxl + Spacing.md, // 32px - top padding with close button clearance
-  paddingBottom: Spacing.xxl, // 24px - base bottom padding
-  
-  // Close button positioning
-  closeButtonTop: Spacing.md, // 12px from top
-  closeButtonRight: Spacing.md, // 12px from right
-  
-  // Icon section spacing
-  iconTopMargin: Spacing.md, // 12px - clearance from close button
-  iconBottomMargin: Spacing.xl, // 20px - spacing before title
+// Apple-style alert modal spacing constants - matches iOS UIAlertController
+const APPLE_ALERT_STANDARDS = {
+  // Container padding - Apple uses ~20px
+  paddingHorizontal: 20,
+  paddingTop: 20,
+  paddingBottom: 12, // Less bottom padding, buttons handle their own
   
   // Content spacing
-  contentBottomMargin: Spacing.xxl, // 24px - spacing before buttons
-  titleMessageGap: Spacing.md, // 12px - gap between title and message
+  titleMessageGap: 4, // Tight gap between title and message
+  contentBottomMargin: 8, // Small gap before buttons
   
-  // Button section spacing
-  buttonGap: Spacing.md, // 12px - horizontal gap between buttons
-  buttonBottomPadding: Spacing.xxl, // 24px - bottom padding for buttons
+  // Alert dimensions
+  maxWidth: 270, // Apple's standard alert width
+  cornerRadius: 14, // Apple's alert corner radius (not 28px like sheets)
   
-  // Destructive button clearance
-  destructiveBottomPadding: Spacing.xxl + Spacing.lg, // 40px - extra for border clearance
+  // Button styling
+  buttonHeight: 44, // Minimum touch target
+  buttonDividerHeight: StyleSheet.hairlineWidth, // Thin divider between buttons
+  buttonTextSize: 17, // Apple's standard button text size
+  destructiveTextColor: '#FF3B30', // Apple's system red
 } as const;
 
 
@@ -71,119 +66,45 @@ export default function AlertModal({
   const [opacityAnim] = React.useState(new Animated.Value(0));
 
   React.useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          useNativeDriver: true,
-          tension: 100,
-          friction: 8,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(scaleAnim, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
+    const animation = createScaleFadeAnimation(scaleAnim, opacityAnim, visible);
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
   }, [visible, scaleAnim, opacityAnim]);
 
-  const getIconAndColor = () => {
-    switch (type) {
-      case 'success':
-        return { Icon: CheckCircle, color: colors.success };
-      case 'warning':
-        return { Icon: AlertTriangle, color: colors.warning };
-      case 'error':
-        return { Icon: AlertTriangle, color: colors.error };
-      default:
-        return { Icon: Info, color: colors.primary };
-    }
-  };
-
-  const { Icon, color } = getIconAndColor();
+  // Apple-style alerts don't show icons - removed icon logic
 
   if (!visible) {
     return null;
   }
 
-  // Determine if this is a confirmation modal (has destructive action)
-  const hasDestructiveButton = actions.some(action => action.style === 'destructive');
+  // Apple-style: Buttons are displayed in order, styled by their action type
+  // Destructive actions are red, cancel actions are gray, default actions are blue
   
-  // Separate cancel and action buttons for horizontal layout
-  // Cancel button: explicitly marked as 'cancel', or first non-destructive button
-  // Action button: destructive (red) or default/primary (blue)
-  const cancelAction = actions.find(action => action.style === 'cancel') || 
-    actions.find(action => action.style !== 'destructive' && action.style !== 'default');
-  
-  const primaryAction = actions.find(action => action.style === 'destructive') || 
-    actions.find(action => action.style === 'default') ||
-    actions.find(action => !cancelAction || action !== cancelAction);
-  
-  const otherActions = actions.filter(action => 
-    action !== cancelAction && action !== primaryAction
-  );
-  
-  // Calculate bottom padding - extra clearance for destructive buttons with borders
-  const bottomPadding = hasDestructiveButton 
-    ? MODAL_STANDARDS.destructiveBottomPadding 
-    : MODAL_STANDARDS.buttonBottomPadding;
-
-  // Modal width based on action type
-  // Confirmation modals (with destructive): 320px - compact confirmation style
-  // Standard modals: 400px - comfortable width for content
-  const modalMaxWidth = hasDestructiveButton ? 320 : 400;
+  // Apple-style: Use fixed width for all alerts
+  const modalMaxWidth = APPLE_ALERT_STANDARDS.maxWidth;
 
   return (
-    <ModalWrapper visible={visible} onClose={onClose} animationType="fade" maxWidth={modalMaxWidth}>
+    <ModalWrapper visible={visible} onClose={onClose} animationType="none" maxWidth={modalMaxWidth}>
       <Animated.View
         style={[
           styles.modalContainer,
           {
             backgroundColor: colors.card,
             transform: [{ scale: scaleAnim }],
-            paddingBottom: bottomPadding,
+            opacity: opacityAnim,
           },
         ]}
       >
-        {/* Close button in top-right corner */}
-        <TouchableOpacity
-          onPress={onClose}
-          style={[
-            styles.closeButton,
-            { backgroundColor: colors.cardSecondary },
-          ]}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <X size={20} color={colors.textSecondary} strokeWidth={2} />
-        </TouchableOpacity>
-
-        {/* Icon centered at top */}
-        <View style={styles.iconSection}>
-          <View
-            style={[styles.iconContainer, { backgroundColor: `${color}15` }]}
-          >
-            <Icon size={28} color={color} strokeWidth={2.5} />
-          </View>
-        </View>
-
-        {/* Content with consistent alignment */}
+        {/* Apple-style: No close button, no icon - just title and message */}
+        
+        {/* Content - Apple style: centered text */}
         <View style={styles.content}>
-          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+          {title && (
+            <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+          )}
           {message && (
             <Text style={[styles.message, { color: colors.textSecondary }]}>
               {message}
@@ -191,87 +112,58 @@ export default function AlertModal({
           )}
         </View>
 
-        {/* Actions - Standardized layout: Cancel (left) + Action (right) */}
+        {/* Apple-style: Vertical stacked buttons with dividers */}
         <View style={styles.actionsWrapper}>
-          {/* Primary button row: Cancel (left) + Action (right) */}
-          {(cancelAction || primaryAction) && (
-            <View style={styles.actionsContainer}>
-              {/* Cancel button on the left */}
-              {cancelAction && (
-                <Button
-                  title={cancelAction.text}
-                  onPress={() => {
-                    cancelAction.onPress?.();
-                    onClose();
-                  }}
-                  variant="ghost"
-                  size="medium"
+          {/* All buttons in vertical stack - Apple style */}
+          {actions.map((action, index) => {
+            const isLast = index === actions.length - 1;
+            const isDestructive = action.style === 'destructive';
+            const isCancel = action.style === 'cancel';
+            
+            return (
+              <View key={`action-${index}`}>
+                {/* Divider between buttons - Apple style */}
+                {index > 0 && (
+                  <View
+                    style={[
+                      styles.buttonDivider,
+                      { backgroundColor: colors.border },
+                    ]}
+                  />
+                )}
+                
+                {/* Button - Apple style: full width, text-only */}
+                <TouchableOpacity
                   style={[
-                    styles.cancelButton,
-                    !primaryAction ? styles.singleButton : undefined, // Full width if no action button
-                  ].filter(Boolean) as any}
-                  textStyle={{ color: colors.textSecondary }}
-                />
-              )}
-              
-              {/* Primary action button on the right - Blue for proceed, Red for caution */}
-              {primaryAction && (
-                <Button
-                  title={primaryAction.text}
-                  onPress={() => {
-                    primaryAction.onPress?.();
-                    onClose();
-                  }}
-                  variant={primaryAction.style === 'destructive' ? 'outline' : 'primary'}
-                  size="medium"
-                  style={[
-                    styles.actionButton,
-                    !cancelAction ? styles.singleButton : undefined, // Full width if no cancel button
-                    primaryAction.style === 'destructive' ? {
-                      borderColor: colors.error,
-                      borderWidth: 1.5,
-                    } : undefined,
-                  ].filter(Boolean) as any}
-                  textStyle={
-                    primaryAction.style === 'destructive'
-                      ? { color: colors.error }
-                      : undefined
-                  }
-                />
-              )}
-            </View>
-          )}
-          
-          {/* Additional actions (if any) - stacked below, full width */}
-          {otherActions.length > 0 && (
-            <View style={styles.additionalActionsContainer}>
-              {otherActions.map((action, index) => (
-                <Button
-                  key={`other-${index}`}
-                  title={action.text}
+                    styles.appleButton,
+                    {
+                      height: APPLE_ALERT_STANDARDS.buttonHeight,
+                    },
+                  ]}
                   onPress={() => {
                     action.onPress?.();
                     onClose();
                   }}
-                  variant={action.style === 'destructive' ? 'outline' : 'primary'}
-                  size="medium"
-                  fullWidth
-                  style={[
-                    styles.additionalButton,
-                    action.style === 'destructive' && {
-                      borderColor: colors.error,
-                      borderWidth: 1.5,
-                    },
-                  ] as any}
-                  textStyle={
-                    action.style === 'destructive'
-                      ? { color: colors.error }
-                      : undefined
-                  }
-                />
-              ))}
-            </View>
-          )}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.appleButtonText,
+                      {
+                        color: isDestructive
+                          ? APPLE_ALERT_STANDARDS.destructiveTextColor
+                          : isCancel
+                          ? colors.textSecondary
+                          : colors.primary,
+                      },
+                    ]}
+                  >
+                    {action.text}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
         </View>
       </Animated.View>
     </ModalWrapper>
@@ -279,104 +171,63 @@ export default function AlertModal({
 }
 
 const styles = StyleSheet.create({
-  // Standardized modal container - consistent spacing on all sides
+  // Apple-style modal container
   modalContainer: {
     width: '100%',
-    paddingHorizontal: MODAL_STANDARDS.paddingHorizontal, // 24px - standard horizontal padding
-    paddingTop: MODAL_STANDARDS.paddingTop, // 32px - top padding with close button clearance
-    paddingBottom: MODAL_STANDARDS.paddingBottom, // 24px - base bottom (overridden dynamically)
-    position: 'relative',
-    minHeight: 'auto',
+    paddingHorizontal: APPLE_ALERT_STANDARDS.paddingHorizontal,
+    paddingTop: APPLE_ALERT_STANDARDS.paddingTop,
+    paddingBottom: APPLE_ALERT_STANDARDS.paddingBottom,
+    overflow: 'hidden', // Ensure buttons respect rounded corners
+    borderRadius: APPLE_ALERT_STANDARDS.cornerRadius, // Override ModalWrapper's 28px with 14px for alerts
+    marginHorizontal: 0, // Remove any default margins
   },
   
-  // Close button - top right, consistent positioning
-  closeButton: {
-    position: 'absolute',
-    top: MODAL_STANDARDS.closeButtonTop, // 12px from top
-    right: MODAL_STANDARDS.closeButtonRight, // 12px from right
-    width: 32,
-    height: 32,
-    borderRadius: BorderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  
-  // Icon section - centered, standardized spacing
-  iconSection: {
-    alignItems: 'center',
-    marginTop: MODAL_STANDARDS.iconTopMargin, // 12px - clearance from close button
-    marginBottom: MODAL_STANDARDS.iconBottomMargin, // 20px - spacing before title
-  },
-  iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  
-  // Content section - centered alignment, standardized spacing
+  // Content section - Apple style: centered text, tight spacing
   content: {
     alignItems: 'center',
-    marginBottom: MODAL_STANDARDS.contentBottomMargin, // 24px - spacing before buttons
-    gap: MODAL_STANDARDS.titleMessageGap, // 12px - gap between title and message
-    paddingHorizontal: 0, // No extra padding - container handles it
+    marginBottom: APPLE_ALERT_STANDARDS.contentBottomMargin,
+    paddingHorizontal: 4, // Small padding for very long text
   },
   title: {
-    ...Typography.h3, // 20pt - Apple HIG standard
+    fontSize: 17,
+    fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 0, // Gap handles spacing
+    marginBottom: APPLE_ALERT_STANDARDS.titleMessageGap,
+    lineHeight: 22,
   },
   message: {
-    ...Typography.body, // 17pt - Apple HIG standard
+    fontSize: 13,
+    fontWeight: '400',
     textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: Spacing.xs, // 4px - minimal padding for very long text
+    lineHeight: 18,
   },
   
-  // Actions wrapper - contains button row and any additional buttons
+  // Actions wrapper - Apple style: vertical stack
   actionsWrapper: {
     width: '100%',
-    marginTop: 0, // Content marginBottom handles spacing
+    marginTop: 8,
+    overflow: 'hidden',
+    borderRadius: 0, // Buttons extend to edges
   },
   
-  // Primary actions container - horizontal layout: Cancel (left) + Action (right)
-  actionsContainer: {
-    flexDirection: 'row',
-    gap: MODAL_STANDARDS.buttonGap, // 12px - horizontal gap between buttons
+  // Button divider - Apple style: hairline separator
+  buttonDivider: {
+    height: APPLE_ALERT_STANDARDS.buttonDividerHeight,
+    width: '100%',
+  },
+  
+  // Apple-style button: full width, text only, no background
+  appleButton: {
     width: '100%',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    paddingVertical: 0, // Height handles vertical space
   },
   
-  // Cancel button (left side) - ghost style, secondary text color
-  cancelButton: {
-    flex: 1, // Takes available space, shares with action button
-    minWidth: 0, // Allows flex to work properly
-  },
-  
-  // Action button (right side) - primary (blue) or destructive (red outline)
-  actionButton: {
-    flex: 1, // Takes available space, shares with cancel button
-    minWidth: 0, // Allows flex to work properly
-  },
-  
-  // Additional actions container - for stacked buttons below primary row
-  additionalActionsContainer: {
-    width: '100%',
-    marginTop: MODAL_STANDARDS.buttonGap, // 12px - spacing from button row above
-    gap: MODAL_STANDARDS.buttonGap, // 12px - gap between additional buttons
-  },
-  
-  // Additional buttons - full width, stacked
-  additionalButton: {
-    width: '100%',
-  },
-  
-  // Single button style - when only one button in row, make it full width
-  singleButton: {
-    flex: 1,
-    width: '100%',
+  // Apple-style button text
+  appleButtonText: {
+    fontSize: APPLE_ALERT_STANDARDS.buttonTextSize,
+    fontWeight: '400',
+    textAlign: 'center',
   },
 });

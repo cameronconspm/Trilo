@@ -120,13 +120,7 @@ export default function InsightsScreen() {
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[
-            styles.scrollContent, 
-            { 
-              paddingBottom: spacing.screenBottom, // Proper bottom padding for tab bar + home indicator
-              paddingHorizontal: spacing.screenHorizontal 
-            }
-          ]}
+          contentContainerStyle={styles.scrollContent}
         >
           {/* Header */}
           <View style={styles.header}>
@@ -148,13 +142,6 @@ export default function InsightsScreen() {
                 {/* KPI Cards Row - Net Balance and Budget Utilization */}
                 <View style={styles.metricsContainer}>
                   <Card variant='elevated' style={styles.metricCard}>
-                    <View style={styles.metricIcon}>
-                      <DollarSign
-                        size={24}
-                        color={netBalance >= 0 ? colors.success : colors.error}
-                        strokeWidth={2}
-                      />
-                    </View>
                     <Text
                       style={[
                         styles.metricLabel,
@@ -185,13 +172,6 @@ export default function InsightsScreen() {
                   </Card>
 
                   <Card variant='elevated' style={styles.metricCard}>
-                    <View style={styles.metricIcon}>
-                      <Target
-                        size={24}
-                        color={budgetUtilization > 90 ? colors.warning : colors.primary}
-                        strokeWidth={2}
-                      />
-                    </View>
                     <Text
                       style={[
                         styles.metricLabel,
@@ -380,7 +360,7 @@ const styles = StyleSheet.create({
   },
   // Section Title Styles
   sectionTitle: {
-    marginTop: 24, // Consistent spacing from previous section
+    marginTop: Spacing.md, // Reduced to match Profile and Overview tabs (12px)
     marginBottom: 12, // Consistent spacing to content below
   },
   loadingContainer: {
@@ -394,7 +374,7 @@ const styles = StyleSheet.create({
   metricsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 0, // Spacing handled by next sectionTitle's marginTop
     gap: 16, // Gap between cards (12-16 as specified)
   },
   metricCard: {

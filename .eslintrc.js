@@ -44,6 +44,7 @@ module.exports = {
         'no-console': 'warn',
         'no-debugger': 'error',
         '@typescript-eslint/no-explicit-any': 'warn',
+        '@typescript-eslint/no-empty-function': ['warn', { allow: ['arrowFunctions', 'methods'] }],
         'react/prop-types': 'off',
         'react/react-in-jsx-scope': 'off',
       },
@@ -60,6 +61,14 @@ module.exports = {
       env: {
         'react-native/react-native': true,
       },
+      overrides: [
+        {
+          files: ['jest.setup.js', '**/*.test.js', '**/*.test.ts', '**/*.test.tsx'],
+          env: {
+            jest: true,
+          },
+        },
+      ],
       settings: {
         react: {
           version: 'detect',

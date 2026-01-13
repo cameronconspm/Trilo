@@ -7,7 +7,8 @@ import {
   Animated,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { Trash2, Edit3, Check, DollarSign, Bell } from 'lucide-react-native';
+import { Trash2, Edit3, Check, DollarSign, Bell, Copy } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { useThemeColors } from '@/constants/colors';
 import { useSettings } from '@/context/SettingsContext';
 import { Spacing, BorderRadius, Typography } from '@/constants/spacing';
@@ -48,7 +49,7 @@ interface TransactionItemProps {
   dateFormat?: 'overview' | 'budget' | 'default';
 }
 
-export default function TransactionItem({
+function TransactionItem({
   transaction,
   isLast = false,
   showActions = false,
@@ -167,16 +168,37 @@ export default function TransactionItem({
     }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     showAlert({
       title: 'Delete Transaction',
       message: `Are you sure you want to delete "${name}"?`,
       type: 'warning',
       actions: [
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         { text: 'Cancel', onPress: () => {}, style: 'cancel' },
         {
           text: 'Delete',
-          onPress: () => deleteTransaction(transaction.id),
+          onPress: async () => {
+            try {
+              await deleteTransaction(transaction.id);
+              // Show success feedback immediately for smooth transition
+              showAlert({
+                title: 'Deleted',
+                message: 'Transaction deleted.',
+                type: 'success',
+                // eslint-disable-next-line @typescript-eslint/no-empty-function
+                actions: [{ text: 'OK', onPress: () => {} }],
+              });
+            } catch (error) {
+              showAlert({
+                title: 'Error',
+                message: 'Failed to delete transaction. Please try again.',
+                type: 'error',
+                // eslint-disable-next-line @typescript-eslint/no-empty-function
+                actions: [{ text: 'OK', onPress: () => {} }],
+              });
+            }
+          },
           style: 'destructive',
         },
       ],
@@ -185,12 +207,35 @@ export default function TransactionItem({
 
   const handleMarkPaid = async () => {
     try {
-      await updateTransaction(transaction.id, { isPaid: !transaction.isPaid });
+      const newPaidStatus = !transaction.isPaid;
+      await updateTransaction(transaction.id, { isPaid: newPaidStatus });
+      
+      // Haptic feedback for successful action
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
+      // Show brief success feedback
+      setTimeout(() => {
+        showAlert({
+          title: 'Updated',
+          message: `Transaction ${newPaidStatus ? 'marked as paid' : 'marked as unpaid'}.`,
+          type: 'success',
+          // eslint-disable-next-line @typescript-eslint/no-empty-function
+          actions: [{ text: 'OK', onPress: () => {} }],
+        });
+      }, 100);
     } catch (error) {
       console.error('Error marking transaction as paid:', error);
+      showAlert({
+        title: 'Error',
+        message: 'Failed to update transaction. Please try again.',
+        type: 'error',
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        actions: [{ text: 'OK', onPress: () => {} }],
+      });
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   const handleEdit = () => {
     if (onEdit) {
       onEdit(transaction);
@@ -202,8 +247,9 @@ export default function TransactionItem({
       await addReminder(transaction, reason, note);
       showAlert({
         title: 'Reminder Set',
-        message: `You'll be reminded about "${transaction.name}" before the next billing cycle.`,
+        message: 'You\'ll be reminded before the next billing cycle.',
         type: 'success',
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         actions: [{ text: 'OK', onPress: () => {} }],
       });
     } catch (error) {
@@ -212,8 +258,20 @@ export default function TransactionItem({
         title: 'Error',
         message: 'Failed to set reminder. Please try again.',
         type: 'error',
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         actions: [{ text: 'OK', onPress: () => {} }],
       });
+    }
+  };
+
+  const handleDuplicate = () => {
+    if (onEdit) {
+      // Create a copy of the transaction without the id
+      const { id, ...transactionCopy } = transaction;
+      onEdit({
+        ...transactionCopy,
+        name: `${transaction.name} (Copy)`,
+      } as Transaction);
     }
   };
 
@@ -227,9 +285,20 @@ export default function TransactionItem({
       extrapolate: 'clamp',
     });
 
-    // Always show delete button for right swipe
+    // Show edit and delete buttons for right swipe
     return (
       <View style={styles.rightActions}>
+        <Animated.View
+          style={[styles.actionButton, { transform: [{ scale }] }]}
+        >
+          <TouchableOpacity
+            style={[styles.duplicateButton, { backgroundColor: colors.primary }]}
+            onPress={handleEdit}
+            activeOpacity={0.8}
+          >
+            <Edit3 size={18} color={colors.surface} strokeWidth={2.5} />
+          </TouchableOpacity>
+        </Animated.View>
         <Animated.View
           style={[styles.deleteAction, { transform: [{ scale }] }]}
         >
@@ -303,15 +372,12 @@ export default function TransactionItem({
   };
 
   const content = (
-    <TouchableOpacity
+    <View
       style={[
         styles.container,
         { borderBottomColor: colors.border },
         isLast && styles.lastItem,
       ]}
-      onPress={handleEdit}
-      activeOpacity={onEdit ? 0.7 : 1}
-      disabled={!onEdit}
     >
       <View style={styles.leftContent}>
         <View
@@ -349,7 +415,7 @@ export default function TransactionItem({
           style={[
             styles.amount,
             transaction.type === 'income'
-              ? { color: colors.income }
+              ? { color: colors.text }
               : { color: isPast ? colors.textSecondary : colors.text },
             // Removed futureAmount style to keep upcoming expenses black
           ]}
@@ -365,7 +431,6 @@ export default function TransactionItem({
               isFuture && !isToday && { color: colors.textSecondary }, // Grey for future dates (not today)
               isPast && { color: colors.textSecondary }, // Grey for past expenses
               type === 'income' && {
-                color: colors.income,
                 fontWeight: '600',
                 fontSize: 12,
               },
@@ -384,7 +449,7 @@ export default function TransactionItem({
           )}
         </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -428,6 +493,9 @@ export default function TransactionItem({
     </>
   );
 }
+
+// Memoize component to prevent unnecessary re-renders
+export default React.memo(TransactionItem);
 
 const styles = StyleSheet.create({
   container: {
@@ -513,8 +581,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    width: 70,
-    paddingRight: Spacing.md,
+    width: 100, // Width for edit + delete buttons (reduced from 140)
+    paddingRight: Spacing.sm, // Reduced from md
+    gap: 8, // Reduced gap between buttons
+  },
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  duplicateButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   leftActions: {
     flexDirection: 'row',

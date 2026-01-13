@@ -32,6 +32,12 @@ export async function diagnoseRevenueCat() {
     packages: any[];
     errors: string[];
     warnings: string[];
+    customerInfo?: {
+      hasActiveEntitlement: boolean;
+      entitlementStatus: boolean;
+      activeSubscriptions: string[];
+      allPurchasedProductIdentifiers: string[];
+    };
   } = {
     timestamp: new Date().toISOString(),
     platform: Platform.OS,

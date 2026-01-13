@@ -13,17 +13,26 @@ import { SettingsProvider } from '@/context/SettingsContext';
 import { initializeRevenueCat } from '@/lib/revenuecat';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { SUBSCRIPTIONS_ENABLED } from '@/constants/features';
+import { NAVIGATION_TIMEOUTS } from '@/constants/timing';
 
 export const unstable_settings = {
   initialRouteName: 'index',
 };
 
 // Prevent auto-hiding splash screen
-// Catch errors in case native module isn't available (e.g., in Expo Go)
-SplashScreen.preventAutoHideAsync().catch((error) => {
-  // Ignore errors in Expo Go where native splash screen might not be available
-  console.warn('Splash screen preventAutoHide error (can be ignored):', error);
-});
+// Catch errors in case native module isn't available (e.g., in Expo Go or web)
+if (Platform.OS !== 'web') {
+  SplashScreen.preventAutoHideAsync().catch((error: any) => {
+    // Ignore errors in Expo Go where native splash screen might not be available
+    const errorMessage = error?.message || String(error);
+    if (!errorMessage?.includes('No native splash screen registered')) {
+      // Only log if it's not the expected "not registered" error
+      if (__DEV__) {
+        console.warn('Splash screen preventAutoHide error (can be ignored):', error);
+      }
+    }
+  });
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -44,16 +53,29 @@ export default function RootLayout() {
       // Use a small delay to ensure native module is ready
       const hideSplash = async () => {
         try {
-          await SplashScreen.hideAsync();
-        } catch (error) {
+          // Only try to hide on native platforms (iOS/Android)
+          // Web doesn't have native splash screen
+          if (Platform.OS !== 'web') {
+            await SplashScreen.hideAsync();
+          }
+        } catch (error: any) {
           // Ignore splash screen errors in Expo Go or if already hidden
           // This can happen if the native module isn't fully initialized
-          console.warn('Splash screen hide error (can be ignored in Expo Go):', error);
+          // or if the splash screen wasn't properly registered
+          const errorMessage = error?.message || String(error);
+          if (errorMessage?.includes('No native splash screen registered')) {
+            // This is expected in some cases (Expo Go, web, or if splash wasn't shown)
+            // Silently ignore
+            return;
+          }
+          if (__DEV__) {
+            console.warn('Splash screen hide error (can be ignored):', error);
+          }
         }
       };
       
       // Small delay to ensure native module is ready
-      setTimeout(hideSplash, 500);
+      setTimeout(hideSplash, NAVIGATION_TIMEOUTS.SPLASH_SCREEN_HIDE_DELAY);
     }
   }, [loaded]);
 
@@ -93,20 +115,6 @@ export default function RootLayout() {
                   animationDuration: 250,
                   gestureEnabled: true,
                   gestureDirection: 'horizontal',
-                  transitionSpec: {
-                    open: {
-                      animation: 'timing',
-                      config: {
-                        duration: 250,
-                      },
-                    },
-                    close: {
-                      animation: 'timing',
-                      config: {
-                        duration: 200,
-                      },
-                    },
-                  },
                 }}
               >
                 <Stack.Screen name="index" options={{ headerShown: false }} />

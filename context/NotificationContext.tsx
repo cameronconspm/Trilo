@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import NotificationService, {
   NotificationSettings,
 } from '@/services/NotificationService';
@@ -44,12 +45,19 @@ export function NotificationProvider({
   }, []);
 
   // Check for external data clearing (like reset data)
+  // Use AppState listener instead of polling to save battery
+  const previousSettingsRef = useRef<string>('');
+  
   useEffect(() => {
     const checkForDataReset = async () => {
       try {
         const storedSettings = await NotificationService.loadSettings();
-        // If settings were externally cleared, update our state
-        if (JSON.stringify(storedSettings) !== JSON.stringify(settings)) {
+        const storedSettingsString = JSON.stringify(storedSettings);
+        const currentSettingsString = JSON.stringify(settings);
+        
+        // Only update if settings actually changed (prevents infinite loops)
+        if (storedSettingsString !== currentSettingsString && storedSettingsString !== previousSettingsRef.current) {
+          previousSettingsRef.current = storedSettingsString;
           setSettings(storedSettings);
         }
       } catch (error) {
@@ -60,9 +68,22 @@ export function NotificationProvider({
       }
     };
 
-    // Check every 2 seconds when app is active
-    const interval = setInterval(checkForDataReset, 2000);
-    return () => clearInterval(interval);
+    // Initialize previous settings ref
+    previousSettingsRef.current = JSON.stringify(settings);
+
+    // Check immediately on mount
+    checkForDataReset();
+
+    // Only check when app comes to foreground (much more battery-efficient than polling)
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        checkForDataReset();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, [settings]);
 
   // Transaction-based notifications will be handled by FinanceContext

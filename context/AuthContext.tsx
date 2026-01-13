@@ -1,10 +1,14 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { SUBSCRIPTIONS_ENABLED } from '@/constants/features';
 import { isMFAEnabled } from '@/services/mfaService';
+import { log, warn } from '@/utils/logger';
+import { getLastScreenForQuickReopen } from '@/utils/navigationState';
+import { NAVIGATION_TIMEOUTS } from '@/constants/timing';
+import { COMMON_STORAGE_KEYS } from '@/utils/storageKeys';
 
 interface AuthContextType {
   session: Session | null;
@@ -22,7 +26,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SESSION_STORAGE_KEY = '@trilo:supabase_session';
+const SESSION_STORAGE_KEY = COMMON_STORAGE_KEYS.SESSION;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -30,6 +34,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [mfaVerified, setMfaVerified] = useState(false);
+  // Ref to track if component is mounted (prevents navigation after unmount)
+  const isMountedRef = useRef(true);
+  // Ref to store navigation timeout (for cleanup)
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Restore session from storage
@@ -39,30 +47,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event: string, session: Session | null) => {
-      console.log('Auth state changed:', event);
-      
-      setSession(session);
-      setUser(session?.user ?? null);
+      try {
+        log('Auth state changed:', event);
+        
+        setSession(session);
+        setUser(session?.user ?? null);
 
-      // Check MFA status when user is set
-      if (session?.user) {
-        const mfaStatus = await isMFAEnabled(session.user.id);
-        setMfaEnabled(mfaStatus);
-        // Reset MFA verification on auth state change
-        setMfaVerified(false);
-      } else {
-        setMfaEnabled(false);
-        setMfaVerified(false);
-      }
+        // Check MFA status when user is set
+        if (session?.user) {
+          try {
+            const mfaStatus = await isMFAEnabled(session.user.id);
+            setMfaEnabled(mfaStatus);
+          } catch (mfaError) {
+            console.error('Failed to check MFA status:', mfaError);
+            // Default to MFA not enabled on error
+            setMfaEnabled(false);
+          }
+          // Reset MFA verification on auth state change
+          setMfaVerified(false);
+        } else {
+          setMfaEnabled(false);
+          setMfaVerified(false);
+        }
 
-      // Save session to AsyncStorage
-      if (session) {
-        await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
-      } else {
-        await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+        // Save session to AsyncStorage
+        try {
+          if (session) {
+            await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+          } else {
+            await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+          }
+        } catch (storageError) {
+          console.error('Failed to save session to storage:', storageError);
+          // Continue even if storage fails
+        }
+      } catch (error) {
+        console.error('Error in auth state change handler:', error);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     });
 
     return () => {
@@ -70,19 +93,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Separate effect to handle navigation
+  // Separate effect to handle navigation for authenticated users
+  // Note: app/index.tsx handles navigation for unauthenticated users
+  // This separation prevents navigation conflicts
   useEffect(() => {
     if (loading) return;
 
     if (user && session) {
-      // User is signed in - navigate to tabs
-      setTimeout(() => {
+      // Clear any existing navigation timeout
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+        navigationTimeoutRef.current = null;
+      }
+
+      // User is signed in - check for quick reopen
+      navigationTimeoutRef.current = setTimeout(async () => {
+        // Check if component is still mounted before navigating
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        try {
+          const lastScreen = await getLastScreenForQuickReopen();
+          
+          // Double-check mount status after async operation
+          if (!isMountedRef.current) {
+            return;
+          }
+
+          if (lastScreen && lastScreen.startsWith('/(tabs)')) {
+            // Quick reopen - navigate to last screen
+            // Type assertion is safe here - we validate that lastScreen starts with '/(tabs)'
+            router.replace(lastScreen as '//(tabs)' | '/(tabs)/index' | '/(tabs)/budget' | '/(tabs)/banking' | '/(tabs)/insights' | '/(tabs)/profile');
+          } else {
+            // Normal open - go to home (default tab)
+            router.replace('/(tabs)');
+          }
+        } catch (error) {
+          // On error, just go to default tabs (only if still mounted)
+          if (isMountedRef.current) {
         router.replace('/(tabs)');
-      }, 100);
+          }
+        } finally {
+          navigationTimeoutRef.current = null;
+        }
+      }, NAVIGATION_TIMEOUTS.AUTH_NAVIGATION_DELAY);
     }
     // Don't auto-redirect when user is signed out
     // Let app/index.tsx handle onboarding/signin flow
+
+    // Cleanup: Clear timeout and mark as unmounted
+    return () => {
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+        navigationTimeoutRef.current = null;
+      }
+    };
   }, [user, session, loading]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+        navigationTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const restoreSession = async () => {
     try {
@@ -100,7 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session = JSON.parse(storedSession);
       } catch (parseError) {
         // Invalid JSON - clear corrupted session
-        console.warn('Corrupted session data found, clearing...');
+        warn('Corrupted session data found, clearing...');
         await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
         setSession(null);
         setUser(null);
@@ -110,7 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Validate session structure before attempting restoration
       if (!session || typeof session !== 'object') {
-        console.warn('Invalid session structure, clearing...');
+        warn('Invalid session structure, clearing...');
         await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
         setSession(null);
         setUser(null);
@@ -136,7 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (!isValidJWT) {
         // Invalid token structure - clear corrupted session
-        console.warn('Invalid JWT structure detected, clearing session...');
+        warn('Invalid JWT structure detected, clearing session...');
         await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
         setSession(null);
         setUser(null);
@@ -150,8 +228,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (error) {
         // Invalid or expired JWT - clear the invalid session
-        // Use console.warn instead of console.error to reduce noise
-        console.warn('Session restoration failed (expired or invalid JWT):', error.message);
+        // Use warn instead of error to reduce noise in production
+        warn('Session restoration failed (expired or invalid JWT):', error.message);
         await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
         setSession(null);
         setUser(null);

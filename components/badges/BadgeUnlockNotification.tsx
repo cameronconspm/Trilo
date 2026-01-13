@@ -38,19 +38,21 @@ export function BadgeUnlockNotification({
     if (visible) {
       // Slide in animation
       Animated.parallel([
-        Animated.timing(slideAnim, {
+        Animated.spring(slideAnim, {
           toValue: 0,
-          duration: 500,
           useNativeDriver: true,
+          tension: 120, // Standard spring config
+          friction: 10,
         }),
-        Animated.timing(scaleAnim, {
+        Animated.spring(scaleAnim, {
           toValue: 1,
-          duration: 500,
           useNativeDriver: true,
+          tension: 120, // Standard spring config
+          friction: 10,
         }),
         Animated.timing(opacityAnim, {
           toValue: 1,
-          duration: 500,
+          duration: 300, // Standard duration
           useNativeDriver: true,
         }),
       ]).start();
@@ -68,12 +70,12 @@ export function BadgeUnlockNotification({
     Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: -200,
-        duration: 300,
+        duration: 200, // Fast exit duration
         useNativeDriver: true,
       }),
       Animated.timing(opacityAnim, {
         toValue: 0,
-        duration: 300,
+        duration: 200, // Fast exit duration
         useNativeDriver: true,
       }),
     ]).start(() => {

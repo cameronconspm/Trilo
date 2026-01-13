@@ -16,10 +16,14 @@ import TransactionItem from '@/components/TransactionItem';
 import EmptyState from '@/components/feedback/EmptyState';
 import AddTransactionModal from '@/components/modals/AddTransactionModal';
 import { ReminderManagementModal } from '@/components/modals';
-import { Transaction } from '@/types/finance';
+import { Transaction, CategoryType } from '@/types/finance';
 import { SubscriptionBanner } from '@/components';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import OfflineIndicator from '@/components/feedback/OfflineIndicator';
+import CategoryExpensesModal from '@/components/modals/CategoryExpensesModal';
+import { getCurrentPayPeriod } from '@/utils/payPeriodUtils';
 
-export default function OverviewScreen() {
+function OverviewScreenContent() {
   const { weeklyOverview, isLoading, transactions } = useFinance();
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
@@ -27,7 +31,10 @@ export default function OverviewScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | undefined>(undefined);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(null);
+  const [categoryExpenses, setCategoryExpenses] = useState<Transaction[]>([]);
   const { weekIncome, remainingBalance, utilization, contributions, upcomingExpenses, pastExpenses, currentPayPeriod } = weeklyOverview;
+  
   
   // Show data even if calculations are incomplete
   // If we have transactions, always show them - don't wait for calculations
@@ -60,6 +67,37 @@ export default function OverviewScreen() {
   const handleCloseModal = () => {
     setShowAddModal(false);
     setEditTransaction(undefined);
+  };
+
+  const handleCategoryPress = (category: CategoryType) => {
+    // Get the current pay period
+    const currentPayPeriod = getCurrentPayPeriod(transactions);
+    
+    // Filter expenses by category
+    let filteredExpenses = transactions.filter(t => {
+      // Only include expenses
+      if (t.type !== 'expense') return false;
+      // Match the selected category
+      if (t.category !== category) return false;
+      
+      // If pay period exists, filter by date range
+      if (currentPayPeriod) {
+        const transactionDate = new Date(t.date);
+        transactionDate.setHours(0, 0, 0, 0);
+        const periodStart = new Date(currentPayPeriod.startDate);
+        periodStart.setHours(0, 0, 0, 0);
+        const periodEnd = new Date(currentPayPeriod.endDate);
+        periodEnd.setHours(23, 59, 59, 999);
+        
+        return transactionDate >= periodStart && transactionDate <= periodEnd;
+      }
+      
+      // If no pay period, include all expenses for this category
+      return true;
+    });
+    
+    setCategoryExpenses(filteredExpenses);
+    setSelectedCategory(category);
   };
 
   // Styles with responsive values
@@ -101,6 +139,7 @@ export default function OverviewScreen() {
     scrollContent: {
       paddingHorizontal: Spacing.lg,
       backgroundColor: colors.background,
+      paddingBottom: 100, // Space for tab bar
     },
     loadingContainer: {
       flex: 1,
@@ -146,7 +185,7 @@ export default function OverviewScreen() {
       flexDirection: 'row' as const,
       justifyContent: 'space-between' as const,
       alignItems: 'center' as const,
-      marginTop: spacing.sectionSpacing,
+      marginTop: Spacing.md, // Reduced from spacing.sectionSpacing (24px) to 12px for tighter spacing
       marginBottom: 16,
     },
     sectionTitleInHeader: {
@@ -164,7 +203,7 @@ export default function OverviewScreen() {
       flexWrap: 'wrap' as const,
       gap: Spacing.lg, // 16px horizontal spacing between cards
       justifyContent: 'space-between' as const,
-      marginBottom: spacing.sectionSpacing,
+      marginBottom: 0, // Removed margin - spacing handled by next sectionHeader's marginTop
     },
   });
   
@@ -209,7 +248,7 @@ export default function OverviewScreen() {
         <ScrollView 
           style={[styles.scrollView, { backgroundColor: colors.background }]} 
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
+          contentContainerStyle={styles.scrollContent}
         >
           {/* Header */}
           <View style={styles.header}>
@@ -236,7 +275,7 @@ export default function OverviewScreen() {
               <View style={styles.incomeTextContainer}>
                 <Text style={[styles.incomeLabel, { color: colors.textSecondary }]}>Pay period income</Text>
                 <Text style={[styles.incomeValue, { color: colors.text }]}>
-                  ${weekIncome > 0 ? weekIncome.toFixed(2) : hasTransactions ? 'Calculating...' : '0.00'}
+                  ${weekIncome.toFixed(2)}
                 </Text>
                 <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>Remaining balance</Text>
                 <Text style={[
@@ -244,7 +283,7 @@ export default function OverviewScreen() {
                   { color: colors.text },
                   remainingBalance < 0 && { color: colors.error }
                 ]}>
-                  ${hasTransactions && weekIncome === 0 ? 'Calculating...' : remainingBalance.toFixed(2)}
+                  ${remainingBalance.toFixed(2)}
                 </Text>
               </View>
               <CircularProgress 
@@ -254,31 +293,6 @@ export default function OverviewScreen() {
               />
             </View>
           </Card>
-          
-          {/* Show all transactions if we have them, even if calculations aren't done */}
-          {hasTransactions && (weekIncome === 0 || currentPayPeriod === undefined) && (
-            <Card variant="default" style={{ marginBottom: Spacing.lg }}>
-              <Text style={[styles.sectionTitleInHeader, { color: colors.text, marginBottom: Spacing.md }]}>
-                All Transactions
-              </Text>
-              {transactions.slice(0, 10).map((transaction, index) => (
-                <TransactionItem 
-                  key={transaction.id} 
-                  transaction={transaction}
-                  isLast={index === transactions.slice(0, 10).length - 1}
-                  onEdit={handleEditTransaction}
-                  enableSwipeActions={true}
-                  enableLeftSwipe={true}
-                  dateFormat="overview"
-                />
-              ))}
-              {transactions.length > 10 && (
-                <Text style={[styles.subtitle, { color: colors.textSecondary, marginTop: Spacing.md, textAlign: 'center' }]}>
-                  And {transactions.length - 10} more transactions
-                </Text>
-              )}
-            </Card>
-          )}
           
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitleInHeader, { color: colors.text }]}>Expense Breakdown</Text>
@@ -296,6 +310,7 @@ export default function OverviewScreen() {
                     category={categoryId} 
                     amount={data.total}
                     count={data.count}
+                    onPress={() => handleCategoryPress(categoryId)}
                   />
                 );
               }
@@ -369,7 +384,25 @@ export default function OverviewScreen() {
           visible={showReminderModal}
           onClose={() => setShowReminderModal(false)}
         />
+
+        {selectedCategory && (
+          <CategoryExpensesModal
+            visible={selectedCategory !== null}
+            onClose={() => setSelectedCategory(null)}
+            category={selectedCategory}
+            expenses={categoryExpenses}
+          />
+        )}
       </SafeAreaView>
+      <OfflineIndicator />
     </>
+  );
+}
+
+export default function OverviewScreen() {
+  return (
+    <ErrorBoundary context="Overview Screen">
+      <OverviewScreenContent />
+    </ErrorBoundary>
   );
 }

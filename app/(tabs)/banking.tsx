@@ -35,7 +35,6 @@ import { useChallengeTracking } from '@/context/ChallengeTrackingContext';
 import { usePlaid } from '@/context/PlaidContext';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
-import { Alert } from 'react-native';
 import { Transaction as PlaidTransaction } from '@/context/PlaidContext';
 import { Spacing, BorderRadius } from '@/constants/spacing';
 import Card from '@/components/layout/Card';
@@ -50,6 +49,8 @@ import { MicroGoals } from '@/components/goals/MicroGoals';
 import { WeeklyRecapModal } from '@/components/modals/WeeklyRecapModal';
 import AlertModal from '@/components/modals/AlertModal';
 import { ModalWrapper } from '@/components/modals/ModalWrapper';
+import { useAlert } from '@/hooks/useAlert';
+import { log } from '@/utils/logger';
 
 // User ID from auth system
 const userId = 'user_123';
@@ -66,27 +67,24 @@ export default function BankingScreen() {
   const { user, mfaEnabled, mfaVerified } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
+  const { alertState, showAlert: showAlertModal, hideAlert } = useAlert();
 
   // Wrapper for openLink with error handling and logging
   const handleConnectBank = async () => {
     try {
-      console.log('[Banking] 🔘 Connect Bank button pressed');
-      console.log('[Banking]   isConnecting:', isConnecting);
-      console.log('[Banking]   hasLinkToken:', !!state.linkToken);
+      log('[Banking] 🔘 Connect Bank button pressed');
+      log('[Banking]   isConnecting:', isConnecting);
+      log('[Banking]   hasLinkToken:', !!state.linkToken);
       
       // Check if MFA is enabled but not verified - require verification before Plaid Link
       // Note: Users without MFA enabled will be prompted to enable it in settings
       if (mfaEnabled && !mfaVerified) {
-        Alert.alert(
-          'Multi-Factor Authentication Required',
-          'Please verify your identity with your authenticator app before connecting a bank account. You can enable MFA in Settings if you haven\'t already.',
-          [
-            {
-              text: 'Go to Settings',
-              onPress: () => {
-                router.push('/(tabs)/profile');
-              },
-            },
+        showAlertModal({
+          title: 'Multi-Factor Authentication Required',
+          message: 'Please verify your identity with your authenticator app before connecting a bank account. You can enable MFA in Settings if you haven\'t already.',
+          type: 'warning',
+          actions: [
+            { text: 'Cancel', onPress: () => {}, style: 'cancel' },
             {
               text: 'Verify MFA',
               onPress: () => {
@@ -94,27 +92,26 @@ export default function BankingScreen() {
                 router.push('/signin');
               },
             },
-            { text: 'Cancel', style: 'cancel' },
-          ]
-        );
+            {
+              text: 'Go to Settings',
+              onPress: () => {
+                router.push('/(tabs)/profile');
+              },
+            },
+          ],
+        });
         return;
       }
       
       // If MFA is not enabled, show warning but allow (for now - in production this should be required)
       if (!mfaEnabled && user) {
-        Alert.alert(
-          'Enable Multi-Factor Authentication',
-          'For your security and to comply with Plaid requirements, we recommend enabling two-factor authentication before connecting bank accounts.',
-          [
-            {
-              text: 'Enable MFA',
-              onPress: () => {
-                router.push('/(tabs)/profile');
-              },
-            },
+        showAlertModal({
+          title: 'Enable Multi-Factor Authentication',
+          message: 'For your security and to comply with Plaid requirements, we recommend enabling two-factor authentication before connecting bank accounts.',
+          type: 'warning',
+          actions: [
             {
               text: 'Continue Anyway',
-              style: 'default',
               onPress: async () => {
                 // Allow connecting but show warning
                 try {
@@ -124,14 +121,20 @@ export default function BankingScreen() {
                 }
               },
             },
-          ]
-        );
+            {
+              text: 'Enable MFA',
+              onPress: () => {
+                router.push('/(tabs)/profile');
+              },
+            },
+          ],
+        });
         return;
       }
       
       await openLink();
       
-      console.log('[Banking] ✅ openLink completed');
+      log('[Banking] ✅ openLink completed');
     } catch (error) {
       console.error('[Banking] ❌ Error in handleConnectBank:', error);
       // Error is already shown by openLink, but log it here too
@@ -145,26 +148,26 @@ export default function BankingScreen() {
 
   // Handle account removal - dedicated function
   const handleRemoveAccount = async (accountId: string, accountName: string) => {
-    console.log('[Banking] 🗑️  ========== handleRemoveAccount START ==========');
-    console.log('[Banking]   Account ID:', accountId);
-    console.log('[Banking]   Account name:', accountName);
-    console.log('[Banking]   Current accounts count:', state.accounts.length);
-    console.log('[Banking]   Current account IDs:', state.accounts.map(a => a.id));
+    log('[Banking] 🗑️  ========== handleRemoveAccount START ==========');
+    log('[Banking]   Account ID:', accountId);
+    log('[Banking]   Account name:', accountName);
+    log('[Banking]   Current accounts count:', state.accounts.length);
+    log('[Banking]   Current account IDs:', state.accounts.map(a => a.id));
     
     // Set removing state
     setRemovingAccountId(accountId);
     
     try {
-      console.log('[Banking]   Step 1: Calling disconnectBank...');
+      log('[Banking]   Step 1: Calling disconnectBank...');
       await disconnectBank(accountId);
-      console.log('[Banking]   Step 2: disconnectBank completed successfully');
+      log('[Banking]   Step 2: disconnectBank completed successfully');
       
       // The state has already been updated optimistically in disconnectBank
       // The useEffect hook will sync managedAccounts when state.accounts changes
       // No need to wait or check - the UI will update automatically
-      console.log('[Banking]   Step 3: State updated optimistically, UI will refresh automatically');
+      log('[Banking]   Step 3: State updated optimistically, UI will refresh automatically');
       
-      console.log('[Banking] ✅ ========== Account removal process COMPLETE ==========');
+      log('[Banking] ✅ ========== Account removal process COMPLETE ==========');
     } catch (error) {
       console.error('[Banking] ❌ ========== ERROR in handleRemoveAccount ==========');
       console.error('[Banking]   Error type:', error?.constructor?.name);
@@ -183,7 +186,7 @@ export default function BankingScreen() {
         actions: [{ 
           text: 'OK',
           onPress: () => {
-            console.log('[Banking]   Error alert OK pressed');
+            log('[Banking]   Error alert OK pressed');
             setShowAlert(false);
           },
         }],
@@ -191,7 +194,7 @@ export default function BankingScreen() {
       setShowAlert(true);
     } finally {
       // Always clear removing state after a delay
-      console.log('[Banking]   Cleaning up - setting removingAccountId to null');
+      log('[Banking]   Cleaning up - setting removingAccountId to null');
       setTimeout(() => {
         setRemovingAccountId(null);
       }, 200);
@@ -227,21 +230,23 @@ export default function BankingScreen() {
   const [showAccountsModal, setShowAccountsModal] = useState(false);
   const [managedAccounts, setManagedAccounts] = useState(state.accounts);
   const [draggedAccountId, setDraggedAccountId] = useState<string | null>(null);
+  const [draggedAccountStartIndex, setDraggedAccountStartIndex] = useState<number | null>(null);
   const dragYAnimsRef = useRef<Record<string, Animated.Value>>({});
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollY = useRef(0);
+  const lastSwapIndexRef = useRef<number | null>(null); // Track last swap to prevent rapid swaps
   const [removingAccountId, setRemovingAccountId] = useState<string | null>(null);
   const [accountToRemove, setAccountToRemove] = useState<{ id: string; name: string } | null>(null);
 
   // Debug: Log when accountToRemove changes
   useEffect(() => {
-    console.log('[Banking] 🔍 accountToRemove state changed:', accountToRemove);
+    log('[Banking] 🔍 accountToRemove state changed:', accountToRemove);
     if (accountToRemove) {
-      console.log('[Banking]   ✅ Modal should be visible now');
-      console.log('[Banking]   Account ID:', accountToRemove.id);
-      console.log('[Banking]   Account name:', accountToRemove.name);
+      log('[Banking]   ✅ Modal should be visible now');
+      log('[Banking]   Account ID:', accountToRemove.id);
+      log('[Banking]   Account name:', accountToRemove.name);
     } else {
-      console.log('[Banking]   ❌ Modal should be hidden now');
+      log('[Banking]   ❌ Modal should be hidden now');
     }
   }, [accountToRemove]);
 
@@ -512,7 +517,7 @@ export default function BankingScreen() {
 
         {/* Financial Health Summary - Only show real data when connected */}
         {state.hasAccounts && (
-          <Card style={styles.healthSummaryCard}>
+          <Card style={[styles.healthSummaryCard, { marginTop: 0 }]}>
             <View style={styles.healthSummaryHeader}>
               <DollarSign size={20} color={colors.primary} />
               <Text style={[styles.healthSummaryTitle, { color: colors.text }]}>
@@ -793,27 +798,21 @@ export default function BankingScreen() {
         {/* Dynamic Challenge Suggestions */}
         <DynamicChallengeSuggestions 
           onChallengeSelect={(challenge) => {
-            if (__DEV__) {
-              console.log('Challenge selected:', challenge);
-            }
+            log('Challenge selected:', challenge);
           }}
         />
 
         {/* Micro Goals */}
         <MicroGoals 
           onGoalComplete={(goal) => {
-            if (__DEV__) {
-              console.log('Goal completed:', goal);
-            }
+            log('Goal completed:', goal);
           }}
         />
 
         {/* Elite Milestones */}
         <EliteMilestones 
           onMilestonePress={(milestone) => {
-            if (__DEV__) {
-              console.log('Milestone pressed:', milestone);
-            }
+            log('Milestone pressed:', milestone);
           }}
         />
       </ScrollView>
@@ -842,6 +841,9 @@ export default function BankingScreen() {
         actions={alertConfig.actions}
         onClose={() => setShowAlert(false)}
       />
+      
+      {/* Alert Modal from useAlert hook */}
+      <AlertModal {...alertState} onClose={hideAlert} />
 
       {/* Account Removal Confirmation Modal - Custom implementation to avoid AlertModal issues */}
       {accountToRemove && (
@@ -849,7 +851,7 @@ export default function BankingScreen() {
           visible={true}
           onClose={() => {
             if (!removingAccountId) {
-              console.log('[Banking]   Removal confirmation cancelled via backdrop');
+              log('[Banking]   Removal confirmation cancelled via backdrop');
               setAccountToRemove(null);
             }
           }}
@@ -868,7 +870,7 @@ export default function BankingScreen() {
               <TouchableOpacity
                 onPress={() => {
                   if (!removingAccountId) {
-                    console.log('[Banking]   Removal cancelled via Cancel button');
+                    log('[Banking]   Removal cancelled via Cancel button');
                     setAccountToRemove(null);
                   }
                 }}
@@ -881,14 +883,14 @@ export default function BankingScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => {
-                  console.log('[Banking] 🔴🔴🔴 Remove confirmed - starting removal!');
-                  console.log('[Banking]   Account to remove:', accountToRemove);
+                  log('[Banking] 🔴🔴🔴 Remove confirmed - starting removal!');
+                  log('[Banking]   Account to remove:', accountToRemove);
                   const account = { ...accountToRemove }; // Copy to avoid closure issues
                   setAccountToRemove(null); // Close modal immediately
                   
                   // Start removal in next tick to avoid state conflicts
                   setTimeout(() => {
-                    console.log('[Banking]   Starting handleRemoveAccount with:', account);
+                    log('[Banking]   Starting handleRemoveAccount with:', account);
                     handleRemoveAccount(account.id, account.name).catch(err => {
                       console.error('[Banking] ❌ Unhandled error:', err);
                     });
@@ -958,6 +960,8 @@ export default function BankingScreen() {
                   scrollY.current = event.nativeEvent.contentOffset.y;
                 }}
                 scrollEventThrottle={16}
+                nestedScrollEnabled={true}
+                bounces={true}
               >
                 {managedAccounts.map((account, index) => {
                   const rowHeight = 70; // Approximate row height
@@ -965,88 +969,197 @@ export default function BankingScreen() {
                   const dragYAnim = dragYAnimsRef.current[account.id] || new Animated.Value(0);
 
                   const handleLongPress = () => {
+                    if (managedAccounts.length <= 1) return; // Can't reorder if only one item
                     setDraggedAccountId(account.id);
+                    setDraggedAccountStartIndex(index);
                   };
 
                   const handlePanGesture = (event: any) => {
-                    if (draggedAccountId !== account.id) return;
-                    const { translationY } = event.nativeEvent;
-                    dragYAnim.setValue(translationY);
+                    // Only process pan gestures if this account is being dragged
+                    if (draggedAccountId !== account.id) {
+                      return;
+                    }
 
+                    const { translationY } = event.nativeEvent;
+                    
+                    // dragYAnim is updated automatically by Animated.event - the item follows finger exactly
+                    
+                    // Find current position of this account in the array
+                    const currentPosition = managedAccounts.findIndex(acc => acc.id === account.id);
+                    if (currentPosition === -1) return;
+                    
+                    const startIndex = draggedAccountStartIndex ?? currentPosition;
+                    
                     // Auto-scroll when dragging near edges
-                    const scrollThreshold = 80; // Distance from edge to trigger scroll
-                    const scrollSpeed = 8; // Pixels to scroll per frame
-                    const viewportHeight = 400; // Approximate viewport height
+                    const scrollThreshold = 80;
+                    const scrollSpeed = 8;
+                    const viewportHeight = 400;
                     const currentScrollY = scrollY.current;
                     
-                    // Calculate item's position relative to viewport
-                    const itemTop = index * rowHeight;
-                    const itemBottom = itemTop + rowHeight;
-                    const itemTopInViewport = itemTop - currentScrollY;
-                    const itemBottomInViewport = itemBottom - currentScrollY;
-                    const dragTopInViewport = itemTopInViewport + translationY;
-                    const dragBottomInViewport = itemBottomInViewport + translationY;
+                    const itemTop = currentPosition * rowHeight;
+                    const itemTopInViewport = itemTop - currentScrollY + translationY;
                     
                     // Scroll up if dragging near top edge
-                    if (dragTopInViewport < scrollThreshold && currentScrollY > 0) {
+                    if (itemTopInViewport < scrollThreshold && currentScrollY > 0) {
                       const newScrollY = Math.max(0, currentScrollY - scrollSpeed);
                       scrollY.current = newScrollY;
                       scrollViewRef.current?.scrollTo({ y: newScrollY, animated: false });
                     }
                     // Scroll down if dragging near bottom edge
-                    else if (dragBottomInViewport > viewportHeight - scrollThreshold) {
+                    else if (itemTopInViewport > viewportHeight - scrollThreshold) {
                       const totalContentHeight = managedAccounts.length * rowHeight;
                       const maxScroll = Math.max(0, totalContentHeight - viewportHeight);
                       const newScrollY = Math.min(maxScroll, currentScrollY + scrollSpeed);
                       scrollY.current = newScrollY;
                       scrollViewRef.current?.scrollTo({ y: newScrollY, animated: false });
                     }
-
-                    // Calculate which index we should swap to
-                    const newIndex = Math.round(index + translationY / rowHeight);
-                    const clampedIndex = Math.max(0, Math.min(managedAccounts.length - 1, newIndex));
                     
-                    if (clampedIndex !== index) {
-                      const updated = [...managedAccounts];
-                      const [movedItem] = updated.splice(index, 1);
-                      updated.splice(clampedIndex, 0, movedItem);
-                      setManagedAccounts(updated);
-                      // Reset all animations
-                      Object.values(dragYAnimsRef.current).forEach(anim => anim.setValue(0));
-                    }
+                    // Calculate which visual position the dragged item is at based on translation
+                    // This determines which items should move out of the way
+                    const visualRow = startIndex + translationY / rowHeight;
+                    const visualIndex = Math.round(visualRow);
+                    const clampedVisualIndex = Math.max(0, Math.min(managedAccounts.length - 1, visualIndex));
+                    
+                    // Animate other items to smoothly move out of the way
+                    // Based on where the dragged item visually is, not discrete swaps
+                    managedAccounts.forEach((acc, accIndex) => {
+                      if (acc.id === account.id || !dragYAnimsRef.current[acc.id]) return;
+                      
+                      // Calculate where this item should visually be offset
+                      let targetOffset = 0;
+                      
+                      // If dragging down (positive translation)
+                      if (clampedVisualIndex > startIndex) {
+                        // Items between start and visual position should move up
+                        if (accIndex > startIndex && accIndex <= clampedVisualIndex) {
+                          targetOffset = -rowHeight;
+                        }
+                      } 
+                      // If dragging up (negative translation)
+                      else if (clampedVisualIndex < startIndex) {
+                        // Items between visual position and start should move down
+                        if (accIndex >= clampedVisualIndex && accIndex < startIndex) {
+                          targetOffset = rowHeight;
+                        }
+                      }
+                      
+                      // Smoothly animate to target offset (use spring for natural feel)
+                      const currentOffset = dragYAnimsRef.current[acc.id].__getValue?.() ?? 0;
+                      if (Math.abs(targetOffset - currentOffset) > 0.5) {
+                        // Stop any existing animation
+                        dragYAnimsRef.current[acc.id].stopAnimation();
+                        
+                        // Use spring animation for fluid movement
+                        Animated.spring(dragYAnimsRef.current[acc.id], {
+                          toValue: targetOffset,
+                          useNativeDriver: true,
+                          tension: 300,
+                          friction: 30,
+                        }).start();
+                      }
+                    });
                   };
 
-                  const handlePanEnd = () => {
-                    if (draggedAccountId !== null) {
-                      reorderAccounts(managedAccounts.map(a => a.id));
+                  const handlePanStateChange = (event: any) => {
+                    const { state } = event.nativeEvent;
+
+                    // Only process pan gestures if this account is being dragged
+                    if (draggedAccountId !== account.id) {
+                      return;
                     }
-                    Animated.spring(dragYAnim, {
-                      toValue: 0,
-                      useNativeDriver: true,
-                      tension: 100,
-                      friction: 8,
-                    }).start();
-                    setDraggedAccountId(null);
+
+                    if (state === State.END || state === State.CANCELLED) {
+                      // Drag ended - calculate final position based on where user released
+                      const startIndex = draggedAccountStartIndex ?? 0;
+                      const finalTranslation = dragYAnim.__getValue?.() ?? 0;
+                      
+                      // Calculate which position the item was released at
+                      const targetRow = startIndex + finalTranslation / rowHeight;
+                      const finalIndex = Math.round(targetRow);
+                      const clampedFinalIndex = Math.max(0, Math.min(managedAccounts.length - 1, finalIndex));
+                      
+                      // Calculate final order based on release position
+                      const finalOrder = [...managedAccounts];
+                      const currentIndex = finalOrder.findIndex(acc => acc.id === account.id);
+                      
+                      // Only reorder if we've moved to a different position
+                      if (clampedFinalIndex !== startIndex && currentIndex !== -1) {
+                        const [movedItem] = finalOrder.splice(currentIndex, 1);
+                        finalOrder.splice(clampedFinalIndex, 0, movedItem);
+                      }
+                      
+                      // Update state immediately
+                      setManagedAccounts(finalOrder);
+                      
+                      // Save the new order to context
+                      const orderIds = finalOrder.map(a => a.id);
+                      reorderAccounts(orderIds);
+                      
+                      // After state update, the item is at clampedFinalIndex in array
+                      // We need to adjust the animation value to maintain visual continuity
+                      // Current visual: startIndex * rowHeight + finalTranslation
+                      // After state update, item is at clampedFinalIndex position
+                      // We want to animate from current visual position to 0 (natural at new position)
+                      // Adjust: account for the new array position
+                      const currentVisualPos = startIndex * rowHeight + finalTranslation;
+                      const newNaturalPos = clampedFinalIndex * rowHeight;
+                      const adjustmentNeeded = currentVisualPos - newNaturalPos;
+                      
+                      // Adjust animation value to maintain visual position, then animate to 0
+                      dragYAnim.setValue(adjustmentNeeded);
+                      
+                      // Animate smoothly to 0 (natural position at new index)
+                      Animated.spring(dragYAnim, {
+                        toValue: 0,
+                        useNativeDriver: true,
+                        tension: 300,
+                        friction: 30,
+                      }).start();
+                      
+                      // Animate all other items back to their natural positions
+                      Object.keys(dragYAnimsRef.current).forEach(accId => {
+                        if (accId !== account.id && dragYAnimsRef.current[accId]) {
+                          Animated.spring(dragYAnimsRef.current[accId], {
+                            toValue: 0,
+                            useNativeDriver: true,
+                            tension: 300,
+                            friction: 30,
+                          }).start();
+                        }
+                      });
+                      
+                      // Reset drag state after animations complete
+                      lastSwapIndexRef.current = null;
+                      setTimeout(() => {
+                        setDraggedAccountId(null);
+                        setDraggedAccountStartIndex(null);
+                      }, 500);
+                    }
                   };
 
                   return (
                     <LongPressGestureHandler
                       key={account.id}
                       onHandlerStateChange={(event) => {
-                        if (event.nativeEvent.state === State.ACTIVE) {
+                        const handlerState = event.nativeEvent.state;
+                        if (handlerState === State.ACTIVE) {
                           handleLongPress();
                         }
                       }}
-                      minDurationMs={200}
+                      minDurationMs={300}
+                      enabled={managedAccounts.length > 1 && draggedAccountId === null}
                     >
                       <PanGestureHandler
-                        onGestureEvent={handlePanGesture}
-                        onHandlerStateChange={(event) => {
-                          if (event.nativeEvent.state === State.END || event.nativeEvent.state === State.CANCELLED) {
-                            handlePanEnd();
-                          }
-                        }}
-                        enabled={draggedAccountId === account.id}
+                        onGestureEvent={Animated.event(
+                          [{ nativeEvent: { translationY: dragYAnim } }],
+                          { useNativeDriver: false, listener: handlePanGesture }
+                        )}
+                        onHandlerStateChange={handlePanStateChange}
+                        enabled={draggedAccountId === null || draggedAccountId === account.id}
+                        activeOffsetY={[-5, 5]}
+                        failOffsetX={[-30, 30]}
+                        minPointers={1}
+                        maxPointers={1}
                       >
                         <Animated.View
                           style={[
@@ -1086,22 +1199,22 @@ export default function BankingScreen() {
                             </View>
                             <TouchableOpacity
                               onPress={() => {
-                                console.log('[Banking] 🗑️  Trash icon pressed for account:', account.id);
-                                console.log('[Banking]   Account name:', account.name);
-                                console.log('[Banking]   Manage Accounts modal is open:', showAccountsModal);
+                                log('[Banking] 🗑️  Trash icon pressed for account:', account.id);
+                                log('[Banking]   Account name:', account.name);
+                                log('[Banking]   Manage Accounts modal is open:', showAccountsModal);
                                 
                                 // Close Manage Accounts modal first to avoid modal conflicts
                                 if (showAccountsModal) {
-                                  console.log('[Banking]   Closing Manage Accounts modal first');
+                                  log('[Banking]   Closing Manage Accounts modal first');
                                   setShowAccountsModal(false);
                                 }
                                 
                                 // Wait a moment for modal to close, then show removal confirmation
                                 setTimeout(() => {
                                   const accountData = { id: account.id, name: account.name || 'Account' };
-                                  console.log('[Banking]   Setting accountToRemove to:', accountData);
+                                  log('[Banking]   Setting accountToRemove to:', accountData);
                                   setAccountToRemove(accountData);
-                                  console.log('[Banking]   setAccountToRemove called');
+                                  log('[Banking]   setAccountToRemove called');
                                 }, 300);
                               }}
                               style={styles.iconButton}
@@ -1906,6 +2019,7 @@ const styles = StyleSheet.create({
   },
 
   healthSummaryCard: {
+    marginTop: 0, // Remove top margin - spacing handled by carousel pageIndicators marginBottom
     marginBottom: Spacing.md,
   },
   healthSummaryHeader: {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { useAlert } from '@/hooks/useAlert';
 import Card from '@/components/layout/Card';
 import Button from '@/components/layout/Button';
 import ProgressBar from '@/components/feedback/ProgressBar';
+import { BudgetCarousel } from '@/components/BudgetCarousel';
 import TransactionItem from '@/components/TransactionItem';
 import EmptyState from '@/components/feedback/EmptyState';
 import AddTransactionModal from '@/components/modals/AddTransactionModal';
@@ -35,8 +36,11 @@ import {
   Typography,
 } from '@/constants/spacing';
 import { Transaction } from '@/types/finance';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import OfflineIndicator from '@/components/feedback/OfflineIndicator';
+import { log } from '@/utils/logger';
 
-export default function BudgetScreen() {
+function BudgetScreenContent() {
   const { budget, transactions, isLoading } = useFinance();
   const {
     savingsGoals,
@@ -62,17 +66,24 @@ export default function BudgetScreen() {
   >(undefined);
 
   // Filter options for each section
+  const [incomeFilter, setIncomeFilter] = useState<'closest_date' | 'category' | 'alphabetical'>('closest_date');
   const [givenExpensesFilter, setGivenExpensesFilter] = useState<'closest_date' | 'category' | 'alphabetical'>('closest_date');
   const [recurringExpensesFilter, setRecurringExpensesFilter] = useState<'day_of_month' | 'category' | 'alphabetical'>('day_of_month');
   const [savingsFilter, setSavingsFilter] = useState<'closest_date' | 'category' | 'alphabetical'>('closest_date');
+  const [oneTimeExpensesFilter, setOneTimeExpensesFilter] = useState<'closest_date' | 'category' | 'alphabetical'>('closest_date');
 
   // Dropdown open states
+  const [incomeDropdownOpen, setIncomeDropdownOpen] = useState(false);
   const [givenExpensesDropdownOpen, setGivenExpensesDropdownOpen] = useState(false);
   const [recurringExpensesDropdownOpen, setRecurringExpensesDropdownOpen] = useState(false);
   const [savingsDropdownOpen, setSavingsDropdownOpen] = useState(false);
+  const [oneTimeExpensesDropdownOpen, setOneTimeExpensesDropdownOpen] = useState(false);
 
   // Collapse states
   const [recurringExpensesCollapsed, setRecurringExpensesCollapsed] = useState(false);
+  const [givenExpensesCollapsed, setGivenExpensesCollapsed] = useState(false);
+  const [savingsCollapsed, setSavingsCollapsed] = useState(false);
+  const [oneTimeExpensesCollapsed, setOneTimeExpensesCollapsed] = useState(false);
 
   // Filter options configuration
   const filterOptions: FilterOption[] = [
@@ -153,18 +164,52 @@ export default function BudgetScreen() {
   const givenExpenses = filterAndSortBySmartDateLimits(givenExpensesWithUpdatedDates);
 
   // Recurring expenses (excluding given expenses which have their own section)
-  const recurringExpenses = transactions
-    .filter(t => t.type === 'expense' && t.isRecurring && t.category !== 'given_expenses')
-    .sort((a, b) => {
-      // Sort by day of the month (1st through 31st)
+  // Generate all occurrences for the current month using paySchedule
+  const recurringExpenses = useMemo(() => {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    const baseRecurringExpenses = transactions.filter(
+      t => t.type === 'expense' && t.isRecurring && t.category !== 'given_expenses'
+    );
+    
+    const allExpenseOccurrences: Transaction[] = [];
+    
+    baseRecurringExpenses.forEach(expense => {
+      if (expense.paySchedule) {
+        // Use paySchedule to generate all occurrences in the current month
+        const payDates = getPayDatesInRange(
+          expense.paySchedule,
+          startOfMonth,
+          endOfMonth
+        );
+        
+        // Create an expense entry for each pay date
+        payDates.forEach((payDate, index) => {
+          allExpenseOccurrences.push({
+            ...expense,
+            id: `${expense.id}_occurrence_${index}`,
+            date: payDate.toISOString(),
+          });
+        });
+      } else {
+        // Legacy: For expenses without paySchedule, use the original date
+        // Check if it falls in the current month
+        const expenseDate = new Date(expense.date);
+        if (expenseDate >= startOfMonth && expenseDate <= endOfMonth) {
+          allExpenseOccurrences.push(expense);
+        }
+      }
+    });
+    
+    // Sort by date (day of month)
+    return allExpenseOccurrences.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
-      const dayA = dateA.getDate();
-      const dayB = dateB.getDate();
-      
-      // Sort by day of month (1, 2, 3, ..., 31)
-      return dayA - dayB;
+      return dateA.getTime() - dateB.getTime();
     });
+  }, [transactions]);
 
   const totalExpenses =
     budget.expenses.given +
@@ -187,7 +232,7 @@ export default function BudgetScreen() {
   };
 
   const handleCloseModal = () => {
-    console.log('Budget handleCloseModal called'); // Debug log
+    log('Budget handleCloseModal called');
     setShowAddModal(false);
     setEditTransaction(undefined);
     setModalTransactionType('expense');
@@ -209,9 +254,8 @@ export default function BudgetScreen() {
   const handleDeleteSavingsGoal = (goalId: string) => {
     showAlert({
       title: 'Delete Savings Goal',
-      message:
-        'Are you sure you want to delete this savings goal? This action cannot be undone.',
-      type: 'error',
+      message: 'Are you sure you want to delete this savings goal?',
+      type: 'warning',
       actions: [
         {
           text: 'Cancel',
@@ -236,45 +280,64 @@ export default function BudgetScreen() {
   };
 
   // Filter functions for each section
+  const getFilteredIncome = () => {
+    switch (incomeFilter) {
+      case 'category':
+        return [...incomeTransactions].sort((a, b) => a.category.localeCompare(b.category));
+      case 'alphabetical':
+        return [...incomeTransactions].sort((a, b) => a.name.localeCompare(b.name));
+      default: // closest_date
+        return [...incomeTransactions].sort((a, b) => {
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          return dateB.getTime() - dateA.getTime(); // Most recent first
+        });
+    }
+  };
+
   const getFilteredGivenExpenses = () => {
+    let filteredExpenses = givenExpenses;
+    
+    // Apply collapse filter if enabled - hide past expenses, show current and upcoming
+    if (givenExpensesCollapsed) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
+      
+      filteredExpenses = givenExpenses.filter(expense => {
+        const expenseDate = new Date(expense.date);
+        expenseDate.setHours(0, 0, 0, 0);
+        
+        // Show expenses that are today or in the future (not past)
+        return expenseDate >= today;
+      });
+    }
+    
+    // Apply sorting filter
     switch (givenExpensesFilter) {
       case 'category':
-        return [...givenExpenses].sort((a, b) => a.category.localeCompare(b.category));
+        return [...filteredExpenses].sort((a, b) => a.category.localeCompare(b.category));
       case 'alphabetical':
-        return [...givenExpenses].sort((a, b) => a.name.localeCompare(b.name));
+        return [...filteredExpenses].sort((a, b) => a.name.localeCompare(b.name));
       default: // closest_date
-        return givenExpenses; // Already sorted by smart date limits
+        return filteredExpenses; // Already sorted by smart date limits
     }
   };
 
   const getFilteredRecurringExpenses = () => {
     let filteredExpenses = recurringExpenses;
     
-    // Apply collapse filter if enabled
+    // Apply collapse filter if enabled - hide past expenses, show current and upcoming
     if (recurringExpensesCollapsed) {
       const today = new Date();
-      const currentDay = today.getDate();
-      
-      console.log('Collapse filter enabled. Current day:', currentDay);
-      console.log('Total recurring expenses:', recurringExpenses.length);
+      today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
       
       filteredExpenses = recurringExpenses.filter(expense => {
-        // For recurring expenses, we only care about the day of the month
-        // The date field contains the original creation date, but we want to know
-        // if this day of the month has already passed this month
         const expenseDate = new Date(expense.date);
-        const expenseDay = expenseDate.getDate();
+        expenseDate.setHours(0, 0, 0, 0);
         
-        // If the expense day is today or in the future this month, show it
-        // If the expense day has already passed this month, hide it
-        const isFutureOrToday = expenseDay >= currentDay;
-        
-        console.log(`Expense: ${expense.name}, Day of month: ${expenseDay}, Current day: ${currentDay}, Is Future/Today: ${isFutureOrToday}`);
-        
-        return isFutureOrToday;
+        // Show expenses that are today or in the future (not past)
+        return expenseDate >= today;
       });
-      
-      console.log('Filtered expenses count:', filteredExpenses.length);
     }
     
     // Apply sorting filter
@@ -284,20 +347,69 @@ export default function BudgetScreen() {
       case 'alphabetical':
         return [...filteredExpenses].sort((a, b) => a.name.localeCompare(b.name));
       case 'day_of_month':
-        return filteredExpenses; // Already sorted by day of month (1-31)
+        return filteredExpenses; // Already sorted by date
       default:
-        return filteredExpenses; // Fallback to day of month sorting
+        return filteredExpenses; // Fallback to date sorting
     }
   };
 
   const getFilteredSavings = () => {
+    let filteredSavings = savingsTransactions;
+    
+    // Apply collapse filter if enabled - hide past expenses, show current and upcoming
+    if (savingsCollapsed) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
+      
+      filteredSavings = savingsTransactions.filter(saving => {
+        const savingDate = new Date(saving.date);
+        savingDate.setHours(0, 0, 0, 0);
+        
+        // Show savings that are today or in the future (not past)
+        return savingDate >= today;
+      });
+    }
+    
+    // Apply sorting filter
     switch (savingsFilter) {
       case 'category':
-        return [...savingsTransactions].sort((a, b) => a.category.localeCompare(b.category));
+        return [...filteredSavings].sort((a, b) => a.category.localeCompare(b.category));
       case 'alphabetical':
-        return [...savingsTransactions].sort((a, b) => a.name.localeCompare(b.name));
+        return [...filteredSavings].sort((a, b) => a.name.localeCompare(b.name));
       default: // closest_date
-        return savingsTransactions; // Already sorted by smart date limits
+        return filteredSavings; // Already sorted by smart date limits
+    }
+  };
+
+  const getFilteredOneTimeExpenses = () => {
+    let filteredExpenses = oneTimeExpenses;
+    
+    // Apply collapse filter if enabled - hide past expenses, show current and upcoming
+    if (oneTimeExpensesCollapsed) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
+      
+      filteredExpenses = oneTimeExpenses.filter(expense => {
+        const expenseDate = new Date(expense.date);
+        expenseDate.setHours(0, 0, 0, 0);
+        
+        // Show expenses that are today or in the future (not past)
+        return expenseDate >= today;
+      });
+    }
+    
+    // Apply sorting filter
+    switch (oneTimeExpensesFilter) {
+      case 'category':
+        return [...filteredExpenses].sort((a, b) => a.category.localeCompare(b.category));
+      case 'alphabetical':
+        return [...filteredExpenses].sort((a, b) => a.name.localeCompare(b.name));
+      default: // closest_date
+        return [...filteredExpenses].sort((a, b) => {
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          return dateB.getTime() - dateA.getTime(); // Most recent first
+        });
     }
   };
 
@@ -314,10 +426,22 @@ export default function BudgetScreen() {
           >
             {/* Header */}
             <View style={styles.header}>
-              <Text style={[styles.title, { color: colors.text }]}>Budget</Text>
-              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                Monthly planning
-              </Text>
+              <View style={styles.headerContent}>
+                <Text style={[styles.title, { color: colors.text }]}>Budget</Text>
+                <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                  Monthly planning
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => {
+                  setModalTransactionType('expense');
+                  setShowAddModal(true);
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Plus size={20} color={colors.primary} />
+              </TouchableOpacity>
             </View>
             <View style={styles.loadingContainer}>
               <Text style={[styles.loadingText, { color: colors.inactive }]}>
@@ -339,14 +463,26 @@ export default function BudgetScreen() {
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
+          contentContainerStyle={styles.scrollContent}
         >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.text }]}>Budget</Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              Monthly planning
-            </Text>
+            <View style={styles.headerContent}>
+              <Text style={[styles.title, { color: colors.text }]}>Budget</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                Monthly planning
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => {
+                setModalTransactionType('expense');
+                setShowAddModal(true);
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Plus size={20} color={colors.primary} />
+            </TouchableOpacity>
           </View>
           {/* View Toggle */}
           <Toggle
@@ -357,167 +493,13 @@ export default function BudgetScreen() {
 
           {activeView === 'budget' ? (
             <>
-              {/* Budget Overview Card */}
-              <Card variant='elevated' style={styles.summaryCard}>
-                <View style={styles.budgetHeader}>
-                  <Text style={[styles.budgetTitle, { color: colors.text }]}>
-                    Monthly Budget
-                  </Text>
-                </View>
-
-                <View style={styles.summaryRow}>
-                  <View style={styles.summaryItem}>
-                    <Text
-                      style={[
-                        styles.summaryLabel,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      Monthly Income
-                    </Text>
-                    <Text style={[styles.summaryValue, { color: colors.text }]}>
-                      ${budget.income > 0 ? budget.income.toFixed(2) : '0.00'}
-                    </Text>
-                  </View>
-                  <View style={styles.summaryItem}>
-                    <Text
-                      style={[
-                        styles.summaryLabel,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      Total Expenses
-                    </Text>
-                    <Text style={[styles.summaryValue, { color: colors.text }]}>
-                      ${totalExpenses.toFixed(2)}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.progressContainer}>
-                  <ProgressBar
-                    progress={budgetUtilization}
-                    color={
-                      budgetUtilization > 90
-                        ? colors.error
-                        : budgetUtilization > 75
-                          ? colors.warning
-                          : colors.success
-                    }
-                    label='Budget Utilization'
-                    showPercentage
-                  />
-                </View>
-
-                <View style={styles.remainingContainer}>
-                  <Text
-                    style={[
-                      styles.remainingLabel,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    Remaining Budget
-                  </Text>
-                  <Text
-                    style={[
-                      styles.remainingValue,
-                      {
-                        color:
-                          remainingIncome < 0 ? colors.error : colors.success,
-                      },
-                    ]}
-                  >
-                    ${remainingIncome.toFixed(2)}
-                  </Text>
-                </View>
-
-                <View style={styles.breakdownContainer}>
-                  <Text style={[styles.breakdownTitle, { color: colors.text }]}>
-                    Expense Breakdown
-                  </Text>
-                  <View style={styles.breakdownRow}>
-                    <Text
-                      style={[
-                        styles.breakdownLabel,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      Given expenses
-                    </Text>
-                    <Text
-                      style={[styles.breakdownValue, { color: colors.text }]}
-                    >
-                      ${budget.expenses.given.toFixed(2)}
-                    </Text>
-                  </View>
-                  <View style={styles.breakdownRow}>
-                    <Text
-                      style={[
-                        styles.breakdownLabel,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      One-Time Expenses
-                    </Text>
-                    <Text
-                      style={[styles.breakdownValue, { color: colors.text }]}
-                    >
-                      ${budget.expenses.oneTime.toFixed(2)}
-                    </Text>
-                  </View>
-                  <View style={styles.breakdownRow}>
-                    <Text
-                      style={[
-                        styles.breakdownLabel,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      Recurring expenses
-                    </Text>
-                    <Text
-                      style={[styles.breakdownValue, { color: colors.text }]}
-                    >
-                      ${budget.expenses.recurring.toFixed(2)}
-                    </Text>
-                  </View>
-                  <View style={styles.breakdownRow}>
-                    <Text
-                      style={[
-                        styles.breakdownLabel,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      Savings
-                    </Text>
-                    <Text
-                      style={[styles.breakdownValue, { color: colors.text }]}
-                    >
-                      ${budget.expenses.savings.toFixed(2)}
-                    </Text>
-                  </View>
-                </View>
-              </Card>
-
-              {/* Quick Actions */}
-              <View style={styles.quickActions}>
-                <Button
-                  title='Add Expense'
-                  onPress={() => {
-                    setModalTransactionType('expense');
-                    setShowAddModal(true);
-                  }}
-                  variant='primary'
-                  size='medium'
-                  style={styles.actionButton}
-                />
-                <Button
-                  title='Add Income'
-                  onPress={handleAddIncome}
-                  variant='outline'
-                  size='medium'
-                  style={styles.actionButton}
-                />
-              </View>
+              {/* Budget Carousel */}
+              <BudgetCarousel
+                budget={budget}
+                budgetUtilization={budgetUtilization}
+                remainingIncome={remainingIncome}
+                totalExpenses={totalExpenses}
+              />
 
               {/* Income Section */}
               <View style={styles.sectionHeader}>
@@ -527,18 +509,28 @@ export default function BudgetScreen() {
                   </Text>
                   <View style={styles.sectionInfo}>
                     <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
-                      {incomeTransactions.length} items
+                      {getFilteredIncome().length} items
                     </Text>
+                    {incomeTransactions.length > 0 && (
+                      <FilterDropdown
+                        options={filterOptions}
+                        selectedValue={incomeFilter}
+                        onSelect={(value) => setIncomeFilter(value as 'closest_date' | 'category' | 'alphabetical')}
+                        isOpen={incomeDropdownOpen}
+                        onToggle={() => setIncomeDropdownOpen(!incomeDropdownOpen)}
+                        backgroundColor={colors.card}
+                      />
+                    )}
                   </View>
                 </View>
               </View>
               <Card>
                 {incomeTransactions.length > 0 ? (
-                  incomeTransactions.map((income, index) => (
+                  getFilteredIncome().map((income, index) => (
                     <TransactionItem
                       key={income.id}
                       transaction={income}
-                      isLast={index === incomeTransactions.length - 1}
+                      isLast={index === getFilteredIncome().length - 1}
                       onEdit={handleEditTransaction}
                       enableSwipeActions={true}
                     />
@@ -553,174 +545,248 @@ export default function BudgetScreen() {
               </Card>
 
               {/* Given Expenses Section */}
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleRow}>
-                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                    Given Expenses
-                  </Text>
-                  <View style={styles.sectionInfo}>
-                    <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
-                      {givenExpenses.length} items
+              <View style={{ marginTop: 10 }}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionTitleRow}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                      Given Expenses
                     </Text>
-                    <FilterDropdown
-                      options={filterOptions}
-                      selectedValue={givenExpensesFilter}
-                      onSelect={(value) => setGivenExpensesFilter(value as 'closest_date' | 'category' | 'alphabetical')}
-                      isOpen={givenExpensesDropdownOpen}
-                      onToggle={() => setGivenExpensesDropdownOpen(!givenExpensesDropdownOpen)}
-                      backgroundColor={colors.card}
-                    />
-                  </View>
-                </View>
-              </View>
-              <Card>
-                {givenExpenses.length > 0 ? (
-                  getFilteredGivenExpenses().map((expense, index) => (
-                    <TransactionItem
-                      key={expense.id}
-                      transaction={expense}
-                      isLast={index === givenExpenses.length - 1}
-                      onEdit={handleEditTransaction}
-                      enableSwipeActions={true}
-                    />
-                  ))
-                ) : (
-                  <EmptyState
-                    icon='dollar'
-                    title='No given expenses'
-                    subtitle='Add essential expenses like bills, debt payments, and subscriptions'
-                  />
-                )}
-              </Card>
-
-              {/* Savings Section */}
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleRow}>
-                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                    Savings
-                  </Text>
-                  <View style={styles.sectionInfo}>
-                    <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
-                      {savingsTransactions.length} items
-                    </Text>
-                    <FilterDropdown
-                      options={filterOptions}
-                      selectedValue={savingsFilter}
-                      onSelect={(value) => setSavingsFilter(value as 'closest_date' | 'category' | 'alphabetical')}
-                      isOpen={savingsDropdownOpen}
-                      onToggle={() => setSavingsDropdownOpen(!savingsDropdownOpen)}
-                      backgroundColor={colors.card}
-                    />
-                  </View>
-                </View>
-              </View>
-              <Card>
-                {savingsTransactions.length > 0 ? (
-                  getFilteredSavings().map((saving, index) => (
-                    <TransactionItem
-                      key={saving.id}
-                      transaction={saving}
-                      isLast={index === savingsTransactions.length - 1}
-                      onEdit={handleEditTransaction}
-                      enableSwipeActions={true}
-                    />
-                  ))
-                ) : (
-                  <EmptyState
-                    icon='dollar'
-                    title='No savings'
-                    subtitle='Add your savings goals and contributions'
-                  />
-                )}
-              </Card>
-
-              {/* Recurring Expenses Section */}
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleRow}>
-                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                    Recurring Expenses
-                  </Text>
-                  <View style={styles.sectionInfo}>
-                    <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
-                      {recurringExpensesCollapsed ? getFilteredRecurringExpenses().length : recurringExpenses.length} items
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => setRecurringExpensesCollapsed(!recurringExpensesCollapsed)}
-                      style={[styles.collapseButton, { backgroundColor: colors.card }]}
-                      activeOpacity={0.7}
-                    >
-                      {recurringExpensesCollapsed ? (
-                        <ChevronDown size={16} color={colors.textSecondary} strokeWidth={2} />
-                      ) : (
-                        <ChevronUp size={16} color={colors.textSecondary} strokeWidth={2} />
+                    <View style={styles.sectionInfo}>
+                      <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
+                        {givenExpensesCollapsed ? getFilteredGivenExpenses().length : givenExpenses.length} items
+                      </Text>
+                      {givenExpenses.length > 0 && (
+                        <>
+                          <TouchableOpacity
+                            onPress={() => setGivenExpensesCollapsed(!givenExpensesCollapsed)}
+                            style={[styles.collapseButton, { backgroundColor: colors.card }]}
+                            activeOpacity={0.7}
+                          >
+                            {givenExpensesCollapsed ? (
+                              <ChevronUp size={16} color={colors.textSecondary} strokeWidth={2} />
+                            ) : (
+                              <ChevronDown size={16} color={colors.textSecondary} strokeWidth={2} />
+                            )}
+                          </TouchableOpacity>
+                        <FilterDropdown
+                          options={filterOptions}
+                          selectedValue={givenExpensesFilter}
+                          onSelect={(value) => setGivenExpensesFilter(value as 'closest_date' | 'category' | 'alphabetical')}
+                          isOpen={givenExpensesDropdownOpen}
+                          onToggle={() => setGivenExpensesDropdownOpen(!givenExpensesDropdownOpen)}
+                          backgroundColor={colors.card}
+                        />
+                        </>
                       )}
-                    </TouchableOpacity>
-                    <FilterDropdown
-                      options={recurringFilterOptions}
-                      selectedValue={recurringExpensesFilter}
-                      onSelect={(value) => setRecurringExpensesFilter(value as 'day_of_month' | 'category' | 'alphabetical')}
-                      isOpen={recurringExpensesDropdownOpen}
-                      onToggle={() => setRecurringExpensesDropdownOpen(!recurringExpensesDropdownOpen)}
-                      backgroundColor={colors.card}
-                    />
+                    </View>
                   </View>
                 </View>
-              </View>
-              <Card>
-                {(() => {
-                  const filteredExpenses = getFilteredRecurringExpenses();
-                  return filteredExpenses.length > 0 ? (
-                    filteredExpenses.map((expense, index) => (
+                <Card>
+                  {(() => {
+                    const filteredExpenses = getFilteredGivenExpenses();
+                    return filteredExpenses.length > 0 ? (
+                      filteredExpenses.map((expense, index) => (
                       <TransactionItem
                         key={expense.id}
                         transaction={expense}
-                        isLast={index === filteredExpenses.length - 1}
+                          isLast={index === filteredExpenses.length - 1}
                         onEdit={handleEditTransaction}
                         enableSwipeActions={true}
                       />
                     ))
                   ) : (
                     <EmptyState
-                      icon='trending'
-                      title={recurringExpensesCollapsed ? 'No upcoming recurring expenses' : 'No recurring expenses'}
-                      subtitle={recurringExpensesCollapsed ? 'All recurring expenses for this month have passed' : 'Add monthly subscriptions, bills, and regular payments'}
+                      icon='dollar'
+                        title={givenExpensesCollapsed ? 'No upcoming given expenses' : 'No given expenses'}
+                        subtitle={givenExpensesCollapsed ? 'All given expenses have passed' : 'Add essential expenses like bills, debt payments, and subscriptions'}
                     />
-                  );
-                })()}
-              </Card>
+                    );
+                  })()}
+                </Card>
+              </View>
 
-              {/* One-Time Expenses Section */}
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleRow}>
-                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                    One-Time Expenses
-                  </Text>
-                  <View style={styles.sectionInfo}>
-                    <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
-                      {oneTimeExpenses.length} items
+              {/* Savings Section */}
+              <View style={{ marginTop: 10 }}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionTitleRow}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                      Savings
                     </Text>
+                    <View style={styles.sectionInfo}>
+                      <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
+                        {savingsCollapsed ? getFilteredSavings().length : savingsTransactions.length} items
+                      </Text>
+                      {savingsTransactions.length > 0 && (
+                        <>
+                          <TouchableOpacity
+                            onPress={() => setSavingsCollapsed(!savingsCollapsed)}
+                            style={[styles.collapseButton, { backgroundColor: colors.card }]}
+                            activeOpacity={0.7}
+                          >
+                            {savingsCollapsed ? (
+                              <ChevronUp size={16} color={colors.textSecondary} strokeWidth={2} />
+                            ) : (
+                              <ChevronDown size={16} color={colors.textSecondary} strokeWidth={2} />
+                            )}
+                          </TouchableOpacity>
+                        <FilterDropdown
+                          options={filterOptions}
+                          selectedValue={savingsFilter}
+                          onSelect={(value) => setSavingsFilter(value as 'closest_date' | 'category' | 'alphabetical')}
+                          isOpen={savingsDropdownOpen}
+                          onToggle={() => setSavingsDropdownOpen(!savingsDropdownOpen)}
+                          backgroundColor={colors.card}
+                        />
+                        </>
+                      )}
+                    </View>
                   </View>
                 </View>
-              </View>
-              <Card>
-                {oneTimeExpenses.length > 0 ? (
-                  oneTimeExpenses.map((expense, index) => (
-                    <TransactionItem
-                      key={expense.id}
-                      transaction={expense}
-                      isLast={index === oneTimeExpenses.length - 1}
-                      onEdit={handleEditTransaction}
-                      enableSwipeActions={true}
+                <Card>
+                  {(() => {
+                    const filteredSavings = getFilteredSavings();
+                    return filteredSavings.length > 0 ? (
+                      filteredSavings.map((saving, index) => (
+                      <TransactionItem
+                        key={saving.id}
+                        transaction={saving}
+                          isLast={index === filteredSavings.length - 1}
+                        onEdit={handleEditTransaction}
+                        enableSwipeActions={true}
+                      />
+                    ))
+                  ) : (
+                    <EmptyState
+                      icon='dollar'
+                        title={savingsCollapsed ? 'No upcoming savings' : 'No savings'}
+                        subtitle={savingsCollapsed ? 'All savings transactions have passed' : 'Add your savings goals and contributions'}
                     />
-                  ))
-                ) : (
-                  <EmptyState
-                    icon='plus'
-                    title='No one-time expenses'
-                    subtitle='Track occasional purchases and unexpected costs'
-                  />
-                )}
-              </Card>
+                    );
+                  })()}
+                </Card>
+              </View>
+
+              {/* Recurring Expenses Section */}
+              <View style={{ marginTop: 10 }}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionTitleRow}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                      Recurring Expenses
+                    </Text>
+                    <View style={styles.sectionInfo}>
+                      <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
+                        {recurringExpensesCollapsed ? getFilteredRecurringExpenses().length : recurringExpenses.length} items
+                      </Text>
+                      {recurringExpenses.length > 0 && (
+                        <>
+                          <TouchableOpacity
+                            onPress={() => setRecurringExpensesCollapsed(!recurringExpensesCollapsed)}
+                            style={[styles.collapseButton, { backgroundColor: colors.card }]}
+                            activeOpacity={0.7}
+                          >
+                            {recurringExpensesCollapsed ? (
+                              <ChevronUp size={16} color={colors.textSecondary} strokeWidth={2} />
+                            ) : (
+                              <ChevronDown size={16} color={colors.textSecondary} strokeWidth={2} />
+                            )}
+                          </TouchableOpacity>
+                          <FilterDropdown
+                            options={recurringFilterOptions}
+                            selectedValue={recurringExpensesFilter}
+                            onSelect={(value) => setRecurringExpensesFilter(value as 'day_of_month' | 'category' | 'alphabetical')}
+                            isOpen={recurringExpensesDropdownOpen}
+                            onToggle={() => setRecurringExpensesDropdownOpen(!recurringExpensesDropdownOpen)}
+                            backgroundColor={colors.card}
+                          />
+                        </>
+                      )}
+                    </View>
+                  </View>
+                </View>
+                <Card>
+                  {(() => {
+                    const filteredExpenses = getFilteredRecurringExpenses();
+                    return filteredExpenses.length > 0 ? (
+                      filteredExpenses.map((expense, index) => (
+                        <TransactionItem
+                          key={expense.id}
+                          transaction={expense}
+                          isLast={index === filteredExpenses.length - 1}
+                          onEdit={handleEditTransaction}
+                          enableSwipeActions={true}
+                        />
+                      ))
+                    ) : (
+                      <EmptyState
+                        icon='trending'
+                        title={recurringExpensesCollapsed ? 'No upcoming recurring expenses' : 'No recurring expenses'}
+                        subtitle={recurringExpensesCollapsed ? 'All recurring expenses for this month have passed' : 'Add monthly subscriptions, bills, and regular payments'}
+                      />
+                    );
+                  })()}
+                </Card>
+              </View>
+
+              {/* One-Time Expenses Section */}
+              <View style={{ marginTop: 10 }}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionTitleRow}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                      One-Time Expenses
+                    </Text>
+                    <View style={styles.sectionInfo}>
+                      <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
+                        {oneTimeExpensesCollapsed ? getFilteredOneTimeExpenses().length : oneTimeExpenses.length} items
+                      </Text>
+                      {oneTimeExpenses.length > 0 && (
+                        <>
+                          <TouchableOpacity
+                            onPress={() => setOneTimeExpensesCollapsed(!oneTimeExpensesCollapsed)}
+                            style={[styles.collapseButton, { backgroundColor: colors.card }]}
+                            activeOpacity={0.7}
+                          >
+                            {oneTimeExpensesCollapsed ? (
+                              <ChevronUp size={16} color={colors.textSecondary} strokeWidth={2} />
+                            ) : (
+                              <ChevronDown size={16} color={colors.textSecondary} strokeWidth={2} />
+                            )}
+                          </TouchableOpacity>
+                        <FilterDropdown
+                          options={filterOptions}
+                          selectedValue={oneTimeExpensesFilter}
+                          onSelect={(value) => setOneTimeExpensesFilter(value as 'closest_date' | 'category' | 'alphabetical')}
+                          isOpen={oneTimeExpensesDropdownOpen}
+                          onToggle={() => setOneTimeExpensesDropdownOpen(!oneTimeExpensesDropdownOpen)}
+                          backgroundColor={colors.card}
+                        />
+                        </>
+                      )}
+                    </View>
+                  </View>
+                </View>
+                <Card>
+                  {(() => {
+                    const filteredExpenses = getFilteredOneTimeExpenses();
+                    return filteredExpenses.length > 0 ? (
+                      filteredExpenses.map((expense, index) => (
+                      <TransactionItem
+                        key={expense.id}
+                        transaction={expense}
+                          isLast={index === filteredExpenses.length - 1}
+                        onEdit={handleEditTransaction}
+                        enableSwipeActions={true}
+                      />
+                    ))
+                  ) : (
+                    <EmptyState
+                      icon='plus'
+                        title={oneTimeExpensesCollapsed ? 'No upcoming one-time expenses' : 'No one-time expenses'}
+                        subtitle={oneTimeExpensesCollapsed ? 'All one-time expenses have passed' : 'Track occasional purchases and unexpected costs'}
+                    />
+                    );
+                  })()}
+                </Card>
+              </View>
             </>
           ) : (
             <>
@@ -899,7 +965,16 @@ export default function BudgetScreen() {
         actions={alertState.actions}
         onClose={hideAlert}
       />
+      <OfflineIndicator />
     </>
+  );
+}
+
+export default function BudgetScreen() {
+  return (
+    <ErrorBoundary context="Budget Screen">
+      <BudgetScreenContent />
+    </ErrorBoundary>
   );
 }
 
@@ -913,9 +988,24 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: 100, // Space for tab bar
+    minHeight: '100%',
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: Spacing.lg,
+  },
+  headerContent: {
+    flex: 1,
+  },
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: 28,
@@ -1006,19 +1096,11 @@ const styles = StyleSheet.create({
     textAlign: 'right', // Right-aligned
     flexShrink: 0,
   },
-  quickActions: {
-    flexDirection: 'row',
-    marginBottom: Spacing.xl,
-    gap: SpacingValues.cardMargin,
-  },
-  actionButton: {
-    flex: 1,
-  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: Spacing.lg, // Reduced from xl
+    marginTop: 0, // Remove top margin - spacing handled by carousel pageIndicators marginBottom
     marginBottom: Spacing.sm, // Reduced from md
   },
   sectionTitle: {
@@ -1044,15 +1126,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
     marginRight: 8,
-  },
-
-  addButton: {
-    width: Math.max(40, SpacingValues.minTouchTarget),
-    height: Math.max(40, SpacingValues.minTouchTarget),
-    borderRadius: BorderRadius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Shadow.light,
   },
 
   // Savings View Styles

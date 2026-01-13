@@ -84,7 +84,7 @@ export default function DayPicker({
 
             <ScrollView
               style={styles.daysList}
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator={true}
               contentContainerStyle={styles.daysContent}
             >
               {days.map(day => (
@@ -95,7 +95,7 @@ export default function DayPicker({
                     selectedDay === day && styles.selectedDayOption,
                   ]}
                   onPress={() => handleSelect(day)}
-                  activeOpacity={0.7}
+                  activeOpacity={0.6}
                 >
                   <Text
                     style={[
@@ -148,64 +148,57 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       backgroundColor: colors.card,
       borderRadius: BorderRadius.xxl,
       width: '100%',
-      maxHeight: '80%',
+      maxWidth: 360,
+      maxHeight: '65%',
       ...Shadow.heavy,
     },
     modalHeader: {
-      padding: Spacing.lg,
-      paddingBottom: Spacing.md,
+      paddingHorizontal: Spacing.lg,
+      paddingTop: Spacing.md,
+      paddingBottom: Spacing.sm,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
-      alignItems: 'center',
     },
     modalTitle: {
-      fontSize: 20,
-      fontWeight: '700',
-      color: colors.text,
-      marginBottom: Spacing.sm,
-      letterSpacing: -0.3,
-    },
-    modalSubtitle: {
-      fontSize: 15,
-      color: colors.textSecondary,
-      textAlign: 'center',
-      fontWeight: '500',
-      lineHeight: 20,
-    },
-    daysList: {
-      maxHeight: 500,
-    },
-    daysContent: {
-      padding: Spacing.lg,
-      paddingTop: Spacing.md,
-    },
-    dayOption: {
-      backgroundColor: colors.card,
-      borderRadius: BorderRadius.lg,
-      padding: Spacing.lg,
-      marginBottom: Spacing.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: colors.border,
-      minHeight: 56,
-      ...Shadow.light,
-    },
-    selectedDayOption: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-      borderWidth: 2,
-      ...Shadow.medium,
-    },
-    dayText: {
-      fontSize: 18,
+      fontSize: 17,
       fontWeight: '600',
       color: colors.text,
-      lineHeight: 24,
+      marginBottom: 2,
+      textAlign: 'center',
+    },
+    modalSubtitle: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      fontWeight: '400',
+    },
+    daysList: {
+      maxHeight: 400,
+    },
+    daysContent: {
+      paddingVertical: Spacing.xs,
+    },
+    dayOption: {
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.lg,
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border + '30',
+    },
+    selectedDayOption: {
+      backgroundColor: colors.primary + '15',
+    },
+    dayText: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: colors.text,
     },
     selectedDayText: {
-      color: colors.card,
-      fontWeight: '700',
+      color: colors.primary,
+      fontWeight: '600',
     },
 
   });

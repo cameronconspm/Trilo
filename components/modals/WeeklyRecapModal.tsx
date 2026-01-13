@@ -131,24 +131,24 @@ export function WeeklyRecapModal({ visible, onClose, data }: WeeklyRecapModalPro
 
   useEffect(() => {
     if (visible) {
-      // Start entrance animation
+      // Start entrance animation using centralized config
       Animated.parallel([
         Animated.spring(scaleAnim, {
           toValue: 1,
           useNativeDriver: true,
-          tension: 150,
-          friction: 15,
+          tension: 120, // Standard spring config
+          friction: 10,
         }),
         Animated.timing(opacityAnim, {
           toValue: 1,
-          duration: 300,
+          duration: 300, // Standard duration
           useNativeDriver: true,
         }),
         Animated.spring(slideAnim, {
           toValue: 0,
           useNativeDriver: true,
-          tension: 150,
-          friction: 15,
+          tension: 120, // Standard spring config
+          friction: 10,
         }),
       ]).start();
       
@@ -174,21 +174,21 @@ export function WeeklyRecapModal({ visible, onClose, data }: WeeklyRecapModalPro
         }, 500);
       }
     } else {
-      // Reset animations
+      // Reset animations using centralized config
       Animated.parallel([
         Animated.timing(scaleAnim, {
           toValue: 0,
-          duration: 150,
+          duration: 200, // Fast duration for exit
           useNativeDriver: true,
         }),
         Animated.timing(opacityAnim, {
           toValue: 0,
-          duration: 150,
+          duration: 200, // Fast duration for exit
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
           toValue: 50,
-          duration: 150,
+          duration: 200, // Fast duration for exit
           useNativeDriver: true,
         }),
       ]).start();
@@ -329,7 +329,7 @@ export function WeeklyRecapModal({ visible, onClose, data }: WeeklyRecapModalPro
   };
 
   return (
-    <ModalWrapper visible={visible} onClose={onClose} animationType="fade" maxWidth={500}>
+    <ModalWrapper visible={visible} onClose={onClose} animationType="none" maxWidth={500}>
       <Animated.View style={[styles.container, animatedStyle]}>
           <Card style={[styles.modalCard, { backgroundColor: colors.cardBackground }] as any}>
             {/* Header */}

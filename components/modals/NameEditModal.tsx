@@ -54,7 +54,7 @@ export default function NameEditModal({
   const styles = createStyles(colors);
 
   return (
-    <ModalWrapper visible={visible} onClose={handleClose} animationType="fade">
+    <ModalWrapper visible={visible} onClose={handleClose} animationType="none">
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

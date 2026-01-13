@@ -102,7 +102,8 @@ interface PlaidLinkComponentProps {
   onEvent?: (event: any) => void;
 }
 
-export function PlaidLinkComponent({
+// Internal component that safely uses usePlaidEmitter
+function PlaidLinkComponentInner({
   onSuccess,
   onExit,
   onEvent,
@@ -113,6 +114,7 @@ export function PlaidLinkComponent({
   const linkCreatedRef = useRef(false);
 
   // Use Plaid event emitter for onEvent callbacks
+  // This component only renders when SDK is available, so it's safe to call
   usePlaidEmitter((event: LinkEvent) => {
     console.log('[Plaid] 📊 Link Event:', JSON.stringify(event, null, 2));
     onEvent?.(event);
@@ -130,7 +132,8 @@ export function PlaidLinkComponent({
       console.log('[Plaid] 🎉 Link Success');
       console.log('[Plaid]   Public Token:', success.publicToken?.substring(0, 20) + '...');
       console.log('[Plaid]   Institution:', success.metadata?.institution?.name || 'Unknown');
-      console.log('[Plaid]   Institution ID:', success.metadata?.institution?.institution_id || 'Unknown');
+      // Note: institution_id may not be available in all SDK versions
+      // console.log('[Plaid]   Institution ID:', success.metadata?.institution?.institution_id || 'Unknown');
       console.log('[Plaid]   Accounts:', success.metadata?.accounts?.length || 0);
 
       if (success.metadata?.accounts) {
@@ -148,16 +151,16 @@ export function PlaidLinkComponent({
       // Convert LinkSuccess to our PlaidLinkMetadata format
       const metadata: PlaidLinkMetadata = {
         institution: success.metadata?.institution ? {
-          name: success.metadata.institution.name,
-          institution_id: success.metadata.institution.institution_id,
+          name: success.metadata.institution.name || '',
+          institution_id: (success.metadata.institution as any).institution_id || '',
         } : undefined,
         accounts: success.metadata?.accounts?.map(account => ({
           id: account.id,
-          name: account.name,
-          type: account.type,
-          subtype: account.subtype,
-          mask: account.mask,
-        })),
+          name: account.name || '',
+          type: String(account.type),
+          subtype: account.subtype ? String(account.subtype) : undefined,
+          mask: account.mask || '',
+        })).filter(acc => acc.name && acc.mask) || [],
       };
 
       // Store success diagnostics
@@ -276,7 +279,14 @@ export function PlaidLinkComponent({
       // Increased to 2 minutes to allow users time to complete bank connection flow
       timeoutRef.current = setTimeout(() => {
         console.warn('[Plaid] ⚠️ Connection timeout (2 minutes elapsed)');
-        handleExit({ error: { errorMessage: 'Connection timeout - please try again' } });
+        handleExit({ 
+          metadata: {} as any,
+          error: { 
+            errorMessage: 'Connection timeout - please try again',
+            errorCode: 'TIMEOUT' as any,
+            errorType: 'INITIALIZATION_ERROR' as any
+          } as any
+        });
       }, 120000) as any; // 2 minute timeout (120 seconds)
 
       // Initialize and open Plaid Link
@@ -430,7 +440,14 @@ export function PlaidLinkComponent({
                 style: 'cancel',
                 onPress: () => {
                   console.log('[Plaid] User cancelled after error');
-                  handleExit({ error: { errorMessage: errorMessage } });
+                  handleExit({ 
+                    metadata: {} as any,
+                    error: { 
+                      errorMessage: errorMessage,
+                      errorCode: (error as any)?.errorCode || 'UNKNOWN',
+                      errorType: (error as any)?.errorType || 'UNKNOWN'
+                    } as any 
+                  });
                 },
               },
               {
@@ -455,7 +472,14 @@ export function PlaidLinkComponent({
                 text: 'OK',
                 onPress: () => {
                   console.log('[Plaid] User dismissed error');
-                  handleExit({ error: { errorMessage: errorMessage } });
+                  handleExit({ 
+                    metadata: {} as any,
+                    error: { 
+                      errorMessage: errorMessage,
+                      errorCode: (error as any)?.errorCode || 'UNKNOWN',
+                      errorType: (error as any)?.errorType || 'UNKNOWN'
+                    } as any 
+                  });
                 },
               },
             ]
@@ -476,11 +500,17 @@ export function PlaidLinkComponent({
       if (linkCreatedRef.current) {
         try {
           destroy().catch((error) => {
+            // Errors during cleanup are not critical, but log them
+            if (__DEV__) {
             console.warn('[Plaid] Error destroying Plaid Link session:', error);
+            }
           });
           dismissLink();
         } catch (error) {
+          // Errors during cleanup are not critical, but log them
+          if (__DEV__) {
           console.warn('[Plaid] Error cleaning up Plaid Link:', error);
+          }
         }
         linkCreatedRef.current = false;
       }
@@ -489,6 +519,17 @@ export function PlaidLinkComponent({
 
   // This component doesn't render anything - it's just for handling Plaid Link
   return null;
+}
+
+// Public component that conditionally renders based on SDK availability
+export function PlaidLinkComponent(props: PlaidLinkComponentProps) {
+  // Only render the inner component if SDK is available
+  // This prevents NativeEventEmitter from being created with null native module
+  if (!SDKAvailable) {
+    return null;
+  }
+
+  return <PlaidLinkComponentInner {...props} />;
 }
 
 // Hook to trigger Plaid Link

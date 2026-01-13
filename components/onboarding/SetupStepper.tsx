@@ -19,13 +19,14 @@ export function SetupStepper({ currentStep, totalSteps, stepLabels }: SetupStepp
     container: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: Spacing.xxl,
+      alignItems: 'flex-start',
+      paddingHorizontal: Spacing.lg,
       paddingVertical: Spacing.xl,
     },
     stepContainer: {
       flex: 1,
       alignItems: 'center',
+      minWidth: 0, // Allow flex shrinking
     },
     stepCircle: {
       width: 32,
@@ -61,9 +62,10 @@ export function SetupStepper({ currentStep, totalSteps, stepLabels }: SetupStepp
       ...Typography.caption,
       color: colors.textSecondary,
       textAlign: 'center',
-      fontSize: 11,
+      fontSize: 10,
       minHeight: 28,
-      maxWidth: 80,
+      width: '100%',
+      paddingHorizontal: 2,
     },
     stepLabelActive: {
       color: colors.text,
@@ -74,7 +76,8 @@ export function SetupStepper({ currentStep, totalSteps, stepLabels }: SetupStepp
       height: 2,
       backgroundColor: colors.border,
       marginHorizontal: Spacing.xs,
-      marginTop: -Spacing.xl,
+      marginTop: 16, // Align with circle center (32px circle / 2 = 16px)
+      maxWidth: 40,
     },
     connectorActive: {
       backgroundColor: colors.primary,
@@ -121,9 +124,9 @@ export function SetupStepper({ currentStep, totalSteps, stepLabels }: SetupStepp
                   styles.stepLabel,
                   isActive && styles.stepLabelActive,
                 ]}
-                numberOfLines={2}
+                numberOfLines={1}
                 adjustsFontSizeToFit
-                minimumFontScale={0.8}
+                minimumFontScale={0.75}
               >
                 {label}
               </Text>

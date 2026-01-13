@@ -29,6 +29,7 @@ export { default as Slider } from './forms/Slider';
 export { default as ProgressBar } from './feedback/ProgressBar';
 export { default as CircularProgress } from './feedback/CircularProgress';
 export { default as EmptyState } from './feedback/EmptyState';
+export { default as OfflineIndicator } from './feedback/OfflineIndicator';
 
 // Data Display Components
 export { default as TransactionItem } from './TransactionItem';
