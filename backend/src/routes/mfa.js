@@ -153,8 +153,15 @@ async function sendSMS(phoneNumber, code) {
  * Send SMS verification code to phone number
  */
 router.post('/send-code', async (req, res) => {
+  // #region agent log
+  console.log('[DEBUG] MFA send-code route hit', JSON.stringify({phone_number:req.body?.phone_number,user_id:req.body?.user_id,supabaseIsNull:supabase===null,timestamp:Date.now()}));
+  // #endregion
   try {
     const { phone_number, user_id } = req.body;
+
+    // #region agent log
+    console.log('[DEBUG] Request body parsed', JSON.stringify({hasPhone:!!phone_number,hasUserId:!!user_id,timestamp:Date.now()}));
+    // #endregion
 
     if (!phone_number || !user_id) {
       return res.status(400).json({ error: 'Phone number and user ID are required' });
@@ -172,6 +179,9 @@ router.post('/send-code', async (req, res) => {
     const verificationId = crypto.randomBytes(16).toString('hex');
 
     // Store verification code in database
+    // #region agent log
+    console.log('[DEBUG] Before Supabase insert', JSON.stringify({supabaseIsNull:supabase===null,verificationId,userId:user_id,timestamp:Date.now()}));
+    // #endregion
     const expiresAtISO = new Date(expiresAt).toISOString();
     const { error: insertError } = await supabase
       .from('mfa_verification_codes')
@@ -184,12 +194,25 @@ router.post('/send-code', async (req, res) => {
         expires_at: expiresAtISO,
       });
 
+    // #region agent log
+    console.log('[DEBUG] After Supabase insert', JSON.stringify({hasInsertError:!!insertError,insertErrorMessage:insertError?.message,insertErrorCode:insertError?.code,timestamp:Date.now()}));
+    // #endregion
+
     if (insertError) {
+      // #region agent log
+      console.log('[DEBUG] Supabase insert error thrown', JSON.stringify({errorMessage:insertError.message,errorCode:insertError.code,timestamp:Date.now()}));
+      // #endregion
       throw new Error(`Failed to store verification code: ${insertError.message}`);
     }
 
     // Send SMS
+    // #region agent log
+    console.log('[DEBUG] Before sendSMS call', JSON.stringify({phoneNumber:phone_number,hasTwilioSid:!!process.env.TWILIO_ACCOUNT_SID,hasTwilioToken:!!process.env.TWILIO_AUTH_TOKEN,hasTwilioPhone:!!process.env.TWILIO_PHONE_NUMBER,timestamp:Date.now()}));
+    // #endregion
     await sendSMS(phone_number, code);
+    // #region agent log
+    console.log('[DEBUG] After sendSMS call', JSON.stringify({success:true,timestamp:Date.now()}));
+    // #endregion
 
     console.log(`[MFA] Verification code sent to ${phone_number} for user ${user_id}`);
 
@@ -202,6 +225,9 @@ router.post('/send-code', async (req, res) => {
       ...((!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) && { code }), // Return code when SMS service not configured
     });
   } catch (error) {
+    // #region agent log
+    console.log('[DEBUG] Catch block - error details', JSON.stringify({errorMessage:error?.message,errorStack:error?.stack?.substring(0,500),errorName:error?.name,errorCode:error?.code,timestamp:Date.now()}));
+    // #endregion
     console.error('[MFA] Error sending verification code:', error);
     res.status(500).json({ error: 'Failed to send verification code' });
   }

@@ -178,8 +178,14 @@ try {
   app.use('/api/v1/mfa', mfaRoutes);
   app.use('/api/webhooks', webhookRoutes);
   console.log('[Trilo] 4. API routes registered: /api/plaid, /api/mfa, /api/webhooks');
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/fd030542-01b4-4fd0-bef5-1587e412ee0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:177',message:'MFA routes registered successfully',data:{mfaRoutesLoaded:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
 } catch (err) {
   console.error('[Trilo] 4. API routes failed to load (server will run with /health only):', err && err.message, err && err.stack);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/fd030542-01b4-4fd0-bef5-1587e412ee0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:181',message:'MFA routes failed to load',data:{errorMessage:err?.message,errorStack:err?.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
 }
 
 // Error handling middleware

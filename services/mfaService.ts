@@ -48,6 +48,9 @@ export async function sendSMSVerificationCode(phoneNumber: string, userId: strin
     console.log('[MFA]   Phone:', phoneNumber);
     console.log('[MFA]   User ID:', userId);
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/fd030542-01b4-4fd0-bef5-1587e412ee0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mfaService.ts:51',message:'Before fetch request',data:{url,phoneNumber,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -58,6 +61,9 @@ export async function sendSMSVerificationCode(phoneNumber: string, userId: strin
         user_id: userId,
       }),
     });
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/fd030542-01b4-4fd0-bef5-1587e412ee0b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'mfaService.ts:62',message:'After fetch request',data:{status:response.status,ok:response.ok,statusText:response.statusText},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,E'})}).catch(()=>{});
+    // #endregion
 
     console.log('[MFA] 📡 Response received');
     console.log('[MFA]   Status:', response.status);
