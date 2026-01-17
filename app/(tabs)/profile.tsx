@@ -22,7 +22,6 @@ import Header from '@/components/layout/Header';
 import Card from '@/components/layout/Card';
 import SettingsItem from '@/components/SettingsItem';
 import AlertModal from '@/components/modals/AlertModal';
-import ConfirmationModal from '@/components/modals/ConfirmationModal';
 import { CsvImportModal } from '@/components/modals';
 import { BadgeGalleryModal, LevelBadge } from '@/components/badges';
 import { useSettings } from '@/context/SettingsContext';
@@ -115,7 +114,6 @@ function ProfileScreenContent() {
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState<string>('');
   const [mfaSetupSkipped, setMfaSetupSkipped] = useState(false);
-  const [showDisableMFAConfirm, setShowDisableMFAConfirm] = useState(false);
 
   const { status, subscriptionDetails, trialDaysRemaining, monthlyPackage, annualPackage, purchaseSubscription, checkAccess } = useSubscription();
 
@@ -189,31 +187,39 @@ function ProfileScreenContent() {
   };
 
   const handleDisableMFA = () => {
-    setShowDisableMFAConfirm(true);
-  };
-
-  const handleDisableMFAConfirm = async () => {
-    if (user?.id) {
-      try {
-        await disableMFA(user.id);
-        setMfaEnabled(false);
-        setShowDisableMFAConfirm(false);
-        showAlert({
-          title: 'MFA Disabled',
-          message: 'Two-factor authentication has been disabled for your account.',
-          type: 'success',
-          actions: [{ text: 'OK', onPress: () => {} }],
-        });
-      } catch (error) {
-        setShowDisableMFAConfirm(false);
-        showAlert({
-          title: 'Error',
-          message: 'Failed to disable MFA. Please try again.',
-          type: 'error',
-          actions: [{ text: 'OK', onPress: () => {} }],
-        });
-      }
-    }
+    showAlert({
+      title: 'Disable Two-Factor Authentication',
+      message: 'Are you sure you want to disable two-factor authentication? This will make your account less secure.',
+      type: 'warning',
+      actions: [
+        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+        {
+          text: 'Disable',
+          onPress: async () => {
+            if (user?.id) {
+              try {
+                await disableMFA(user.id);
+                setMfaEnabled(false);
+                showAlert({
+                  title: 'MFA Disabled',
+                  message: 'Two-factor authentication has been disabled for your account.',
+                  type: 'success',
+                  actions: [{ text: 'OK', onPress: () => {} }],
+                });
+              } catch (error) {
+                showAlert({
+                  title: 'Error',
+                  message: 'Failed to disable MFA. Please try again.',
+                  type: 'error',
+                  actions: [{ text: 'OK', onPress: () => {} }],
+                });
+              }
+            }
+          },
+          style: 'destructive',
+        },
+      ],
+    });
   };
 
   const handleAvatarPress = async () => {
@@ -1251,17 +1257,6 @@ function ProfileScreenContent() {
       </SafeAreaView>
 
       <AlertModal {...alertState} onClose={hideAlert} />
-      
-      <ConfirmationModal
-        visible={showDisableMFAConfirm}
-        title="Disable Two-Factor Authentication"
-        message="Are you sure you want to disable two-factor authentication? This will make your account less secure."
-        actions={[
-          { text: 'Cancel', style: 'cancel', onPress: () => setShowDisableMFAConfirm(false) },
-          { text: 'Disable', style: 'destructive', onPress: handleDisableMFAConfirm },
-        ]}
-        onClose={() => setShowDisableMFAConfirm(false)}
-      />
 
       {showMFASetup && (
         <Modal
