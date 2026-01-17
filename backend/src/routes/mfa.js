@@ -252,6 +252,10 @@ router.post('/send-code', async (req, res) => {
     const isDevelopment = process.env.NODE_ENV !== 'production';
     const twilioNotConfigured = !process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER;
     const shouldReturnCode = isDevelopment || twilioNotConfigured;
+    
+    // #region agent log
+    console.log('[DEBUG] Code return decision', JSON.stringify({isDevelopment,twilioNotConfigured,shouldReturnCode,NODE_ENV:process.env.NODE_ENV,timestamp:Date.now()}));
+    // #endregion
 
     res.json({
       success: true,
