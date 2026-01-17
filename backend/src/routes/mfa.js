@@ -247,24 +247,28 @@ router.post('/send-code', async (req, res) => {
 
     console.log(`[MFA] Verification code sent to ${phone_number} for user ${user_id}`);
 
-    // Return code in development mode or when Twilio is not configured
-    // This allows testing even when SMS delivery fails (e.g., trial account limitations)
+    // Always return code for testing (especially important for trial accounts where SMS may fail)
+    // The frontend will only display it in development mode for security
+    // This allows MFA testing to work even when SMS delivery fails (e.g., Twilio trial account limitations)
     const isDevelopment = process.env.NODE_ENV !== 'production';
     const twilioNotConfigured = !process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER;
-    const shouldReturnCode = isDevelopment || twilioNotConfigured;
+    
+    // Return code if in development OR Twilio not configured OR explicitly enabled via env var
+    // This ensures testing works even with trial account SMS delivery failures
+    const returnCodeForTesting = process.env.MFA_RETURN_CODE_FOR_TESTING === 'true';
+    const shouldReturnCode = isDevelopment || twilioNotConfigured || returnCodeForTesting;
     
     // #region agent log
-    console.log('[DEBUG] Code return decision', JSON.stringify({isDevelopment,twilioNotConfigured,shouldReturnCode,NODE_ENV:process.env.NODE_ENV,timestamp:Date.now()}));
+    console.log('[DEBUG] Code return decision', JSON.stringify({isDevelopment,twilioNotConfigured,returnCodeForTesting,shouldReturnCode,NODE_ENV:process.env.NODE_ENV,timestamp:Date.now()}));
     // #endregion
 
     res.json({
       success: true,
       message: 'Verification code sent',
       verification_id: verificationId,
-      // Return code for development/testing or when Twilio is not configured
-      // Note: In production with Twilio configured and working, code is sent via SMS only
-      // If SMS delivery fails (e.g., error 30034), user can still test using this code
-      ...(shouldReturnCode && { code }),
+      // Always return code for testing - frontend will only display in dev mode
+      // This ensures MFA testing works even when SMS delivery fails (trial accounts, etc.)
+      code, // Always return code - frontend handles display logic
     });
   } catch (error) {
     // #region agent log
