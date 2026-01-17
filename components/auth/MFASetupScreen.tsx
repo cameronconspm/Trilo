@@ -18,6 +18,8 @@ import { Spacing, BorderRadius, Shadow, Typography } from '@/constants/spacing';
 import { Smartphone, MessageSquare, ArrowLeft } from 'lucide-react-native';
 import Button from '@/components/layout/Button';
 import PhoneNumberInput from '@/components/forms/PhoneNumberInput';
+import { useAlert } from '@/hooks/useAlert';
+import AlertModal from '@/components/modals/AlertModal';
 
 interface MFASetupScreenProps {
   onComplete: () => void;
@@ -28,6 +30,7 @@ export default function MFASetupScreen({ onComplete, onCancel }: MFASetupScreenP
   const { user } = useAuth();
   const { theme } = useSettings();
   const colors = useThemeColors(theme);
+  const { alertState, showAlert, hideAlert } = useAlert();
   
   const [step, setStep] = useState<'phone' | 'verify'>('phone');
   const [countryCode, setCountryCode] = useState('+1');
@@ -103,11 +106,12 @@ export default function MFASetupScreen({ onComplete, onCancel }: MFASetupScreenP
       if (isValid) {
         // Enable MFA permanently
         await enableMFA(user.id, fullPhoneNumber);
-        Alert.alert(
-          'Two-Factor Authentication Enabled',
-          'Your account is now protected with SMS verification.',
-          [{ text: 'OK', onPress: onComplete }]
-        );
+        showAlert({
+          title: 'Two-Factor Authentication Enabled',
+          message: 'Your account is now protected with SMS verification.',
+          type: 'success',
+          actions: [{ text: 'OK', onPress: onComplete }],
+        });
       } else {
         Alert.alert('Invalid Code', 'The code you entered is incorrect. Please try again.');
         setVerificationCode('');
@@ -374,6 +378,7 @@ export default function MFASetupScreen({ onComplete, onCancel }: MFASetupScreenP
           )}
         </View>
       </ScrollView>
+      <AlertModal {...alertState} onClose={hideAlert} />
     </SafeAreaView>
   );
 }
