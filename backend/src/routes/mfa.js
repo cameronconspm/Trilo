@@ -64,11 +64,16 @@ async function sendSMS(phoneNumber, code) {
       console.log(`[MFA] Twilio Status: ${message.status}`);
       console.log(`[MFA] To: ${normalizedTo}, From: ${normalizedFrom}`);
       
+      // Track if message was queued (may fail later) or immediately failed
+      const messageStatus = message.status;
+      const messageErrorCode = message.errorCode;
+      
       // Check for common issues
       if (message.status === 'queued' || message.status === 'sending') {
         console.log('[MFA] ✅ Message queued successfully. Delivery may take a few moments.');
         
         // Check message status after a short delay to see if delivery succeeded
+        // Note: This is async and won't block the response, but will log delivery status
         setTimeout(async () => {
           try {
             const updatedMessage = await client.messages(message.sid).fetch();
@@ -97,6 +102,7 @@ async function sendSMS(phoneNumber, code) {
                 console.error('[MFA]   3. Carrier blocking or filtering the message');
                 console.error('[MFA]   4. For trial accounts: Number must be verified in Twilio Console');
                 console.error('[MFA]   💡 Check Twilio Console for detailed delivery status');
+                console.error('[MFA]   💡 Code is returned in API response for testing');
               }
             } else if (updatedMessage.status === 'sent' || updatedMessage.status === 'delivered') {
               console.log(`[MFA] ✅ Message ${updatedMessage.status} successfully!`);
