@@ -12,6 +12,10 @@ const { apiVersioning } = require('./middleware/apiVersioning');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Trust proxy for Railway/Heroku (needed for rate limiting behind reverse proxy)
+app.set('trust proxy', true);
+
 console.log('[Trilo] 2. App created, PORT=', PORT);
 
 // Request ID middleware (must be first)
