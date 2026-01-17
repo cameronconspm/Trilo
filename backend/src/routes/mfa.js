@@ -340,24 +340,33 @@ router.post('/verify-code', async (req, res) => {
       await supabase.from('mfa_verification_codes').delete().eq('verification_id', verification_id);
 
       // Update user metadata in Supabase (optional)
-      try {
-        const { error: updateError } = await supabase.auth.admin.updateUserById(
-          storedData.user_id,
-          {
-            user_metadata: {
-              mfa_enabled: true,
-              mfa_enabled_at: new Date().toISOString(),
-              mfa_phone: storedData.phone_number,
-            },
-          }
-        );
+      // Only update if user_id is a valid UUID (Supabase auth users are UUIDs)
+      // Skip for test users or non-UUID user IDs
+      const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(storedData.user_id);
+      
+      if (isValidUUID) {
+        try {
+          const { error: updateError } = await supabase.auth.admin.updateUserById(
+            storedData.user_id,
+            {
+              user_metadata: {
+                mfa_enabled: true,
+                mfa_enabled_at: new Date().toISOString(),
+                mfa_phone: storedData.phone_number,
+              },
+            }
+          );
 
-        if (updateError) {
-          console.warn('[MFA] Failed to update user metadata:', updateError);
+          if (updateError) {
+            console.warn('[MFA] Failed to update user metadata:', updateError);
+            // Don't fail verification if metadata update fails
+          }
+        } catch (metadataError) {
+          console.warn('[MFA] Error updating user metadata:', metadataError);
           // Don't fail verification if metadata update fails
         }
-      } catch (metadataError) {
-        console.warn('[MFA] Error updating user metadata:', metadataError);
+      } else {
+        console.log(`[MFA] Skipping metadata update - user_id "${storedData.user_id}" is not a valid UUID (likely test user)`);
       }
 
       console.log(`[MFA] Verification successful for user ${storedData.user_id}`);
