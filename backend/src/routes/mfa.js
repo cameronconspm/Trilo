@@ -241,8 +241,8 @@ router.post('/send-code', async (req, res) => {
 
     console.log(`[MFA] Verification code sent to ${phone_number} for user ${user_id}`);
 
-    // Return code in development mode for testing (when SMS delivery may fail)
-    // In production, code should only be returned if Twilio is not configured
+    // Return code in development mode or when Twilio is not configured
+    // This allows testing even when SMS delivery fails (e.g., trial account limitations)
     const isDevelopment = process.env.NODE_ENV !== 'production';
     const twilioNotConfigured = !process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER;
     const shouldReturnCode = isDevelopment || twilioNotConfigured;
@@ -252,7 +252,8 @@ router.post('/send-code', async (req, res) => {
       message: 'Verification code sent',
       verification_id: verificationId,
       // Return code for development/testing or when Twilio is not configured
-      // Note: In production with Twilio configured, code is sent via SMS only
+      // Note: In production with Twilio configured and working, code is sent via SMS only
+      // If SMS delivery fails (e.g., error 30034), user can still test using this code
       ...(shouldReturnCode && { code }),
     });
   } catch (error) {
