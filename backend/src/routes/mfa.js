@@ -89,6 +89,14 @@ async function sendSMS(phoneNumber, code) {
                 console.error('[MFA] 💡 Verify the number at: https://console.twilio.com/us1/develop/phone-numbers/manage/verified');
               } else if (updatedMessage.errorCode === 30008) {
                 console.error('[MFA] ⚠️  Unknown destination handset');
+              } else if (updatedMessage.errorCode === 30034) {
+                console.error('[MFA] ⚠️  Unreachable destination handset (Error 30034)');
+                console.error('[MFA] 💡 Common causes:');
+                console.error('[MFA]   1. Phone number is invalid or not in service');
+                console.error('[MFA]   2. Phone is turned off or out of coverage');
+                console.error('[MFA]   3. Carrier blocking or filtering the message');
+                console.error('[MFA]   4. For trial accounts: Number must be verified in Twilio Console');
+                console.error('[MFA]   💡 Check Twilio Console for detailed delivery status');
               }
             } else if (updatedMessage.status === 'sent' || updatedMessage.status === 'delivered') {
               console.log(`[MFA] ✅ Message ${updatedMessage.status} successfully!`);
@@ -102,6 +110,13 @@ async function sendSMS(phoneNumber, code) {
         console.error(`[MFA] Error Code: ${message.errorCode || 'none'}`);
         console.error(`[MFA] Error Message: ${message.errorMessage || 'none'}`);
         console.error(`[MFA] ⚠️  Common issues: Unverified phone number (trial accounts), invalid number format, or account limitations.`);
+        
+        // Handle specific error codes
+        if (message.errorCode === 30034) {
+          console.error('[MFA] ⚠️  Error 30034: Unreachable destination handset');
+          console.error('[MFA] 💡 Verify the phone number is correct and in service');
+          console.error('[MFA] 💡 For trial accounts: Verify the number in Twilio Console');
+        }
       }
       
       return true;
@@ -226,13 +241,19 @@ router.post('/send-code', async (req, res) => {
 
     console.log(`[MFA] Verification code sent to ${phone_number} for user ${user_id}`);
 
+    // Return code in development mode for testing (when SMS delivery may fail)
+    // In production, code should only be returned if Twilio is not configured
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    const twilioNotConfigured = !process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER;
+    const shouldReturnCode = isDevelopment || twilioNotConfigured;
+
     res.json({
       success: true,
       message: 'Verification code sent',
       verification_id: verificationId,
-      // Return code if Twilio is not configured (for development/testing)
-      // In production with Twilio configured, code will be sent via SMS
-      ...((!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) && { code }), // Return code when SMS service not configured
+      // Return code for development/testing or when Twilio is not configured
+      // Note: In production with Twilio configured, code is sent via SMS only
+      ...(shouldReturnCode && { code }),
     });
   } catch (error) {
     // #region agent log

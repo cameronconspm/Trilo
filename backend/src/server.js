@@ -14,7 +14,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Trust proxy for Railway/Heroku (needed for rate limiting behind reverse proxy)
-app.set('trust proxy', true);
+// Only trust Railway's proxy, not all proxies (security best practice)
+app.set('trust proxy', 1); // Trust only the first proxy (Railway's load balancer)
 
 console.log('[Trilo] 2. App created, PORT=', PORT);
 
