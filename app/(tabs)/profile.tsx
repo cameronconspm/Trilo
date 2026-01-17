@@ -187,11 +187,12 @@ function ProfileScreenContent() {
   };
 
   const handleDisableMFA = () => {
-    Alert.alert(
-      'Disable Two-Factor Authentication',
-      'Are you sure you want to disable two-factor authentication? This will make your account less secure.',
-      [
-        { text: 'Cancel', style: 'cancel' },
+    showAlert({
+      title: 'Disable Two-Factor Authentication',
+      message: 'Are you sure you want to disable two-factor authentication? This will make your account less secure.',
+      type: 'warning',
+      actions: [
+        { text: 'Cancel', style: 'cancel', onPress: () => {} },
         {
           text: 'Disable',
           style: 'destructive',
@@ -217,8 +218,8 @@ function ProfileScreenContent() {
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const handleAvatarPress = async () => {
