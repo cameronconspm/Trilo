@@ -1,6 +1,13 @@
 const plaidClient = require('../config/plaid');
 const { BankAccount, Transaction } = require('../models');
 
+function getPlaid() {
+  if (!plaidClient) {
+    throw new Error('Plaid is not configured. Set PLAID_CLIENT_ID and PLAID_SECRET.');
+  }
+  return plaidClient;
+}
+
 class PlaidService {
   // Create Link Token for frontend
   static async createLinkToken(userId, customRedirectUri = null) {
@@ -42,7 +49,7 @@ class PlaidService {
         user: { client_user_id: request.user.client_user_id },
       }, null, 2));
 
-      const response = await plaidClient.linkTokenCreate(request);
+      const response = await getPlaid().linkTokenCreate(request);
       
       if (!response.data || !response.data.link_token) {
         throw new Error('Invalid response from Plaid: link_token missing');
@@ -105,7 +112,7 @@ class PlaidService {
         public_token: publicToken,
       };
 
-      const response = await plaidClient.itemPublicTokenExchange(request);
+      const response = await getPlaid().itemPublicTokenExchange(request);
       
       if (!response.data || !response.data.access_token) {
         throw new Error('Invalid response from Plaid: access_token missing');
@@ -117,7 +124,7 @@ class PlaidService {
 
       // Get account information
       console.log('[Plaid Backend] 📥 Fetching accounts...');
-      const accountsResponse = await plaidClient.accountsGet({
+      const accountsResponse = await getPlaid().accountsGet({
         access_token: access_token,
       });
 
@@ -252,7 +259,7 @@ class PlaidService {
   // Get account balances
   static async getAccountBalances(accessToken) {
     try {
-      const response = await plaidClient.accountsGet({
+      const response = await getPlaid().accountsGet({
         access_token: accessToken,
       });
 
@@ -366,7 +373,7 @@ class PlaidService {
         console.log('[Plaid Backend]   Requesting transactions:', startDate, 'to', endDate);
       }
 
-      const response = await plaidClient.transactionsGet(request);
+      const response = await getPlaid().transactionsGet(request);
       
       const transactions = response.data.transactions || [];
       const totalTransactions = response.data.total_transactions || transactions.length;
@@ -448,7 +455,7 @@ class PlaidService {
   // Remove item (disconnect bank account)
   static async removeItem(accessToken) {
     try {
-      await plaidClient.itemRemove({
+      await getPlaid().itemRemove({
         access_token: accessToken,
       });
       return true;

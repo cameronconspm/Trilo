@@ -17,6 +17,15 @@ const PORT = process.env.PORT || 3001;
 // Request ID middleware (must be first)
 app.use(requestIdMiddleware);
 
+// Health check first (before heavy middleware) so Railway healthchecks pass quickly
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+  });
+});
+
 // Security middleware - configure Helmet for financial app
 app.use(helmet({
   contentSecurityPolicy: {
@@ -94,15 +103,6 @@ app.use((req, res, next) => {
     }
   });
   next();
-});
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
 });
 
 // Plaid redirect handler (must be before API routes)

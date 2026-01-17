@@ -13,7 +13,7 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
-const { supabase } = require('../config/supabase');
+const supabase = require('../config/supabase');
 
 /**
  * Verify webhook authorization header
@@ -58,6 +58,9 @@ function verifyWebhookSignature(req, secret) {
 
 router.post('/revenuecat', async (req, res) => {
   try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
     // Verify webhook signature
     const isValid = verifyWebhookSignature(req, process.env.REVENUECAT_WEBHOOK_SECRET);
     if (!isValid) {
