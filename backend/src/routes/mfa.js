@@ -156,6 +156,16 @@ router.post('/send-code', async (req, res) => {
   // #region agent log
   console.log('[DEBUG] MFA send-code route hit', JSON.stringify({phone_number:req.body?.phone_number,user_id:req.body?.user_id,supabaseIsNull:supabase===null,timestamp:Date.now()}));
   // #endregion
+  
+  // Check if Supabase is configured
+  if (!supabase) {
+    console.error('[MFA] ❌ Supabase not configured - cannot store verification codes');
+    return res.status(503).json({ 
+      error: 'Service unavailable',
+      message: 'Database service is not configured. Please contact support.'
+    });
+  }
+  
   try {
     const { phone_number, user_id } = req.body;
 
@@ -238,6 +248,16 @@ router.post('/send-code', async (req, res) => {
  * Verify SMS code
  */
 router.post('/verify-code', async (req, res) => {
+  // Check if Supabase is configured
+  if (!supabase) {
+    console.error('[MFA] ❌ Supabase not configured - cannot verify codes');
+    return res.status(503).json({ 
+      verified: false,
+      error: 'Service unavailable',
+      message: 'Database service is not configured. Please contact support.'
+    });
+  }
+  
   try {
     const { verification_id, code, user_id, phone_number } = req.body;
 
