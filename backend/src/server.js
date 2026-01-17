@@ -4,15 +4,15 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-const plaidRoutes = require('./routes/plaid');
-const mfaRoutes = require('./routes/mfa');
-const webhookRoutes = require('./webhooks/revenuecat-webhook');
+console.log('[Trilo] 1. Core deps loaded');
+
 const { requestIdMiddleware } = require('./utils/requestId');
 const { generalLimiter } = require('./middleware/rateLimit');
 const { apiVersioning } = require('./middleware/apiVersioning');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+console.log('[Trilo] 2. App created, PORT=', PORT);
 
 // Request ID middleware (must be first)
 app.use(requestIdMiddleware);
@@ -166,21 +166,21 @@ app.get('/plaid/redirect', async (req, res) => {
 // API versioning middleware (before routes)
 app.use('/api', apiVersioning);
 
-// API routes (will work with or without version prefix)
-// /api/plaid/* and /api/v1/plaid/* both work (v1 is default)
-app.use('/api/plaid', plaidRoutes);
-app.use('/api/mfa', mfaRoutes);
-// Also register versioned routes for explicit version usage
-app.use('/api/v1/plaid', plaidRoutes);
-app.use('/api/v1/mfa', mfaRoutes);
-
-// Log registered routes for debugging
-console.log('✅ API Routes registered:');
-console.log('   - /api/plaid/*');
-console.log('   - /api/mfa/*');
-
-// Webhook routes (must be before body parsing middleware to capture raw body if needed)
-app.use('/api/webhooks', webhookRoutes);
+// Load and register API routes in try-catch so /health can work even if these fail
+console.log('[Trilo] 3. Loading API routes...');
+try {
+  const plaidRoutes = require('./routes/plaid');
+  const mfaRoutes = require('./routes/mfa');
+  const webhookRoutes = require('./webhooks/revenuecat-webhook');
+  app.use('/api/plaid', plaidRoutes);
+  app.use('/api/mfa', mfaRoutes);
+  app.use('/api/v1/plaid', plaidRoutes);
+  app.use('/api/v1/mfa', mfaRoutes);
+  app.use('/api/webhooks', webhookRoutes);
+  console.log('[Trilo] 4. API routes registered: /api/plaid, /api/mfa, /api/webhooks');
+} catch (err) {
+  console.error('[Trilo] 4. API routes failed to load (server will run with /health only):', err && err.message, err && err.stack);
+}
 
 // Error handling middleware
 // Only handle errors if response hasn't been sent yet
@@ -249,8 +249,9 @@ app.use('*', (req, res) => {
 });
 
 // Start server
+console.log('[Trilo] 5. Calling app.listen...');
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Trilo Backend Server running on port ${PORT}`);
+  console.log(`[Trilo] 6. 🚀 Trilo Backend Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Plaid Environment: ${process.env.PLAID_ENV || 'sandbox'}`);
   console.log(`🌐 CORS Origin: ${process.env.CORS_ORIGIN || 'http://localhost:8081'}`);

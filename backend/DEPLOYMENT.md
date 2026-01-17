@@ -18,13 +18,17 @@ Railway is the easiest way to deploy your Node.js backend with a generous free t
 
 ### Step 2: Deploy to Railway
 
-1. **Initialize Railway project**:
+1. **Set Root Directory to `backend`** (if using GitHub deploys):
+   - Railway Dashboard → your service → Settings
+   - Set **Root Directory** (or "Source") to `backend` so `npm ci`, `npm run build`, and `node src/server.js` run from the backend folder. If this is wrong, the healthcheck will fail with "service unavailable" and you will see no server logs.
+
+2. **Initialize Railway project** (CLI):
    ```bash
    cd backend
    railway init
    ```
 
-2. **Deploy**:
+3. **Deploy**:
    ```bash
    railway up
    ```
